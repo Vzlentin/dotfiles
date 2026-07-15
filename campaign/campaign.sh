@@ -82,7 +82,13 @@ outcome_for_issue() {
 
 pane_json_field() { jq -r --arg f "$1" '.result.pane[$f] // empty'; }
 
-pane_status() { herdr pane get "$1" | pane_json_field agent_status || echo unknown; }
+pane_status() {
+  # Empty output (herdr gone, malformed JSON) must read as unknown, not as a
+  # still-running pane — unknown is what trips the crash detector.
+  local status
+  status=$(herdr pane get "$1" | pane_json_field agent_status) || status=""
+  if [ -n "$status" ]; then echo "$status"; else echo unknown; fi
+}
 
 if [ "$DRY_RUN" = 1 ]; then
   N=$(next_issue) || N=""
