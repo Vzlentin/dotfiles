@@ -1,0 +1,11 @@
+# Allowlist: skills are untracked by default. Third-party CLI-managed skills
+# (installed via the skills CLI) are reproducible from .skill-lock.json, which
+# is tracked as the restore manifest.
+skills/*
+!skills/go/
+!skills/project-memory/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
