@@ -326,14 +326,12 @@ def test_load_project_config_reads_go_table(tmp_path: Path) -> None:
     config_dir = tmp_path / ".agents"
     config_dir.mkdir()
     (config_dir / "config.toml").write_text(
-        '[go]\nquality_gates = ["lint", "test"]\nvenv_gate = "import-check"\n'
-        '[go.data]\nbig = "data/big"\n',
+        '[go]\nquality_gates = ["lint", "test"]\nsetup_check = "import-check"\n',
         encoding="utf-8",
     )
     table = provision_worktree.load_project_config(tmp_path)
     assert table["quality_gates"] == ["lint", "test"]
-    assert table["venv_gate"] == "import-check"
-    assert table["data"] == {"big": "data/big"}
+    assert table["setup_check"] == "import-check"
 
 
 def test_load_project_config_malformed_toml_fails_loudly(tmp_path: Path) -> None:
@@ -349,7 +347,7 @@ def test_provision_refuses_existing_worktree_path(
 ) -> None:
     (scratch_repo / ".worktrees" / "taken").mkdir(parents=True)
     monkeypatch.chdir(scratch_repo)
-    assert provision_worktree.cmd_provision("feat/taken", require_data=[]) == 1
+    assert provision_worktree.cmd_provision("feat/taken") == 1
     assert "already exists" in capsys.readouterr().err
 
 
@@ -358,14 +356,14 @@ def test_provision_refuses_existing_branch(
 ) -> None:
     _git(["branch", "feat/exists"], cwd=scratch_repo)
     monkeypatch.chdir(scratch_repo)
-    assert provision_worktree.cmd_provision("feat/exists", require_data=[]) == 1
+    assert provision_worktree.cmd_provision("feat/exists") == 1
     assert not (scratch_repo / ".worktrees" / "exists").exists()
 
 
 def test_provision_rejects_branch_without_type_prefix(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    assert provision_worktree.cmd_provision("noslash", require_data=[]) == 1
+    assert provision_worktree.cmd_provision("noslash") == 1
     assert "<type>/<slug>" in capsys.readouterr().err
 
 
@@ -425,7 +423,7 @@ def test_provision_aborts_on_first_failed_setup_step(
 
     monkeypatch.setattr(provision_worktree, "_run_step", fake_run_step)
 
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=[]) == 1
+    assert provision_worktree.cmd_provision("feat/fresh") == 1
     assert executed == ["step-one"], "a failed step must abort before later steps run"
 
 
@@ -439,13 +437,12 @@ def _provision_fakes(
     scratch_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
     failing_step: str | None = None,
-    worktree_contents: tuple[str, ...] = (),
 ) -> tuple[FakeRunner, list[str]]:
     """Fake out git and setup steps so cmd_provision reaches its gates.
 
-    The fake ``git worktree add`` creates the worktree directory (plus any
-    ``worktree_contents`` subpaths) like the real command would. Returns the
-    fake runner and the list of steps executed through ``_run_step``.
+    The fake ``git worktree add`` creates the worktree directory like the real
+    command would. Returns the fake runner and the list of steps executed
+    through ``_run_step``.
     """
     cursor_dir = scratch_repo / ".cursor"
     cursor_dir.mkdir(exist_ok=True)
@@ -468,9 +465,7 @@ def _provision_fakes(
     def call(args: list[str], cwd: object = None) -> subprocess.CompletedProcess[str]:
         if args[:3] == ["git", "worktree", "add"]:
             fake.calls.append(list(args))
-            worktree = Path(args[3])
-            for sub in worktree_contents or ("",):
-                (worktree / sub).mkdir(parents=True, exist_ok=True)
+            Path(args[3]).mkdir(parents=True, exist_ok=True)
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
         return original_call(args, cwd)
 
@@ -486,30 +481,30 @@ def _provision_fakes(
     return fake, executed
 
 
-def test_provision_runs_configured_venv_gate(
+def test_provision_runs_configured_setup_check(
     scratch_repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _write_project_config(scratch_repo, '[go]\nvenv_gate = "import-check"\n')
+    _write_project_config(scratch_repo, '[go]\nsetup_check = "import-check"\n')
     _, executed = _provision_fakes(scratch_repo, monkeypatch)
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=[]) == 0
+    assert provision_worktree.cmd_provision("feat/fresh") == 0
     assert executed == ["step-ok", "import-check"]
 
 
-def test_provision_fails_when_venv_gate_fails(
+def test_provision_fails_when_setup_check_fails(
     scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    _write_project_config(scratch_repo, '[go]\nvenv_gate = "import-check"\n')
+    _write_project_config(scratch_repo, '[go]\nsetup_check = "import-check"\n')
     _provision_fakes(scratch_repo, monkeypatch, failing_step="import-check")
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=[]) == 1
-    assert "venv gate failed" in capsys.readouterr().err
+    assert provision_worktree.cmd_provision("feat/fresh") == 1
+    assert "setup check failed" in capsys.readouterr().err
 
 
-def test_provision_without_config_skips_venv_gate(
+def test_provision_without_config_skips_setup_check(
     scratch_repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _, executed = _provision_fakes(scratch_repo, monkeypatch)
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=[]) == 0
-    assert executed == ["step-ok"], "no venv gate may run without a project config"
+    assert provision_worktree.cmd_provision("feat/fresh") == 0
+    assert executed == ["step-ok"], "no setup check may run without a project config"
 
 
 def test_provision_without_worktrees_json_runs_no_setup_steps(
@@ -517,52 +512,15 @@ def test_provision_without_worktrees_json_runs_no_setup_steps(
 ) -> None:
     _, executed = _provision_fakes(scratch_repo, monkeypatch)
     (scratch_repo / ".cursor" / "worktrees.json").unlink()
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=[]) == 0
+    assert provision_worktree.cmd_provision("feat/fresh") == 0
     assert executed == []
-
-
-def test_provision_non_table_data_config_refused(
-    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    _write_project_config(scratch_repo, '[go]\ndata = "oops"\n')
-    _provision_fakes(scratch_repo, monkeypatch)
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=["o"]) == 1
-    assert "not a table" in capsys.readouterr().err, (
-        "a string data value would turn the membership check into a substring match"
-    )
-
-
-def test_provision_unknown_data_requirement_refused_before_worktree_add(
-    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    fake, _ = _provision_fakes(scratch_repo, monkeypatch)
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=["big"]) == 1
-    assert "unknown data requirement" in capsys.readouterr().err
-    assert not any(c[:3] == ["git", "worktree", "add"] for c in fake.calls)
-
-
-def test_provision_require_data_fails_without_data(
-    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    _write_project_config(scratch_repo, '[go.data]\nbig = "data/big"\n')
-    _provision_fakes(scratch_repo, monkeypatch)
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=["big"]) == 1
-    assert "no data/big" in capsys.readouterr().err
-
-
-def test_provision_require_data_passes_with_data(
-    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _write_project_config(scratch_repo, '[go.data]\nbig = "data/big"\n')
-    _provision_fakes(scratch_repo, monkeypatch, worktree_contents=("data/big",))
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=["big"]) == 0
 
 
 def test_provision_success_prints_workdir_json(
     scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _provision_fakes(scratch_repo, monkeypatch)
-    assert provision_worktree.cmd_provision("feat/fresh", require_data=[]) == 0
+    assert provision_worktree.cmd_provision("feat/fresh") == 0
     out = capsys.readouterr().out
     payload = json.loads(out[out.index("{") :])
     assert payload == {

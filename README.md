@@ -1,7 +1,7 @@
 # .agents
 
-User-level agent skills and orchestration, tracked as a public repo that
-**is** the `~/.agents` directory:
+A personal `~/.agents` directory published as reference. The interesting
+parts:
 
 - **`skills/go/`** — an implementation-orchestration pipeline: give it an
   idea, a GitHub issue, or a plan file, and it drives the work end-to-end to
@@ -9,84 +9,79 @@ User-level agent skills and orchestration, tracked as a public repo that
   → review → resolve feedback → CI loop → merge → persist outcome).
 - **`skills/project-memory/`** — project-agnostic durable memory backed by an
   Obsidian vault, with a repo-relative `docs/plans/` fallback for plans.
-- **`campaign/campaign.sh`** — a serial queue drain: pulls the next issue off
+- **`campaign/campaign.py`** — a serial queue drain: pulls the next issue off
   a labeled GitHub queue and runs `/go` on it in a fresh agent pane, one unit
-  at a time, keyed on the run-state contract below.
+  at a time.
 
-Skills not listed in `.gitignore`'s allowlist (third-party, CLI-managed) stay
-untracked; `.skill-lock.json` is the tracked manifest to restore them.
+## Requirements
+
+- **`gh`** (authenticated) — issue queue and PR operations.
+- **`herdr`** — launches and monitors the agent panes the campaign loop runs
+  units in.
+- **`omp`** — the agent harness that executes `/go` inside each pane.
+- **Python ≥ 3.11** — every script is stdlib-only; nothing to install.
 
 ## Install
+
+Clone to `~/.agents` only if you don't already have one:
 
 ```bash
 git clone https://github.com/Vzlentin/.agents "$HOME/.agents"
 ```
 
-On Windows with WSL, keep one working copy and symlink the WSL home to it:
+If you already have a `~/.agents`, fork this repo instead, or copy the
+`skills/` you want into your existing directory. Harnesses that walk
+`~/.agents/skills` (omp, Codex) pick the skills up from the user home in any
+repo.
 
-```bash
-ln -s /mnt/c/Users/<user>/.agents "$HOME/.agents"
-```
-
-Skill discovery: harnesses that walk `~/.agents/skills` (omp, Codex) pick the
-skills up from the user home in any repo.
+Untracked (CLI-managed) skills are restorable from the tracked
+`.skill-lock.json` manifest.
 
 ## Per-project configuration
 
-The go skill is project-agnostic; each target repo declares its specifics in
-a committed `.agents/config.toml`:
+Each target repo declares its specifics in a committed `.agents/config.toml`.
+Everything is optional; a missing file or table means defaults:
 
 ```toml
 [go]
 quality_gates = ["uv run ruff check .", "uv run pytest"]  # gate commands, in order
-venv_gate = "uv run python -c 'import mypackage'"          # proves the env works
+setup_check = "uv run python -c 'import mypackage'"       # proves the provisioned env works
 
-[go.data]
-bigdataset = "data/big"   # named data requirement -> repo-relative path
+[campaign]
+queue_label = "queue"            # label marking issues ready to run
+claim_label = "claimed"          # label added when a unit is claimed
+title_filter = "^U\\d+"          # only issues whose title matches are eligible
+plan = "docs/plans/campaign.md"  # campaign plan, repo-relative
+log = "docs/plans/campaign-log.md"
 ```
 
-A missing config means generic defaults: no venv gate, no data checks, and
-quality gates discovered from the project's own docs/CI. Worktree setup steps
-are read from the project's `.cursor/worktrees.json` (`setup-worktree-unix`)
-when present.
+Deep details live next to the code: the go skill docs
+([skills/go/references/worktree-provisioning.md](skills/go/references/worktree-provisioning.md))
+for `[go]`, and the header of
+[`campaign/campaign.py`](campaign/campaign.py) for `[campaign]`.
 
-## The /go run-state contract
-
-Each `/go` run keeps one flat JSON dict at
-`<git-common-dir>/go-runs/<slug>.json` — inside `.git`, so private by
-construction and shared between the main checkout and its worktrees. Two keys
-are mandatory:
-
-- **`issue`** — the backing GitHub issue number, recorded at Stage 0c.
-- **`outcome`** — the terminal outcome, recorded at Stage 6:
-  `shipped` | `failed` | `ready-for-external-gates`.
-
-An outer loop reads exactly those two keys to advance its queue; a settled
-run with no `outcome` is treated as a crash. Manage state with
-`skills/go/scripts/run_state.py` (`init` / `set` / `get` / `list`).
-
-## Campaign usage
+## Campaign
 
 ```bash
-campaign/campaign.sh [--dry-run] <config.env>
+python campaign/campaign.py <workrepo>
 ```
 
-The config is sourced bash; see the header of
-[`campaign/campaign.sh`](campaign/campaign.sh) for the required variables
-(`REPO`, `WORKREPO`, queue/claim labels, the `NEXT_ISSUE_JQ` ordering
-expression, plan/log paths, prompt template). Keep instance configs
-**outside** the repo (e.g. `~/.config/agents/campaigns/<name>.env`) — they may
-carry private paths. `--dry-run` resolves the config and the next queue issue
-without claiming anything or launching panes.
+Drains the labeled issue queue of `<workrepo>`'s origin repo: claims the next
+issue, launches `/go` on it in a fresh agent pane, waits for the outcome, and
+stops on the first non-shipped unit. All config keys, their defaults, and the
+`CAMPAIGN_PLAN` / `CAMPAIGN_LOG` env overrides are documented in the header
+of [`campaign/campaign.py`](campaign/campaign.py).
 
-Requires `gh` (authed), `jq`, `herdr`, and `omp` at run time.
+The loop keys on the `/go` run-state contract (`issue` and `outcome` in
+`<git-common-dir>/go-runs/<slug>.json`); see
+[skills/go/SKILL.md](skills/go/SKILL.md).
 
 ## Development
 
 ```bash
-pip install pytest   # or: uv sync
+pip install pytest ruff   # or: uv sync
 pytest
-shellcheck campaign/*.sh
+ruff check .
 ```
 
-CI runs the pytest suite on Ubuntu and Windows, plus shellcheck.
+CI runs the pytest suite on Ubuntu and Windows, plus ruff.

@@ -27,18 +27,11 @@ worktree takes seconds when the package cache is shared; **never** copy the
 main virtualenv between worktrees (it is typically non-relocatable — absolute
 paths in its config and scripts).
 
-## Environment and data gates
+## Environment gate
 
-The project declares its gates in `<repo>/.agents/config.toml` (`[go]`
-table): `venv_gate` is a command that proves the provisioned environment
-actually works (an import smoke test, a compile check), and `[go.data]` maps
-requirement names to repo-relative paths for datasets a work item may depend
-on.
-
-Setup steps often guard data provisioning with `test -d … || true`, which
-**swallows a failed copy/link** — a data-less worktree then provisions
-"successfully". The real catch is the script's `--require-data <name>` gate
-for data-dependent items (the venv gate passes without data), per SKILL.md's
-Stage 0d data-presence GATE. Large datasets are best linked (symlink/junction)
-rather than copied into every worktree when they are read-only for the
-pipeline; declare each in `[go.data]` so the gate can verify presence.
+The project declares its gate in `<repo>/.agents/config.toml` (`[go]` table):
+`setup_check` is a command that proves the provisioned environment actually
+works (an import smoke test, a compile check). Setup steps can fail in ways a
+zero exit code hides (an `|| true` guard, a partially-populated environment);
+the setup check runs after all steps and catches a worktree that provisioned
+"successfully" but cannot actually run the project.

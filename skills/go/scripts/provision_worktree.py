@@ -11,13 +11,11 @@ Python's subprocess, which bypasses the MSYS wrapper that can print a literal
 steps read dynamically from the project's ``.cursor/worktrees.json`` when
 present (substituting ``$ROOT_WORKTREE_PATH`` with the main checkout path;
 absent config means a plain ``git worktree add`` with no setup), aborts on the
-first failed step, then gates on the project's venv-gate command — plus a
-data-presence check per ``--require-data <name>``. It never mutates the caller
-checkout and refuses an existing worktree path or branch.
+first failed step, then gates on the project's setup-check command. It never
+mutates the caller checkout and refuses an existing worktree path or branch.
 
-Project-specific gates come from ``<repo>/.agents/config.toml`` (``[go]``
-table: ``venv_gate`` command string, ``[go.data]`` name-to-path map). A
-missing config means no venv gate and no known data requirements.
+The setup check comes from ``<repo>/.agents/config.toml`` (``[go]`` table:
+``setup_check`` command string). A missing config means no setup check.
 
 Exit codes: 0 success, 1 failure.
 """
@@ -77,7 +75,7 @@ def load_project_config(root: Path) -> dict:
 
     Returns:
         The ``[go]`` table as a dict; empty when the config file or table is
-        absent (generic defaults: no venv gate, no data requirements).
+        absent (generic defaults: no setup check).
 
     Raises:
         SystemExit: When the file exists but is not valid TOML — a broken
@@ -139,7 +137,7 @@ def cmd_decide() -> int:
     return 0
 
 
-def cmd_provision(branch: str, require_data: list[str]) -> int:
+def cmd_provision(branch: str) -> int:
     """Provision an isolated worktree on a fresh branch cut from origin/main."""
     if "/" not in branch:
         print(f"branch must be <type>/<slug>, got {branch!r}", file=sys.stderr)
@@ -158,18 +156,6 @@ def cmd_provision(branch: str, require_data: list[str]) -> int:
     # Read every config before creating anything: a malformed config must not
     # strand a half-provisioned worktree.
     project = load_project_config(main)
-    data_table = project.get("data", {})
-    if not isinstance(data_table, dict):
-        # A string here would make `name in data_table` a substring check.
-        print(f"[go.data] in {CONFIG_RELPATH} is not a table", file=sys.stderr)
-        return 1
-    unknown = [name for name in require_data if name not in data_table]
-    if unknown:
-        print(
-            f"unknown data requirement(s) {unknown}: not in [go.data] of {CONFIG_RELPATH}",
-            file=sys.stderr,
-        )
-        return 1
 
     steps: list[str] = []
     worktrees_config = main / ".cursor" / "worktrees.json"
@@ -205,12 +191,9 @@ def cmd_provision(branch: str, require_data: list[str]) -> int:
         if _run_step(step, cwd=worktree) != 0:
             return _fail(f"FAILED setup step: {step}")
 
-    venv_gate = project.get("venv_gate")
-    if venv_gate and _run_step(venv_gate, cwd=worktree) != 0:
-        return _fail(f"venv gate failed: {venv_gate}")
-    for name in require_data:
-        if not (worktree / data_table[name]).is_dir():
-            return _fail(f"data gate failed: no {data_table[name]} in {worktree}")
+    setup_check = project.get("setup_check")
+    if setup_check and _run_step(setup_check, cwd=worktree) != 0:
+        return _fail(f"setup check failed: {setup_check}")
 
     print(json.dumps({"workdir": str(worktree), "branch": branch}, indent=2))
     return 0
@@ -225,18 +208,11 @@ def main(argv: list[str] | None = None) -> int:
 
     p_prov = sub.add_parser("provision", help="provision .worktrees/<slug> on <type>/<slug>")
     p_prov.add_argument("branch", help="<type>/<slug> branch name")
-    p_prov.add_argument(
-        "--require-data",
-        action="append",
-        default=[],
-        metavar="NAME",
-        help="also gate on a named data requirement from [go.data] (repeatable)",
-    )
 
     args = parser.parse_args(argv)
     if args.command == "decide":
         return cmd_decide()
-    return cmd_provision(args.branch, args.require_data)
+    return cmd_provision(args.branch)
 
 
 if __name__ == "__main__":

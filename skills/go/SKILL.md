@@ -66,13 +66,18 @@ unit's resolved plan (Stage 0b still makes a unit plan).
   every stage of this run.
 - **Project config.** `<repo>/.agents/config.toml` supplies what the scripts
   and gates need deterministically, in a `[go]` table:
+
+  ```toml
+  [go]
+  quality_gates = ["uv run ruff check .", "uv run pytest"]
+  setup_check = "uv run python -c 'import mypackage'"
+  ```
+
   - `quality_gates` — the list of gate commands (lint, type check, tests) run
     before any commit lands.
-  - `venv_gate` — a command that proves a provisioned environment works.
-  - `[go.data]` — named data requirements mapping a name to a repo-relative
-    path, gated per work item with `--require-data <name>`.
-  A missing config means generic defaults: no venv gate, no data checks, and
-  quality gates discovered from the project's own docs/CI.
+  - `setup_check` — a command that proves a provisioned environment works.
+  A missing config means generic defaults: no setup check, and quality gates
+  discovered from the project's own docs/CI.
 - **Storage is delegated.** The plan store and outcome persistence are resolved by
   `/project-memory`.
 - **Public repo, private context stays out.** Assume the target repo is public.
@@ -317,14 +322,13 @@ prints `{"mode": "direct"|"worktree", "main": <MAIN path>}`:
 
 ```bash
 python3 "$SKILL_DIR/scripts/provision_worktree.py" provision <type>/<slug>
-# add --require-data <name> per data requirement the work item declares (see the GATE)
 ```
 
 The script reads the setup steps dynamically from the project's
 `.cursor/worktrees.json` when present (absent config → plain
 `git worktree add`, no setup steps), aborts on the first failed step, refuses
 an existing worktree/branch collision, never mutates the caller checkout, and
-runs the project's venv gate (the `venv_gate` command from
+runs the project's setup check (the `setup_check` command from
 `.agents/config.toml`, when configured) itself. On success it prints
 `{"workdir": <absolute path>, "branch": <type>/<slug>}` — take `WORKDIR` from
 the `workdir` field. On a failure after the worktree was created, it prints
@@ -344,20 +348,9 @@ python3 "$SKILL_DIR/scripts/run_state.py" set <slug> branch <type>/<slug>
 ```
 
 **GATE (worktree mode):** `provision` exited 0 — that exit code *is* the
-worktree + venv gate. If it exited non-zero, stop and report — do **not** fall
-back to mutating the user's dirty checkout. In direct mode this gate is
+worktree + setup check. If it exited non-zero, stop and report — do **not**
+fall back to mutating the user's dirty checkout. In direct mode this gate is
 automatically satisfied.
-
-**GATE (data presence — both modes, conditional).** When the work item declares
-a dependency on a named data requirement — its plan or issue references a
-dataset listed in the project's `[go.data]` config table — the data must be
-present in `WORKDIR`. In worktree mode pass `--require-data <name>` to
-`provision`, which adds the presence check for that requirement's path (this
-catches setup steps whose failure is swallowed by an `|| true`, leaving a
-data-less worktree that the venv gate alone would not detect); in direct mode
-assert the configured path exists in `$MAIN`. If a data-dependent item's data
-is absent, stop and report — do not run on into a later runtime failure. Items
-without declared data dependencies impose no such requirement.
 
 ---
 
