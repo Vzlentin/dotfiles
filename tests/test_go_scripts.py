@@ -521,6 +521,17 @@ def test_provision_without_worktrees_json_runs_no_setup_steps(
     assert executed == []
 
 
+def test_provision_non_table_data_config_refused(
+    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _write_project_config(scratch_repo, '[go]\ndata = "oops"\n')
+    _provision_fakes(scratch_repo, monkeypatch)
+    assert provision_worktree.cmd_provision("feat/fresh", require_data=["o"]) == 1
+    assert "not a table" in capsys.readouterr().err, (
+        "a string data value would turn the membership check into a substring match"
+    )
+
+
 def test_provision_unknown_data_requirement_refused_before_worktree_add(
     scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

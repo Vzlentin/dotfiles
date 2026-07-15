@@ -159,6 +159,10 @@ def cmd_provision(branch: str, require_data: list[str]) -> int:
     # strand a half-provisioned worktree.
     project = load_project_config(main)
     data_table = project.get("data", {})
+    if not isinstance(data_table, dict):
+        # A string here would make `name in data_table` a substring check.
+        print(f"[go.data] in {CONFIG_RELPATH} is not a table", file=sys.stderr)
+        return 1
     unknown = [name for name in require_data if name not in data_table]
     if unknown:
         print(
