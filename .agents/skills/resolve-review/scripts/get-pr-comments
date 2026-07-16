@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# get-pr-comments — fetch a PR's unresolved review feedback as one JSON object.
+#
+# usage: get-pr-comments PR_NUMBER [OWNER/REPO]
+#
+# Run from inside the target repo (owner/repo auto-detected via gh) or pass
+# OWNER/REPO explicitly. Output object keys:
+#
+#   review_threads  unresolved inline review threads, each with id,
+#                   isOutdated, path, line info, and up to 100 comments
+#   pr_comments     top-level PR conversation comments, excluding the PR
+#                   author and known CI/status bots
+#   review_bodies   review submissions with non-empty bodies, same filtering
+#
+# Each top-level GraphQL connection (reviewThreads, comments, reviews) is
+# paginated in its own query — `gh api graphql --paginate` only follows the
+# outermost pageInfo, so combining them would silently drop pages. Per-thread
+# comments are capped at 100 without follow-up pagination. `isOutdated` means
+# the diff hunk moved, not that the concern was addressed; only resolution
+# state is authoritative, so outdated-but-unresolved threads are surfaced.
+#
+# Adapted from the ce-resolve-pr-feedback skill in Every's
+# compound-engineering plugin (https://github.com/EveryInc/compound-engineering).
+#
+# shellcheck disable=SC2016  # single-quoted $vars are GraphQL variables, not shell
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "usage: get-pr-comments PR_NUMBER [OWNER/REPO]" >&2
+  exit 1
+fi
+
+PR_NUMBER=$1
+
+if [ -n "${2:-}" ]; then
+  OWNER=${2%%/*}
+  REPO=${2##*/}
+else
+  # `|| true` is load-bearing: under `set -e` a failed command substitution
+  # in an assignment aborts the script before the friendly error below.
+  OWNER=$(gh repo view --json owner -q .owner.login 2>/dev/null || true)
+  REPO=$(gh repo view --json name -q .name 2>/dev/null || true)
+fi
+
+if [ -z "$OWNER" ] || [ -z "$REPO" ]; then
+  echo "error: could not resolve owner/repo — run from inside the target repo or pass OWNER/REPO" >&2
+  exit 1
+fi
+
+threads_pages=$(gh api graphql --paginate --slurp \
+  -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUMBER" \
+  -f query='
+query Threads($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      author { login }
+      reviewThreads(first: 100, after: $endCursor) {
+        nodes {
+          id
+          isResolved
+          isOutdated
+          path
+          line
+          originalLine
+          startLine
+          originalStartLine
+          comments(first: 100) {
+            nodes {
+              id
+              author { login }
+              body
+              createdAt
+              url
+            }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}')
+
+comments_pages=$(gh api graphql --paginate --slurp \
+  -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUMBER" \
+  -f query='
+query Comments($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      comments(first: 100, after: $endCursor) {
+        nodes {
+          id
+          author { login }
+          body
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}')
+
+reviews_pages=$(gh api graphql --paginate --slurp \
+  -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUMBER" \
+  -f query='
+query Reviews($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      reviews(first: 100, after: $endCursor) {
+        nodes {
+          id
+          author { login }
+          body
+          state
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}')
+
+# Only structurally non-actionable CI/status bots are filtered at the source;
+# AI review bots stay in — their top-level comments can carry real findings.
+jq -n \
+  --argjson threads "$threads_pages" \
+  --argjson comments "$comments_pages" \
+  --argjson reviews "$reviews_pages" '
+  ($threads[0].data.repository.pullRequest.author) as $author |
+  [$threads[].data.repository.pullRequest.reviewThreads.nodes[]] as $all_threads |
+  [$comments[].data.repository.pullRequest.comments.nodes[]] as $all_comments |
+  [$reviews[].data.repository.pullRequest.reviews.nodes[]] as $all_reviews |
+  ["codecov"] as $ci_bot_logins |
+  {
+    review_threads: [$all_threads[] | select(.isResolved == false) | { node: . }],
+    pr_comments: [$all_comments[]
+      | select(.author.login != $author.login)
+      | select(.author.login as $l | $ci_bot_logins | index($l) | not)
+      | select(.body | test("^\\s*$") | not)],
+    review_bodies: [$all_reviews[]
+      | select(.body != null and .body != "")
+      | select(.author.login != $author.login)
+      | select(.author.login as $l | $ci_bot_logins | index($l) | not)]
+  }'

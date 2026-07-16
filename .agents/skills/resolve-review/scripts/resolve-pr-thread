@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# resolve-pr-thread — mark a PR review thread resolved via GraphQL.
+#
+# usage: resolve-pr-thread THREAD_ID
+#
+# Prints the thread's id, isResolved, path, and line as JSON confirmation.
+#
+# Adapted from the ce-resolve-pr-feedback skill in Every's
+# compound-engineering plugin (https://github.com/EveryInc/compound-engineering).
+#
+# shellcheck disable=SC2016  # single-quoted $vars are GraphQL variables, not shell
+set -euo pipefail
+
+if [ $# -eq 0 ]; then
+  echo "usage: resolve-pr-thread THREAD_ID" >&2
+  exit 1
+fi
+
+THREAD_ID=$1
+
+gh api graphql -f threadId="$THREAD_ID" -f query='
+mutation ResolveReviewThread($threadId: ID!) {
+  resolveReviewThread(input: {threadId: $threadId}) {
+    thread {
+      id
+      isResolved
+      path
+      line
+    }
+  }
+}'

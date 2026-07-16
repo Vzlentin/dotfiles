@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# reply-to-pr-thread — reply within a PR review thread via GraphQL.
+#
+# usage: echo 'reply body' | reply-to-pr-thread THREAD_ID
+#
+# The body is read from stdin to avoid shell-escaping issues with markdown
+# (quotes, newlines). Prints the created comment's id and url as JSON.
+#
+# Adapted from the ce-resolve-pr-feedback skill in Every's
+# compound-engineering plugin (https://github.com/EveryInc/compound-engineering).
+#
+# shellcheck disable=SC2016  # single-quoted $vars are GraphQL variables, not shell
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "usage: echo 'reply body' | reply-to-pr-thread THREAD_ID" >&2
+  exit 1
+fi
+
+THREAD_ID=$1
+BODY=$(cat)
+
+if [ -z "$BODY" ]; then
+  echo "error: no body provided on stdin" >&2
+  exit 1
+fi
+
+gh api graphql -f threadId="$THREAD_ID" -f body="$BODY" -f query='
+mutation ReplyToReviewThread($threadId: ID!, $body: String!) {
+  addPullRequestReviewThreadReply(input: {
+    pullRequestReviewThreadId: $threadId
+    body: $body
+  }) {
+    comment {
+      id
+      url
+    }
+  }
+}'
