@@ -126,7 +126,7 @@ jq -n \
   [$threads[].data.repository.pullRequest.reviewThreads.nodes[]] as $all_threads |
   [$comments[].data.repository.pullRequest.comments.nodes[]] as $all_comments |
   [$reviews[].data.repository.pullRequest.reviews.nodes[]] as $all_reviews |
-  ["codecov"] as $ci_bot_logins |
+  ["codecov[bot]", "codecov-commenter"] as $ci_bot_logins |
   def external: select(.author.login != $author.login)
     | select(.author.login as $l | $ci_bot_logins | index($l) | not);
   {

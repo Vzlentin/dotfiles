@@ -67,10 +67,13 @@ gh api "repos/{owner}/{repo}/pulls/<pr>/comments" \
   -f side=RIGHT -f body="<severity + finding + quoted evidence + suggested fix>"
 ```
 
-Use the PR head SHA from Step 1 as `commit_id`. A finding that has no single
-anchorable line (cross-file/design) goes in one summary review comment
-(`gh pr comment`) instead. Do not push code, do not fix anything here —
-review only.
+Use the PR head SHA from Step 1 as `commit_id`. Anchor a cross-file/design
+finding as an inline thread too, on the most representative changed line —
+**not** as a top-level `gh pr comment`: the whole pipeline runs under one gh
+identity, so a top-level comment is authored by the PR author and the
+resolve stage's own-comment filter would silently drop it. Only inline
+threads are guaranteed to reach the resolve stage. Do not push code, do not
+fix anything here — review only.
 
 Finish with a summary: personas run, findings posted per severity (with
 thread URLs), findings dropped in validation, or "zero findings" when clean.

@@ -87,7 +87,7 @@ configured agent command (default `pi`).
 pip install pytest ruff   # or: uv sync
 pytest
 ruff check .
-shellcheck .local/bin/campaign install.sh
+shellcheck .local/bin/campaign install.sh .agents/skills/resolve-review/scripts/*
 ```
 
 CI runs the pytest suite on Ubuntu and Windows, plus ruff and shellcheck.

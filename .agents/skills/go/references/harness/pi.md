@@ -12,14 +12,19 @@ Two named agents, canonical in the dotfiles repo at `.agents/agents/` and
 symlinked by `install.sh` into `~/.pi/agent/agents/` (pi-subagents' global
 discovery path; project-local `.pi/agents/` would override by name):
 
-- **`implementer`** — `mode: interactive`, `async: false`, full tools,
-  `trust-project: true` so the child loads the project's `AGENTS.md` and
-  skills (`/implement` must resolve in the child). Its pane stays open and
-  inspectable after completion.
-- **`analyst`** — `mode: background`, `async: false`, `auto-exit: true`,
-  `deny-tools: edit,write` (read-only by construction). The persona/lens
-  identity arrives in the task text pasted from the calling skill's persona
-  files — there is one analyst agent, not one per persona.
+- **`implementer`** — interactive, sync, full tools, trusts the project so
+  the child loads the project's `AGENTS.md` and skills (`/implement` must
+  resolve in the child). Its pane stays open and inspectable after
+  completion.
+- **`analyst`** — background, sync, edit/write denied. Not fully read-only
+  by construction — bash remains available for `git diff`/`gh` inspection —
+  so the agent definition's non-mutating instructions carry the rest. The
+  persona/lens identity arrives in the task text pasted from the calling
+  skill's persona files — there is one analyst agent, not one per persona.
+
+The exact frontmatter flags live in `.agents/agents/implementer.md` and
+`analyst.md` — those files are the authority, and the contract test pins the
+load-bearing ones (`async: false`, `deny-tools`, `trust-project`).
 
 ## Sync semantics — zero polling
 
@@ -71,12 +76,16 @@ set it (`herdr`, `tmux`, …) to force a backend. Under herdr the child appears
 as a labelled tab in the parent workspace.
 
 **Fallback:** if no supported mux is active, interactive launches fail with a
-setup hint. Then either run the parent inside tmux/herdr, or flip the launch
-to a background child (launch `implementer` with `mode: background` override
-in a project-local agent file, or accept the analyst-style headless run) —
-the pipeline contract (sync launch, artifacts verified from authoritative
-sources) is unchanged; only inspectability is lost. Do not fall back to
-implementing inline in the parent.
+setup hint. Prefer fixing the surface (run the parent inside tmux/herdr).
+Flipping the implementer to a background child works but costs more than
+inspectability: pi-subagents runs background children with `--no-approve`,
+which drops `trust-project` — the child no longer auto-loads the project's
+`AGENTS.md`, settings, or project-local skills. If you must go background,
+compensate in the brief: paste the project's quality-gate commands and any
+load-bearing `AGENTS.md` rules into the task text, and verify `/implement`
+still resolves (it is a global skill here, so it does). The sync launch and
+authoritative-artifact verification are unchanged either way. Do not fall
+back to implementing inline in the parent.
 
 ## Driver invocations
 

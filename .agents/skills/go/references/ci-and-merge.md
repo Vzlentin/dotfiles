@@ -32,7 +32,7 @@ the worktree removal is **not** forced: uncommitted work inside the worktree
 refuses the removal (exit 2, merged-but-cleanup-incomplete) instead of being
 destroyed.
 
-- **Direct mode** (the main checkout is on the PR branch from Stage 1): return
+- **Direct mode** (the main checkout is on the PR branch from Stage 3): return
   to `main`, fast-forward, drop the branch.
 - **Worktree mode** (the main checkout never left the user's branch/dirty
   tree): remove the worktree and drop the branch **without** `git checkout

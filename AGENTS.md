@@ -31,7 +31,7 @@ home directory.
 ```bash
 pytest
 ruff check .
-shellcheck .local/bin/campaign install.sh
+shellcheck .local/bin/campaign install.sh .agents/skills/resolve-review/scripts/*
 ```
 
 All three run in CI (pytest on Ubuntu and Windows).

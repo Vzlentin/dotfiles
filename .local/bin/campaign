@@ -30,16 +30,18 @@
 # the agent keeps its TUI open after the run (deliberately — the pane stays
 # inspectable), so herdr is used for pane split/rename/run only, never for
 # completion detection. Completion is detected by polling the /go run state:
-# /go's Stage 8 records a terminal `outcome` key, so the loop polls
+# /go's terminal stage records an `outcome` key, so the loop polls
 # <git-common-dir>/go-runs/<slug>.json until the outcome appears or the
-# per-unit timeout expires. A marker file touched at launch guards retries:
-# an outcome only counts if its state JSON is newer than the launch (a
-# retried unit can't re-read its old outcome). No fresh outcome within the
-# timeout is recorded as `timeout` — the run may be hung, blocked on input,
-# or crashed before Stage 8; the pane is preserved for inspection either way.
+# per-unit timeout expires. Retries are guarded twice: any terminal
+# `outcome` left by a previous run is cleared (run_state.py unset) before
+# launch, and an outcome only counts if its state JSON is newer than the
+# launch marker. No fresh outcome within the timeout is recorded as
+# `timeout` — the run may be hung, blocked on input, or crashed before
+# recording an outcome; the pane is preserved for inspection either way.
 #
-# Contract with /go (SKILL.md): Stage 1 records `issue` and Stage 8 records
-# `outcome` in <git-common-dir>/go-runs/<slug>.json, read here via
+# Contract with /go (SKILL.md): the plan/issue stage records `issue` and the
+# terminal merge-and-persist stage records `outcome` in
+# <git-common-dir>/go-runs/<slug>.json, read here via
 # `run_state.py list --json`. Code units (U9a) match the slug prefix
 # (u9a-...), numeric units match the `issue` field.
 #
@@ -134,7 +136,7 @@ state_for() { # unit -> print the matching /go run-state JSON object, if any
 prompt_for() { # unit -> the agent prompt: /skill:go line + optional plan context
   printf '/skill:go %s' "$1"
   if [ -n "$PLAN" ]; then
-    printf "\nCAMPAIGN CONTEXT — not the unit spec: the campaign plan is %s. Use this unit's section as planning input only; Stage 1 still makes a unit plan." "$PLAN"
+    printf "\nCAMPAIGN CONTEXT — not the unit spec: the campaign plan is %s. Use this unit's section as planning input only; the planning stage still makes a unit plan." "$PLAN"
   fi
 }
 
@@ -153,13 +155,20 @@ while UNIT=$(next_unit); do
   [ -n "$PANE" ] || die "herdr pane split failed"
   herdr pane rename "$PANE" "go-$UNIT" >/dev/null
 
-  MARKER=$(mktemp) # stale-outcome guard: outcomes older than launch don't count
+  # Retry guard, part 1: a retried unit resumes its old state file, which
+  # still carries the previous run's terminal `outcome`. Clear it before
+  # launch — otherwise the new run's first mid-run `set` would refresh the
+  # file's mtime and launder the stale outcome past the marker check below.
+  PRIOR=$(state_for "$UNIT")
+  if [ -n "$PRIOR" ] && [ -n "$(jq -r '.outcome // empty' <<<"$PRIOR")" ]; then
+    python3 "$RUN_STATE" unset "$(jq -r .slug <<<"$PRIOR")" outcome
+  fi
+
+  MARKER=$(mktemp) # retry guard, part 2: outcomes older than launch don't count
   herdr pane run "$PANE" "$AGENT_CMD $(printf '%q' "$PROMPT")" >/dev/null
 
   # Completion detection: poll the /go run state for a fresh terminal
-  # `outcome` (Stage 8 always writes one, even on failure). The MARKER
-  # guard rejects outcomes recorded before this launch, so a retried unit
-  # never re-reads its old result.
+  # `outcome` (/go always writes one, even on failure).
   DEADLINE=$((SECONDS + TIMEOUT_S))
   SLUG=""
   PR=""
@@ -173,6 +182,8 @@ while UNIT=$(next_unit); do
       if [ -n "$OUTCOME" ] && [ -n "$SLUG" ] && [ "$RUNS_DIR/$SLUG.json" -nt "$MARKER" ]; then
         break # fresh terminal outcome from this launch
       fi
+      SLUG="" # stale or partial state: no field of it belongs in the ledger
+      PR=""
       OUTCOME=""
     fi
     sleep "$POLL_INTERVAL_S"
@@ -181,12 +192,15 @@ while UNIT=$(next_unit); do
 
   if [ -z "$OUTCOME" ]; then
     OUTCOME=timeout
-    echo "$UNIT: no outcome recorded after ${TIMEOUT_H}h — the run may be hung, blocked on input, or crashed before Stage 8."
+    echo "$UNIT: no outcome recorded after ${TIMEOUT_H}h — the run may be hung, blocked on input, or crashed before recording an outcome."
   fi
 
   append_ledger "$UNIT" "$OUTCOME" "$PR" "$SLUG"
   if [ "$OUTCOME" = shipped ]; then
     echo "=== $UNIT: shipped ($(date -Iseconds)) ==="
+    # The outcome is written before the agent's final report renders; give
+    # the turn a moment to finish before tearing the pane down.
+    sleep 60
     herdr pane close "$PANE" >/dev/null
   else
     echo "$UNIT: $OUTCOME — pane go-$UNIT preserved for debugging. Stopping."

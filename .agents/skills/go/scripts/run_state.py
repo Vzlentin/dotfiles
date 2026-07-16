@@ -6,7 +6,9 @@ so both resolve the same file; and because it lives inside ``.git`` the state
 is untracked and private by construction.
 
 Commands: ``init <slug> [--force]``, ``set <slug> <key> <value>``,
-``get <slug> [key]``, ``list [--json]``. ``list`` prints bare slugs;
+``unset <slug> <key>``, ``get <slug> [key]``, ``list [--json]``. ``unset``
+removes a key and is idempotent — a campaign loop clears a stale terminal
+``outcome`` before relaunching a retried unit. ``list`` prints bare slugs;
 ``list --json`` prints every run's full state as one JSON array (unreadable
 state files are skipped), for callers that match on fields — e.g. a campaign
 loop resolving a unit to its run via ``issue`` or a ``slug`` prefix.
@@ -81,6 +83,16 @@ def cmd_set(slug: str, key: str, value: str) -> int:
     return 0
 
 
+def cmd_unset(slug: str, key: str) -> int:
+    """Remove one key from an existing run's state; missing keys are a no-op."""
+    path = state_path(slug)
+    state = load_state(path)
+    if key in state:
+        del state[key]
+        save_state(path, state)
+    return 0
+
+
 def cmd_get(slug: str, key: str | None) -> int:
     """Print one key's value, or the whole state dict when no key is given."""
     state = load_state(state_path(slug))
@@ -126,6 +138,10 @@ def main(argv: list[str] | None = None) -> int:
     p_set.add_argument("key")
     p_set.add_argument("value")
 
+    p_unset = sub.add_parser("unset", help="remove one key from a run's state")
+    p_unset.add_argument("slug")
+    p_unset.add_argument("key")
+
     p_get = sub.add_parser("get", help="print one key, or the whole state")
     p_get.add_argument("slug")
     p_get.add_argument("key", nargs="?")
@@ -138,6 +154,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_init(args.slug, args.force)
     if args.command == "set":
         return cmd_set(args.slug, args.key, args.value)
+    if args.command == "unset":
+        return cmd_unset(args.slug, args.key)
     if args.command == "get":
         return cmd_get(args.slug, args.key)
     return cmd_list(args.json)

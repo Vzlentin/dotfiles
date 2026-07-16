@@ -8,6 +8,7 @@ collision refusal.
 """
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -43,8 +44,8 @@ def test_go_harness_specifics_are_isolated_in_the_pi_recipe() -> None:
     recipe = (go_dir / "references" / "harness" / "pi.md").read_text(encoding="utf-8")
 
     assert "references/harness/pi.md" in skill
-    for host_specific in ("herdr", "omp ", "PI_SUBAGENT", "subagent("):
-        assert host_specific not in skill, f"harness detail {host_specific!r} leaked into SKILL.md"
+    leak = re.search(r"\b(herdr|omp)\b|PI_SUBAGENT|subagent\(", skill)
+    assert leak is None, f"harness detail {leak.group()!r} leaked into SKILL.md"
 
     assert 'agent: "implementer"' in recipe
     assert 'agent: "analyst"' in recipe
@@ -53,6 +54,33 @@ def test_go_harness_specifics_are_isolated_in_the_pi_recipe() -> None:
 
     brief_path = go_dir / "references" / "ce-work-brief.md"
     assert not brief_path.exists(), "the ce-work brief is superseded by the implement skill"
+
+
+def test_stage_skills_point_at_the_existing_harness_recipe() -> None:
+    """simplify and review depend on go's harness recipe by path; if the
+    recipe moves, their pointers must break CI instead of rotting silently."""
+    skills_dir = REPO_ROOT / ".agents" / "skills"
+    recipe = skills_dir / "go" / "references" / "harness" / "pi.md"
+    assert recipe.is_file()
+    for name in ("simplify", "review"):
+        text = (skills_dir / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "references/harness/pi.md" in text, f"{name} lost its harness-recipe pointer"
+
+
+def test_agent_definitions_pin_the_pipeline_contract() -> None:
+    """The .agents/agents/ frontmatter is what pi-subagents actually reads
+    (symlinked by install.sh); pin the flags the pipeline's zero-polling and
+    read-only guarantees rely on, not just the recipe prose describing them."""
+    agents_dir = REPO_ROOT / ".agents" / "agents"
+    analyst = (agents_dir / "analyst.md").read_text(encoding="utf-8")
+    implementer = (agents_dir / "implementer.md").read_text(encoding="utf-8")
+
+    for text, name in ((analyst, "analyst"), (implementer, "implementer")):
+        assert "async: false" in text, f"{name} must be sync — the pipeline never polls"
+    assert "mode: background" in analyst
+    assert "deny-tools: edit,write" in analyst, "analysts must stay read-only"
+    assert "mode: interactive" in implementer
+    assert "trust-project: true" in implementer, "/implement must resolve in the child"
 
 
 @pytest.fixture
@@ -104,6 +132,23 @@ def test_run_state_init_set_get_roundtrip(
 
     assert run_state.main(["list"]) == 0
     assert capsys.readouterr().out.split() == ["my-slug"]
+
+
+def test_run_state_unset_removes_key_and_is_idempotent(
+    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The campaign retry guard clears a stale terminal outcome via unset; the
+    key must be gone afterwards and a second unset must not fail."""
+    monkeypatch.chdir(scratch_repo)
+    assert run_state.main(["init", "my-slug"]) == 0
+    assert run_state.main(["set", "my-slug", "outcome", "failed"]) == 0
+    capsys.readouterr()
+
+    assert run_state.main(["unset", "my-slug", "outcome"]) == 0
+    assert run_state.main(["unset", "my-slug", "outcome"]) == 0
+
+    assert run_state.main(["get", "my-slug"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"slug": "my-slug"}
 
 
 def test_run_state_list_json_prints_full_states(

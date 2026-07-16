@@ -270,8 +270,9 @@ the mode clause, and the plan path from the resolved store:
 >   `<WORKDIR>` on the existing `<type>/<slug>` branch — do **not** create a
 >   branch, do **not** touch the main checkout.
 >
-> Finish by pushing the branch and opening a PR whose body includes
-> `closes #N`. Report back: PR number, PR URL, and the branch name.
+> Finish per the implement skill's Finish contract: push the branch, open a
+> PR whose body includes `closes #N`, and report back the PR number, PR URL,
+> branch name, and quality-gate results.
 
 The subagent is synchronous: when the launch returns, the implementation is
 done (or failed). Do not parse its rendered output as the result contract —
@@ -345,25 +346,19 @@ not block the merge unless they flag a correctness risk — use judgment.
 
 Invoke the `babysit` skill from `WORKDIR` (inline) for this PR: it resolves
 clear merge conflicts, triages late comments, and fixes in-scope CI failures
-in a bounded loop (max 3 fix iterations, repeated-signature stop). It never
+in a bounded loop — the bounds and guardrails are babysit's own. It never
 merges.
 
 Give it the verdict machinery — `ci_verdict.py` is the **only CI truth
-source** on this host (typed check-runs API; see `references/environment.md`
-and `references/ci-and-merge.md`). Capture the head SHA
-(`HEAD_SHA=$(cd "$WORKDIR" && git rev-parse HEAD)`) and poll:
+source** on this host (typed check-runs API; verdict semantics in
+`references/ci-and-merge.md`, host caveats in `references/environment.md`).
+Capture the head SHA (`HEAD_SHA=$(cd "$WORKDIR" && git rev-parse HEAD)`),
+recapturing it after every push, and poll:
 
 ```bash
 python3 "$SKILL_DIR/scripts/ci_verdict.py" verdict $HEAD_SHA
 ```
 
-Exit codes are the verdict — 0 **green**, 1 **pending**, 2 **failure**, 3
-**non-verdict** (never green, never merge; re-poll or escalate). Failed-run
-logs come from `python3 "$SKILL_DIR/scripts/ci_verdict.py" logs <run-id>`.
-Recapture `HEAD_SHA` after every push.
-
-The outer guardrails bind throughout: never weaken assertions, skip tests,
-drift a frozen baseline, or make unrelated workflow changes to turn CI green.
 If babysit stops short (bounds hit, out-of-scope failure, intent conflict),
 append a `## CI Failures Unresolved` section to the PR body
 (`gh pr edit <PR> --body-file <tmp>`), do **not** merge red, and take the
@@ -427,8 +422,8 @@ exactly one outcome:
   plan to flip — just report `failed`.
 
 Record the terminal outcome in the run state — **mandatory, even on
-`failed`**; an outer campaign loop treats a run that ends without an `outcome`
-key as crashed:
+`failed`**; an outer campaign loop records a run that never persists an
+`outcome` as `timeout` (hung, blocked on input, or crashed):
 `python3 "$SKILL_DIR/scripts/run_state.py" set <slug> outcome
 <shipped|failed|ready-for-external-gates>`.
 

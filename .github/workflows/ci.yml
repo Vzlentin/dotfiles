@@ -34,4 +34,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: shellcheck .local/bin/campaign install.sh
+      - run: shellcheck .local/bin/campaign install.sh .agents/skills/resolve-review/scripts/*
