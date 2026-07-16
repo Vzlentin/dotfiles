@@ -33,6 +33,24 @@ def _git(args: list[str], cwd: Path) -> str:
     return proc.stdout.strip()
 
 
+def test_go_primary_worker_is_pane_backed() -> None:
+    skill = (REPO_ROOT / ".agents" / "skills" / "go" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    brief = (
+        REPO_ROOT / ".agents" / "skills" / "go" / "references" / "ce-work-brief.md"
+    ).read_text(encoding="utf-8")
+
+    assert "herdr pane split --current --direction right" in skill
+    assert 'herdr pane run "$PANE" "omp $(printf \'%q\' "$PROMPT")"' in skill
+    assert '--status working' in skill
+    assert '--status idle' in skill
+    assert "Do not invoke the `task`, `job`, or `irc` tools" in brief
+    removed_agent = "side" + "kick"
+    assert removed_agent not in skill.casefold()
+    assert removed_agent not in brief.casefold()
+
+
 @pytest.fixture
 def scratch_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"

@@ -1,10 +1,9 @@
-# Stage 1 — implementation subagent brief
+# Stage 1 — pane-backed implementation worker brief
 
-Spawn **one** foreground agent (model per the Stage 0a routing classification —
-routine work on the `sidekick` agent, judgment-heavy work inheriting the
-frontier model) with the brief below, filling in `#N`, `<type>/<slug>`,
+Render the brief below into `PROMPT` and launch it as one root `omp` session
+through SKILL.md's Pane-backed worker contract. Fill in `#N`, `<type>/<slug>`,
 `<WORKDIR>`, the project's quality-gate commands (as its AGENTS.md/CI define
-them), and the pasted plan text.
+them), and the plan path.
 
 ---
 
@@ -21,15 +20,11 @@ them), and the pasted plan text.
 >   `<type>/<slug>` branch — do **not** create a branch, do **not** touch the
 >   main checkout.
 >
-> You may delegate internally per the Fusion policy, via the `task` tool:
-> mechanical sub-steps (test runs, scaffolding, applying already-specified
-> fixes) go to `agent: sidekick`, recon to `explore`; keep every judgment
-> call — spec interpretation, design, and acceptance of delegated output — to
-> yourself. `sidekick` has no native auto-delegation, so internal
-> delegation is manual spawn-based. After delegating, block on `job`
-> completion — never busy-poll or repeatedly inspect partial output.
-> Delegates never weaken tests, skip gates, or touch frozen surfaces beyond
-> their brief.
+> Execute directly in this pane using `ce-work`'s inline execution engine.
+> Do not invoke the `task`, `job`, or `irc` tools and do not spawn nested
+> agents. This root session is the sole implementation worker so the complete
+> implementation trace remains visible in herdr. If the plan requires an
+> unresolved product decision, stop and report the blocker instead of guessing.
 >
 > Run the project's quality gates — <the project's own gate commands, as its
 > AGENTS.md/CI define them> — in the **FOREGROUND**, blocking on each gate's

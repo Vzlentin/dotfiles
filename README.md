@@ -12,7 +12,9 @@ The interesting parts:
   it an idea, a GitHub issue, or a plan file, and it drives the work
   end-to-end to a squash-merged PR (plan → issue → isolated worktree →
   implement → simplify → review → resolve feedback → CI loop → merge →
-  persist outcome).
+  persist outcome). Its primary `ce-work` implementation runs as a separate
+  root `omp` session in a herdr pane, so the worker stays visible and
+  inspectable instead of disappearing into an in-process task tree.
 - **`.agents/skills/project-memory/`** — project-agnostic durable memory
   backed by an Obsidian vault, with a repo-relative `docs/plans/` fallback
   for plans.
