@@ -81,97 +81,47 @@ Stage 0a input classification, and a referenced campaign plan is planning
 Each stage delegates to a skill-primitive; how it's invoked depends on who owns
 the fan-out:
 
-- **Subagent (fresh context window):** invoke the `ce-work` skill inside a normal
-  implementation-capable subagent — `ce-work` is a skill, not a required
-  `subagent_type` / tool name.
+- **Pane-backed worker (fresh root session):** invoke `ce-work` in a new herdr
+  pane running its own `omp` process. This is deliberately a separate root
+  session, not an omp `task` subagent: the user can focus the pane and inspect
+  its prompt, reasoning, tools, and output while it runs.
 - **Inline (the `/go` agent runs it directly):** `ce-plan`, `ce-simplify-code`,
   `ce-code-review`, `ce-resolve-pr-feedback`. `ce-plan` runs inline so its
   clarifying gates can reach you (a subagent can't ask questions); the others
   each fan out their own subagents, so `/go` runs them itself to own that
   fan-out rather than nest it inside another subagent.
 
----
+`/go` never launches implementation through omp's `task` tool. A task child is
+owned by its parent process and has no terminal or herdr pane; using it here
+would make the primary worker invisible again.
 
-## Model routing
+### Pane-backed worker contract
 
-`/go` routes work between the frontier main model and the cheap `sidekick`
-omp task agent (pinned in machine config — `~/.omp/agent/agents/sidekick.md`,
-not committed to any repo), with the `slow` model role as the escalation tier
-and the bundled read-only `explore` agent (on the `smol` role) for recon, per
-the Fusion sidekick pattern: the main agent delegates and monitors, reads only
-what it needs to decide, and keeps the plan, interpretation of ambiguity, and
-final review for itself.
+Render the Stage 1 brief into `PROMPT`, then launch it from Bash:
 
-The main agent runs at its configured frontier effort; this section is the
-steering policy for that delegator — the routing table below is the
-*what-goes-where*.
+```bash
+for tool in herdr omp jq; do
+  command -v "$tool" >/dev/null || { echo "required tool not on PATH: $tool" >&2; exit 1; }
+done
+PANE=$(herdr pane split --current --direction right --cwd "$WORKDIR" \
+  | jq -r '.result.pane.pane_id // empty')
+[ -n "$PANE" ] || { echo "herdr pane split failed" >&2; exit 1; }
+herdr pane rename "$PANE" "go-<slug>-implement" >/dev/null \
+  || { echo "herdr pane rename failed" >&2; exit 1; }
+herdr pane run "$PANE" "omp $(printf '%q' "$PROMPT")" >/dev/null \
+  || { echo "herdr pane run failed" >&2; exit 1; }
+herdr wait agent-status "$PANE" --status working --timeout 60000 >/dev/null || true
+herdr wait agent-status "$PANE" --status idle --timeout 50400000 >/dev/null \
+  || { echo "implementation pane timed out" >&2; exit 1; }
+```
 
-**Routing classifier.** At Stage 0a, classify the work item — and re-check
-per stage. A pre-assigned **`route:mechanical` / `route:judgment` label on the
-backing issue wins outright** — read it before classifying yourself. Without a
-label, classify on these signals:
-
-- **Mechanical** (→ `sidekick`): promotion/evidence PRs, receipts and
-  status updates, carve-out/config edits, data plumbing, applying an
-  already-specified fix, CI log retrieval.
-- **Judgment** (→ frontier, inherit): new spec-conformance derivation, design
-  of verification artifacts, gate/clock semantics, trust boundaries and
-  validators, refusal matrices, anything interpreting the project's spec or
-  touching surfaces the project declares frozen.
-
-**Default to judgment.** The misroute costs are asymmetric: judgment work sent
-to the sidekick costs a full rejected implementation cycle plus a locked-gate
-rerun; mechanical work sent to the frontier costs only tokens. Route
-implementation to the sidekick only when the item **clearly** matches a
-mechanical shape; anything ambiguous or mixed-signal inherits the frontier.
-
-A mixed item routes its implementation by the dominant signal and its
-mechanical satellites (receipts, CI babysit, log updates) to the sidekick
-regardless.
-
-**Persistent sidekick.** Spawn one `sidekick` thread at the start of the run
-and send it subsequent sequential tasks rather than spawning fresh agents —
-its warm context is the cost saving. Fresh spawns only for parallel fan-out
-or one-off isolation. Verified mechanics (2026-07-15): spawn the persistent
-sidekick once via the `task` tool with a stable `name: sidekick` and
-`agent: sidekick`, never `isolated: true` — isolated agents are torn down at
-completion and are not revivable, so only throwaway one-off spawns may
-isolate. Reuse it sequentially with an `irc` DM to the named agent: a
-finished spawn goes `idle`, parks after `task.agentIdleTtlMs` (default
-7 min), and a DM revives it with context intact. Block on completion with
-the `job` tool, interrupt with `job cancel`, and list the roster with
-`irc`. When omp-internal collab is unavailable,
-cross-process orchestration falls back to herdr pane primitives
-(`herdr pane split/run/send-keys/read`,
-`herdr wait agent-status <pane> --status done`).
-
-**Escalation ladder.** The sidekick gets one self-retry per failure; on a
-second failure, an `ESCALATE:` return, or a repeated failure signature, move
-the task to the `slow` role — or take it over inline when judgment is the
-blocker — then demote remaining mechanical work back to the sidekick.
-
-**Delegation discipline.** After delegating, block on the agent's terminal
-completion via the `job` tool; never busy-poll or repeatedly inspect
-partial output — polling burns frontier tokens and defeats the cost purpose
-of delegation.
-
-**Guardrail.** Routing never relaxes a gate: the project's locked quality
-gates, frozen baselines, and discipline rules (read from its AGENTS.md) bind
-identically for every model; escalation re-runs never skip gates; Stage 3
-review is frontier-only, never routed down.
-
-Per-stage routing:
-
-| Stage | Route |
-|---|---|
-| 0a–0c classify/plan/issue | main agent inline (plan + ambiguity territory) |
-| 0d provisioning | sidekick |
-| 1 implement | by classification: routine → ce-work subagent on `sidekick`; judgment → inherit frontier |
-| 2 simplify | inline as today; its fan-out subagents use `sidekick` |
-| 3 review | frontier only, never routed down |
-| 4 resolve feedback | validity verdicts stay with the main agent; accepted fixes execute on the sidekick |
-| 5 CI loop | sidekick babysits (poll checks, pull failed logs, mechanical fixes); escalate on repeated signature or non-mechanical root cause |
-| 6 persist | sidekick for mechanical vault writes; main agent owns the GATE check |
+The worker runs interactive `omp`, not `omp -p`: its TUI stays inspectable in
+herdr. The `working` wait guards against mistaking pre-start `idle` for
+completion; the first `idle` after launch is the completed one-turn worker.
+Keep the pane open. Do not parse its rendered terminal as the result contract;
+Stage 1 verifies the branch, PR, diff, and gates from their authoritative
+sources. A missing pane, timeout, or missing durable artifacts is a failed
+Stage 1 gate and preserves the branch/worktree for inspection.
 
 ---
 
@@ -216,11 +166,6 @@ python3 "$SKILL_DIR/scripts/run_state.py" list         # forgot the slug? list r
 On **resume**, only `get` — never `init --force`, which wipes the recorded
 PR/branch/worktree and defeats the resume. `init` without `--force` refuses an
 existing slug, so a plain re-`init` is safe.
-
-Classify the work item on the Model routing signals (mechanical vs judgment —
-a `route:*` label on the issue wins; default to judgment when ambiguous) and
-record it (`run_state.py set <slug> classification <value>`) — Stage 1 spawns
-its implementation agent on it.
 
 **GATE:** the input resolved to exactly one of {plan-file, issue, idea}. If it is
 ambiguous — a `.md` path that does not exist, or a number/code that resolves to
@@ -343,19 +288,17 @@ automatically satisfied.
 
 ## Stage 1 — Implement + open the PR
 
-Spawn **one** implementation-capable agent (foreground, model per the Stage 0a
-routing classification — routine work on the `sidekick` agent, judgment-heavy
-work inheriting the frontier model) to implement the plan and open the PR — a
-subagent per the Invocation model, instructed to follow `ce-work`. The brief
-authorizes it to delegate internally per the same Fusion policy (mechanical
-sub-steps to `sidekick`/`explore`, judgment kept to itself) — this nesting is
-what omp's `task.maxRecursionDepth` gate bounds. Give it the brief in
+Launch **one** pane-backed `omp` worker under the Pane-backed worker contract to
+implement the plan and open the PR. It invokes `ce-work` directly in that
+session and does not spawn nested task agents, so the implementation remains
+visible in herdr. Give it the brief in
 `$SKILL_DIR/references/ce-work-brief.md` (mode-specific setup clauses, the
 project's quality gates, the private-context guard, the `closes #N` PR
-finish), filling in `#N`, `<type>/<slug>`, `<WORKDIR>`, and the **pasted**
-plan path.
+finish), filling in `#N`, `<type>/<slug>`, `<WORKDIR>`, and the **pasted** plan
+path. Render the completed brief into `PROMPT`, launch it from `WORKDIR`, and
+wait once for the pane's working → idle lifecycle.
 
-When the agent returns, sync by mode — never move the main checkout onto the PR
+When the worker reaches idle, sync by mode — never move the main checkout onto the PR
 branch in worktree mode:
 
 - **Direct mode:** the agent branched in this checkout — check out the PR branch
@@ -384,8 +327,7 @@ yourself. On pass, record it:
 ## Stage 2 — Simplify the diff (`ce-simplify-code`, inline)
 
 Invoke the `ce-simplify-code` skill from `WORKDIR` (inline — see Invocation
-model; it spawns its own subagents, which should use the `sidekick` agent).
-Scope is the branch diff vs `main`. If it
+model; it owns any fan-out it needs). Scope is the branch diff vs `main`. If it
 changes anything, **rerun the quality gates in the foreground and commit + push
 only on green** — do not chain the commit unconditionally after the gate, or a
 simplify pass that broke a test lands anyway. The gate commands are the
@@ -407,8 +349,7 @@ green rerun.
 ## Stage 3 — Review the PR (`ce-code-review`, inline)
 
 Invoke the `ce-code-review` skill from `WORKDIR` (inline — see Invocation model;
-it spawns its own subagents) against this PR. Review is **frontier-only** — never
-route it to the sidekick; it is the safety net for cheap-model implementation. Ensure its **actionable findings
+it spawns its own subagents) against this PR. Ensure its **actionable findings
 land as inline PR review comments** (resolvable threads) so Stage 4 has something
 to resolve — pass the PR and have it post comments rather than only printing a
 report. If it commits safe fixes inline, **push them only after a green
@@ -434,8 +375,6 @@ Invoke the `ce-resolve-pr-feedback` skill from `WORKDIR` (inline — see Invocat
 model; it spawns its own subagents) for this PR. It evaluates every unresolved
 thread (Stage 3's findings plus any human/bot comments that arrived), fixes the
 valid ones in `WORKDIR`, commits + pushes, then replies and resolves each thread.
-Thread-validity verdicts stay with the main agent; accepted fixes execute on the
-`sidekick`.
 
 **GATE:** no unresolved review threads remain except ones it explicitly tagged
 `needs-human`. Surface any `needs-human` threads in the final report; they do not
@@ -459,9 +398,8 @@ vocabulary (`deferred-pre-existing` / `out-of-scope` / `named-follow-up` /
 ## Stage 5 — Loop on CI, then squash-merge on green
 
 Stage 5 owns an **inline CI watch-and-autofix loop** — there is no external CI
-skill to delegate to. The `sidekick` babysits it: polling checks, pulling failed
-logs, and applying mechanical fixes run on the sidekick thread; escalate to the
-main agent on a repeated failure signature or a non-mechanical root cause.
+skill to delegate to. The `/go` agent polls checks, pulls failed logs, and
+applies bounded fixes itself.
 Capture the head SHA (`HEAD_SHA=$(cd "$WORKDIR" && git rev-parse HEAD)`) and
 poll the verdict script — it reads the typed check-runs API, the only reliable
 CI source on this host (see `references/environment.md`), resolving the repo
@@ -570,16 +508,12 @@ reporting.
 
 Stage 6 always runs from the main checkout (`$MAIN`), never from `WORKDIR` — by now
 the worktree may be removed by Stage 5 cleanup, and persistence is independent of
-execution mode. Mechanical vault writes run on the `sidekick`; the main agent
-owns the GATE check. The vault-plan outcome append carries a one-line
-**model mix** note — e.g. `model mix: impl sidekick, review frontier,
-CI sidekick, 1 escalation` — so the cost claim is checkable run-over-run.
+execution mode. The `/go` agent owns persistence and the GATE check.
 **Delegate persistence to `/project-memory`** and persist exactly
 one outcome:
 
 - **shipped** — the PR squash-merged: flip the plan's `status: active → shipped` in
-  the resolved store and append the outcome — PR URL, merged SHA, key decisions,
-  and the model-mix line.
+  the resolved store and append the outcome — PR URL, merged SHA, and key decisions.
 - **failed** — a GATE stopped short: flip the plan's `status: active → failed` in
   the resolved store and append the failing stage, the reason, and the preserved
   branch / worktree path.
