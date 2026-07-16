@@ -109,6 +109,26 @@
       "skillFolderHash": "eb6a23305aea6e340d14b9de3766e721f9f4861b",
       "installedAt": "2026-07-01T09:38:16.713Z",
       "updatedAt": "2026-07-01T09:38:16.713Z"
+    },
+    "wayfinder": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/engineering/wayfinder/SKILL.md",
+      "skillFolderHash": "33ed747fb30668c0e7b61698af5268c25c0d75cb",
+      "pluginName": "mattpocock-skills",
+      "installedAt": "2026-07-16T17:42:29.260Z",
+      "updatedAt": "2026-07-16T17:42:29.260Z"
+    },
+    "writing-great-skills": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/productivity/writing-great-skills/SKILL.md",
+      "skillFolderHash": "81d36946d48842f90358d8af54e3cdcc141f8e01",
+      "pluginName": "mattpocock-skills",
+      "installedAt": "2026-07-16T17:42:29.282Z",
+      "updatedAt": "2026-07-16T17:42:29.282Z"
     }
   },
   "dismissed": {
@@ -128,7 +148,6 @@
     "opencode",
     "warp",
     "zed",
-    "claude-code",
     "pi"
   ]
 }
