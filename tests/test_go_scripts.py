@@ -1,4 +1,4 @@
-"""Exercise the /go skill scripts in skills/go/scripts.
+"""Exercise the /go skill scripts in .agents/skills/go/scripts.
 
 Fixture-driven — no test here touches the network. Verdict/decision logic is
 exercised as pure functions over canned payloads; the subprocess-facing
@@ -15,7 +15,7 @@ import pytest
 from infra import load_script_module
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS_DIR = REPO_ROOT / "skills" / "go" / "scripts"
+SCRIPTS_DIR = REPO_ROOT / ".agents" / "skills" / "go" / "scripts"
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "go"
 
 run_state = load_script_module(SCRIPTS_DIR / "run_state.py")
@@ -82,6 +82,46 @@ def test_run_state_init_set_get_roundtrip(
 
     assert run_state.main(["list"]) == 0
     assert capsys.readouterr().out.split() == ["my-slug"]
+
+
+def test_run_state_list_json_prints_full_states(
+    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(scratch_repo)
+    assert run_state.main(["init", "u9a-first"]) == 0
+    assert run_state.main(["set", "u9a-first", "issue", "12"]) == 0
+    assert run_state.main(["set", "u9a-first", "outcome", "shipped"]) == 0
+    assert run_state.main(["init", "u9b-second"]) == 0
+    capsys.readouterr()
+
+    assert run_state.main(["list", "--json"]) == 0
+    states = json.loads(capsys.readouterr().out)
+    assert states == [
+        {"slug": "u9a-first", "issue": "12", "outcome": "shipped"},
+        {"slug": "u9b-second"},
+    ]
+
+
+def test_run_state_list_json_skips_corrupt_state_files(
+    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(scratch_repo)
+    assert run_state.main(["init", "good"]) == 0
+    runs_dir = run_state.state_dir()
+    (runs_dir / "corrupt.json").write_text("not json", encoding="utf-8")
+    capsys.readouterr()
+
+    assert run_state.main(["list", "--json"]) == 0
+    states = json.loads(capsys.readouterr().out)
+    assert states == [{"slug": "good"}]
+
+
+def test_run_state_list_json_empty_when_no_runs(
+    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(scratch_repo)
+    assert run_state.main(["list", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == []
 
 
 def test_run_state_init_refuses_collision_without_force(
@@ -318,30 +358,6 @@ def test_read_setup_steps_rejects_non_list() -> None:
         provision_worktree.read_setup_steps('{"setup-worktree-unix": "oops"}', "/m")
 
 
-def test_load_project_config_absent_file_means_defaults(tmp_path: Path) -> None:
-    assert provision_worktree.load_project_config(tmp_path) == {}
-
-
-def test_load_project_config_reads_go_table(tmp_path: Path) -> None:
-    config_dir = tmp_path / ".agents"
-    config_dir.mkdir()
-    (config_dir / "config.toml").write_text(
-        '[go]\nquality_gates = ["lint", "test"]\nsetup_check = "import-check"\n',
-        encoding="utf-8",
-    )
-    table = provision_worktree.load_project_config(tmp_path)
-    assert table["quality_gates"] == ["lint", "test"]
-    assert table["setup_check"] == "import-check"
-
-
-def test_load_project_config_malformed_toml_fails_loudly(tmp_path: Path) -> None:
-    config_dir = tmp_path / ".agents"
-    config_dir.mkdir()
-    (config_dir / "config.toml").write_text("[go\nbroken", encoding="utf-8")
-    with pytest.raises(SystemExit):
-        provision_worktree.load_project_config(tmp_path)
-
-
 def test_provision_refuses_existing_worktree_path(
     scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -427,12 +443,6 @@ def test_provision_aborts_on_first_failed_setup_step(
     assert executed == ["step-one"], "a failed step must abort before later steps run"
 
 
-def _write_project_config(root: Path, body: str) -> None:
-    config_dir = root / ".agents"
-    config_dir.mkdir(exist_ok=True)
-    (config_dir / "config.toml").write_text(body, encoding="utf-8")
-
-
 def _provision_fakes(
     scratch_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -481,30 +491,12 @@ def _provision_fakes(
     return fake, executed
 
 
-def test_provision_runs_configured_setup_check(
-    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _write_project_config(scratch_repo, '[go]\nsetup_check = "import-check"\n')
-    _, executed = _provision_fakes(scratch_repo, monkeypatch)
-    assert provision_worktree.cmd_provision("feat/fresh") == 0
-    assert executed == ["step-ok", "import-check"]
-
-
-def test_provision_fails_when_setup_check_fails(
-    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    _write_project_config(scratch_repo, '[go]\nsetup_check = "import-check"\n')
-    _provision_fakes(scratch_repo, monkeypatch, failing_step="import-check")
-    assert provision_worktree.cmd_provision("feat/fresh") == 1
-    assert "setup check failed" in capsys.readouterr().err
-
-
-def test_provision_without_config_skips_setup_check(
+def test_provision_runs_configured_setup_steps(
     scratch_repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _, executed = _provision_fakes(scratch_repo, monkeypatch)
     assert provision_worktree.cmd_provision("feat/fresh") == 0
-    assert executed == ["step-ok"], "no setup check may run without a project config"
+    assert executed == ["step-ok"]
 
 
 def test_provision_without_worktrees_json_runs_no_setup_steps(

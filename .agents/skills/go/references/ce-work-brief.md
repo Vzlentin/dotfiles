@@ -3,8 +3,8 @@
 Spawn **one** foreground agent (model per the Stage 0a routing classification —
 routine work on the `sidekick` agent, judgment-heavy work inheriting the
 frontier model) with the brief below, filling in `#N`, `<type>/<slug>`,
-`<WORKDIR>`, the project's quality-gate commands (from
-`<repo>/.agents/config.toml`, `[go].quality_gates`), and the pasted plan text.
+`<WORKDIR>`, the project's quality-gate commands (as its AGENTS.md/CI define
+them), and the pasted plan text.
 
 ---
 
@@ -31,8 +31,8 @@ frontier model) with the brief below, filling in `#N`, `<type>/<slug>`,
 > Delegates never weaken tests, skip gates, or touch frozen surfaces beyond
 > their brief.
 >
-> Run the project's quality gates — <quality-gate commands from
-> `.agents/config.toml`> — in the **FOREGROUND**, blocking on each gate's
+> Run the project's quality gates — <the project's own gate commands, as its
+> AGENTS.md/CI define them> — in the **FOREGROUND**, blocking on each gate's
 > exit before you report. Do **not** end your turn with any gate still running in
 > the background: a gate still running when the turn ends is abandoned, not
 > resumed — nothing picks it back up. Commit only after the gates pass green.

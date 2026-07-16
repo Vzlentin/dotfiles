@@ -10,12 +10,9 @@ Python's subprocess, which bypasses the MSYS wrapper that can print a literal
 ``<type>/<slug>`` branch from ``origin/main``, runs the ``setup-worktree-unix``
 steps read dynamically from the project's ``.cursor/worktrees.json`` when
 present (substituting ``$ROOT_WORKTREE_PATH`` with the main checkout path;
-absent config means a plain ``git worktree add`` with no setup), aborts on the
-first failed step, then gates on the project's setup-check command. It never
-mutates the caller checkout and refuses an existing worktree path or branch.
-
-The setup check comes from ``<repo>/.agents/config.toml`` (``[go]`` table:
-``setup_check`` command string). A missing config means no setup check.
+absent config means a plain ``git worktree add`` with no setup), and aborts on
+the first failed step. It never mutates the caller checkout and refuses an
+existing worktree path or branch.
 
 Exit codes: 0 success, 1 failure.
 """
@@ -25,12 +22,10 @@ import json
 import shutil
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 WORKTREES_DIR = ".worktrees"
 SETUP_KEY = "setup-worktree-unix"
-CONFIG_RELPATH = Path(".agents") / "config.toml"
 
 
 def _bash_executable() -> str:
@@ -68,30 +63,6 @@ def decide_mode(branch: str, porcelain: str) -> str:
     """
     clean = porcelain.strip() == ""
     return "direct" if branch.strip() == "main" and clean else "worktree"
-
-
-def load_project_config(root: Path) -> dict:
-    """Load the ``[go]`` table of ``<root>/.agents/config.toml``.
-
-    Returns:
-        The ``[go]`` table as a dict; empty when the config file or table is
-        absent (generic defaults: no setup check).
-
-    Raises:
-        SystemExit: When the file exists but is not valid TOML — a broken
-            config must fail loudly, not silently degrade to defaults.
-    """
-    path = root / CONFIG_RELPATH
-    if not path.is_file():
-        return {}
-    try:
-        config = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError) as exc:
-        raise SystemExit(f"cannot read project config {path}: {exc!r}") from None
-    table = config.get("go", {})
-    if not isinstance(table, dict):
-        raise SystemExit(f"[go] in {path} is not a table")
-    return table
 
 
 def read_setup_steps(config_text: str, main_path: str) -> list[str]:
@@ -153,10 +124,8 @@ def cmd_provision(branch: str) -> int:
         print(f"refusing: branch already exists: {branch}", file=sys.stderr)
         return 1
 
-    # Read every config before creating anything: a malformed config must not
+    # Read the config before creating anything: a malformed config must not
     # strand a half-provisioned worktree.
-    project = load_project_config(main)
-
     steps: list[str] = []
     worktrees_config = main / ".cursor" / "worktrees.json"
     if worktrees_config.is_file():
@@ -190,10 +159,6 @@ def cmd_provision(branch: str) -> int:
         print(f"  -> {step}")
         if _run_step(step, cwd=worktree) != 0:
             return _fail(f"FAILED setup step: {step}")
-
-    setup_check = project.get("setup_check")
-    if setup_check and _run_step(setup_check, cwd=worktree) != 0:
-        return _fail(f"setup check failed: {setup_check}")
 
     print(json.dumps({"workdir": str(worktree), "branch": branch}, indent=2))
     return 0

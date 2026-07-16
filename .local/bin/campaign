@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# campaign — drain a campaign queue through /go, one herdr pane per unit,
+# serial; stop on the first non-shipped outcome.
+#
+# usage: campaign <name>        # run from inside the work repo
+#
+# A campaign is a state directory in the vault project folder:
+#
+#   $OBSIDIAN_VAULT_PATH/Projects/<project>/campaigns/<name>/
+#   |- queue      one unit per line (U9a / 123), hand-maintained; blank
+#   |             lines and #-comments are skipped; the loop NEVER rewrites it
+#   |- log.jsonl  machine-appended ledger: {ts, unit, outcome, pr, slug}
+#   `- config     optional key=value lines:
+#                   plan=<campaign plan path>   context line for the prompt
+#                   timeout_h=<hours>           per-unit timeout (default 14)
+#
+# There is no init ceremony: mkdir -p the directory and hand-write queue
+# (and optionally config). <project> is the work repo's basename matched
+# case-insensitively against Projects/* — the same resolution rule
+# project-memory uses. OBSIDIAN_VAULT_PATH may come from the environment or
+# the repo's .env; campaigns are a vault-mode feature, so no vault is a
+# clear error, not a fallback.
+#
+# The next unit is the first queue line with no shipped ledger entry — a
+# re-run after a failure naturally retries the failed unit, and queue edits
+# mid-campaign are picked up (the queue is re-read each iteration). Each
+# unit runs as `omp "/skill:go <unit> ..."` in a fresh pane; the loop blocks
+# once on a completion sentinel echoed after omp exits (no polling), then
+# reads the /go run state exactly once: outcome present -> as recorded;
+# absent -> crashed (Stage 6 provably never ran); wait timed out -> timeout,
+# with one agent-status peek (blocked-on-input vs hung). A marker file
+# touched at launch guards retries: an outcome only counts if its state
+# JSON is newer than the launch (a retried unit can't re-read its old
+# outcome).
+#
+# Contract with /go (SKILL.md): Stage 0c records `issue` and Stage 6 records
+# `outcome` in <git-common-dir>/go-runs/<slug>.json, read here via
+# `run_state.py list --json`. Code units (U9a) match the slug prefix
+# (u9a-...), numeric units match the `issue` field.
+#
+# Requires on PATH: git, jq, herdr, omp, python3. The pane shell must be
+# bash (the prompt is quoted with `printf %q`).
+#
+# Exit codes: 0 when the queue drains, 1 on the first non-shipped outcome
+# or any setup failure.
+set -euo pipefail
+shopt -s nullglob
+
+RUN_STATE="$HOME/.agents/skills/go/scripts/run_state.py"
+SENTINEL=__CAMPAIGN_DONE__
+
+die() { echo "campaign: $*" >&2; exit 1; }
+
+[ $# -eq 1 ] || die "usage: campaign <name>"
+NAME=$1
+
+for tool in git jq herdr omp python3; do
+  command -v "$tool" >/dev/null || die "required tool not on PATH: $tool"
+done
+[ -f "$RUN_STATE" ] || die "run_state.py not found at $RUN_STATE"
+
+REPO=$(git rev-parse --show-toplevel) || die "not inside a git repository"
+RUNS_DIR="$(git rev-parse --path-format=absolute --git-common-dir)/go-runs"
+
+VAULT=${OBSIDIAN_VAULT_PATH:-}
+if [ -z "$VAULT" ] && [ -f "$REPO/.env" ]; then
+  VAULT=$(sed -n 's/^OBSIDIAN_VAULT_PATH=//p' "$REPO/.env" | tail -n1 | tr -d '"')
+fi
+[ -n "$VAULT" ] || die "OBSIDIAN_VAULT_PATH not set (shell or $REPO/.env) — campaigns are a vault-mode feature"
+
+# <project>: repo basename, matched case-insensitively against Projects/*.
+BASE=$(basename "$REPO")
+PROJECT_DIR="$VAULT/Projects/$BASE"
+for d in "$VAULT/Projects"/*/; do
+  entry=$(basename "$d")
+  if [ "${entry,,}" = "${BASE,,}" ]; then PROJECT_DIR="$VAULT/Projects/$entry"; break; fi
+done
+
+DIR="$PROJECT_DIR/campaigns/$NAME"
+QUEUE="$DIR/queue"
+LEDGER="$DIR/log.jsonl"
+[ -f "$QUEUE" ] || die "no queue at $QUEUE — create the campaign dir by hand (see the header of this script)"
+
+PLAN=""
+TIMEOUT_H=14
+if [ -f "$DIR/config" ]; then
+  PLAN=$(sed -n 's/^plan=//p' "$DIR/config" | tail -n1)
+  t=$(sed -n 's/^timeout_h=//p' "$DIR/config" | tail -n1)
+  if [ -n "$t" ]; then TIMEOUT_H=$t; fi
+fi
+TIMEOUT_MS=$((TIMEOUT_H * 3600 * 1000))
+
+shipped() { # unit -> exit 0 when the ledger has a shipped entry for it
+  [ -f "$LEDGER" ] || return 1
+  jq -es --arg u "$1" 'any(.[]; .unit == $u and .outcome == "shipped")' "$LEDGER" >/dev/null
+}
+
+next_unit() { # print the first queue unit with no shipped ledger entry
+  local line
+  while IFS= read -r line || [ -n "$line" ]; do
+    line=${line%%#*}
+    line=$(printf '%s' "$line" | tr -d '[:space:]')
+    [ -n "$line" ] || continue
+    shipped "$line" && continue
+    printf '%s' "$line"
+    return 0
+  done <"$QUEUE"
+  return 1
+}
+
+state_for() { # unit -> print the matching /go run-state JSON object, if any
+  local unit=$1
+  [ -d "$RUNS_DIR" ] || return 0
+  if [[ $unit =~ ^[0-9]+$ ]]; then
+    python3 "$RUN_STATE" list --json \
+      | jq -c --arg u "$unit" 'first(.[] | select(.issue == $u)) // empty'
+  else
+    python3 "$RUN_STATE" list --json \
+      | jq -c --arg p "${unit,,}-" 'first(.[] | select(.slug | startswith($p))) // empty'
+  fi
+}
+
+prompt_for() { # unit -> the omp prompt: /skill:go line + optional plan context
+  printf '/skill:go %s' "$1"
+  if [ -n "$PLAN" ]; then
+    printf "\nCAMPAIGN CONTEXT — not the unit spec: the campaign plan is %s. Use this unit's section as planning input only; Stage 0b still makes a unit plan." "$PLAN"
+  fi
+}
+
+append_ledger() { # unit outcome pr slug
+  jq -cn --arg ts "$(date -Iseconds)" --arg unit "$1" --arg outcome "$2" \
+    --arg pr "$3" --arg slug "$4" \
+    '{ts: $ts, unit: $unit, outcome: $outcome, pr: $pr, slug: $slug}' >>"$LEDGER"
+}
+
+while UNIT=$(next_unit); do
+  echo "=== $UNIT: launching /go ($(date -Iseconds)) ==="
+  PROMPT=$(prompt_for "$UNIT")
+
+  PANE=$(herdr pane split --current --direction right --cwd "$REPO" \
+    | jq -r '.result.pane.pane_id // empty')
+  [ -n "$PANE" ] || die "herdr pane split failed"
+  herdr pane rename "$PANE" "go-$UNIT" >/dev/null
+
+  MARKER=$(mktemp) # stale-outcome guard: outcomes older than launch don't count
+  # The command line echoed in the pane must not self-match the sentinel,
+  # hence the quote split in the echo below.
+  herdr pane run "$PANE" "omp $(printf '%q' "$PROMPT"); echo \"__CAMPAIGN_\"\"DONE__\"" >/dev/null
+
+  SLUG=""
+  PR=""
+  if herdr wait output "$PANE" --match "$SENTINEL" --timeout "$TIMEOUT_MS" >/dev/null; then
+    STATE=$(state_for "$UNIT")
+    SLUG=$(jq -r '.slug // empty' <<<"$STATE")
+    PR=$(jq -r '.pr // empty' <<<"$STATE")
+    OUTCOME=$(jq -r '.outcome // empty' <<<"$STATE")
+    if [ -n "$OUTCOME" ] && ! [ "$RUNS_DIR/$SLUG.json" -nt "$MARKER" ]; then
+      OUTCOME="" # stale: recorded before this launch, so this run never wrote one
+    fi
+    OUTCOME=${OUTCOME:-crashed}
+  else
+    OUTCOME=timeout
+    STATUS=$(herdr pane get "$PANE" | jq -r '.result.pane.agent_status // "unknown"')
+    if [ "$STATUS" = blocked ]; then
+      echo "$UNIT: timed out — agent is BLOCKED (waiting on input) in pane go-$UNIT"
+    else
+      echo "$UNIT: timed out — agent looks hung (status: $STATUS) in pane go-$UNIT"
+    fi
+  fi
+  rm -f "$MARKER"
+
+  append_ledger "$UNIT" "$OUTCOME" "$PR" "$SLUG"
+  if [ "$OUTCOME" = shipped ]; then
+    echo "=== $UNIT: shipped ($(date -Iseconds)) ==="
+    herdr pane close "$PANE" >/dev/null
+  else
+    echo "$UNIT: $OUTCOME — pane go-$UNIT preserved for debugging. Stopping."
+    exit 1
+  fi
+done
+
+echo "campaign '$NAME': queue drained."

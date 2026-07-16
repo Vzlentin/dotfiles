@@ -56,14 +56,19 @@ $OBSIDIAN_VAULT_PATH/Projects/<project>/
 ├── CONCEPTS.md                     # shared domain vocabulary
 ├── deferred-findings-register.md   # append-only rolling deferral log
 ├── plans/                          # one transient file per task
-└── solutions/<category>/           # per-problem knowledge-track docs
+├── solutions/<category>/           # per-problem knowledge-track docs
+└── campaigns/<name>/               # campaign state dirs (config, queue, log.jsonl)
 ```
 
 This is the default durable surface. A project may declare additional owned
 surfaces in its vault-side operating manual. Do not create a permanent file or
 folder outside this set unless that manual declares it. `plans/` may contain
 many transient files and `solutions/<category>/` many durable per-problem docs;
-everything else listed is a single top-level file.
+everything else listed is a single top-level file, except `campaigns/`:
+each `campaigns/<name>/` holds a hand-maintained `queue` and optional
+`config` plus a machine-appended `log.jsonl` ledger, owned by the
+`campaign` loop (see its script header) — agents don't edit these except
+through that loop.
 
 ## Plan store location
 

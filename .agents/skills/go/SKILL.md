@@ -52,32 +52,20 @@ deferred.
 
 **Multi-line invocations.** Only the **first line** of `$ARGUMENTS` is the
 work-item input. Any following lines are **campaign context** — standing
-instructions from an outer loop (a campaign-plan reference, execution-log
-maintenance, routing reminders). Honor them at the stage they address (e.g.
-log appends at Stage 6), but they never change the Stage 0a input
-classification, and a referenced campaign plan is planning *input*, never the
-unit's resolved plan (Stage 0b still makes a unit plan).
+instructions from an outer loop (a campaign-plan reference, routing
+reminders). Honor them at the stage they address, but they never change the
+Stage 0a input classification, and a referenced campaign plan is planning
+*input*, never the unit's resolved plan (Stage 0b still makes a unit plan).
 
 ## Project rules that bind every stage
 
 - **Read the project's rules first.** The target repo's `AGENTS.md` (or
-  equivalent agent instructions) and `.agents/config.toml` carry the project's
-  quality gates, guardrails, frozen baselines, and routing examples. They bind
-  every stage of this run.
-- **Project config.** `<repo>/.agents/config.toml` supplies what the scripts
-  and gates need deterministically, in a `[go]` table:
-
-  ```toml
-  [go]
-  quality_gates = ["uv run ruff check .", "uv run pytest"]
-  setup_check = "uv run python -c 'import mypackage'"
-  ```
-
-  - `quality_gates` — the list of gate commands (lint, type check, tests) run
-    before any commit lands.
-  - `setup_check` — a command that proves a provisioned environment works.
-  A missing config means generic defaults: no setup check, and quality gates
-  discovered from the project's own docs/CI.
+  equivalent agent instructions) carries the project's quality gates,
+  guardrails, frozen baselines, and routing examples. They bind every stage
+  of this run.
+- **Quality gates are the project's own.** Run the gate commands (lint, type
+  check, tests) as the project's `AGENTS.md` and CI define them — discover
+  them there; there is no separate config layer.
 - **Storage is delegated.** The plan store and outcome persistence are resolved by
   `/project-memory`.
 - **Public repo, private context stays out.** Assume the target repo is public.
@@ -124,7 +112,7 @@ backing issue wins outright** — read it before classifying yourself. Without a
 label, classify on these signals:
 
 - **Mechanical** (→ `sidekick`): promotion/evidence PRs, receipts and
-  execution-log updates, carve-out/config edits, data plumbing, applying an
+  status updates, carve-out/config edits, data plumbing, applying an
   already-specified fix, CI log retrieval.
 - **Judgment** (→ frontier, inherit): new spec-conformance derivation, design
   of verification artifacts, gate/clock semantics, trust boundaries and
@@ -183,7 +171,7 @@ Per-stage routing:
 | 3 review | frontier only, never routed down |
 | 4 resolve feedback | validity verdicts stay with the main agent; accepted fixes execute on the sidekick |
 | 5 CI loop | sidekick babysits (poll checks, pull failed logs, mechanical fixes); escalate on repeated signature or non-mechanical root cause |
-| 6 persist | sidekick for mechanical vault/log writes; main agent owns the GATE check |
+| 6 persist | sidekick for mechanical vault writes; main agent owns the GATE check |
 
 ---
 
@@ -327,9 +315,8 @@ python3 "$SKILL_DIR/scripts/provision_worktree.py" provision <type>/<slug>
 The script reads the setup steps dynamically from the project's
 `.cursor/worktrees.json` when present (absent config → plain
 `git worktree add`, no setup steps), aborts on the first failed step, refuses
-an existing worktree/branch collision, never mutates the caller checkout, and
-runs the project's setup check (the `setup_check` command from
-`.agents/config.toml`, when configured) itself. On success it prints
+an existing worktree/branch collision, and never mutates the caller checkout.
+On success it prints
 `{"workdir": <absolute path>, "branch": <type>/<slug>}` — take `WORKDIR` from
 the `workdir` field. On a failure after the worktree was created, it prints
 the recovery commands for the debris; run them before retrying.
@@ -348,7 +335,7 @@ python3 "$SKILL_DIR/scripts/run_state.py" set <slug> branch <type>/<slug>
 ```
 
 **GATE (worktree mode):** `provision` exited 0 — that exit code *is* the
-worktree + setup check. If it exited non-zero, stop and report — do **not**
+provisioned worktree. If it exited non-zero, stop and report — do **not**
 fall back to mutating the user's dirty checkout. In direct mode this gate is
 automatically satisfied.
 
@@ -402,7 +389,7 @@ Scope is the branch diff vs `main`. If it
 changes anything, **rerun the quality gates in the foreground and commit + push
 only on green** — do not chain the commit unconditionally after the gate, or a
 simplify pass that broke a test lands anyway. The gate commands are the
-project's `quality_gates` from `.agents/config.toml`:
+project's own, as its AGENTS.md/CI define them:
 
 ```bash
 cd "$WORKDIR" \
@@ -583,15 +570,16 @@ reporting.
 
 Stage 6 always runs from the main checkout (`$MAIN`), never from `WORKDIR` — by now
 the worktree may be removed by Stage 5 cleanup, and persistence is independent of
-execution mode. Mechanical vault/log writes run on the `sidekick`; the main agent
-owns the GATE check. Every landing receipt (execution log + tracker) carries a
-one-line **model mix** note — e.g. `model mix: impl sidekick, review frontier,
+execution mode. Mechanical vault writes run on the `sidekick`; the main agent
+owns the GATE check. The vault-plan outcome append carries a one-line
+**model mix** note — e.g. `model mix: impl sidekick, review frontier,
 CI sidekick, 1 escalation` — so the cost claim is checkable run-over-run.
 **Delegate persistence to `/project-memory`** and persist exactly
 one outcome:
 
 - **shipped** — the PR squash-merged: flip the plan's `status: active → shipped` in
-  the resolved store and append the outcome — PR URL, merged SHA, key decisions.
+  the resolved store and append the outcome — PR URL, merged SHA, key decisions,
+  and the model-mix line.
 - **failed** — a GATE stopped short: flip the plan's `status: active → failed` in
   the resolved store and append the failing stage, the reason, and the preserved
   branch / worktree path.

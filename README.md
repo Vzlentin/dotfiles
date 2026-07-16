@@ -1,80 +1,64 @@
-# .agents
+# dotfiles
 
-A personal `~/.agents` directory published as reference. The interesting
-parts:
+Personal dotfiles, published as reference. The repo root mirrors `$HOME` for
+the deployed dot-entries; dev tooling (tests, CI config) stays at the root
+and is not deployed. Tracking is a **default-deny allowlist**: nothing is
+committed unless `.gitignore` explicitly lists it, so tokens, auth, and
+runtime state can't land here by accident.
 
-- **`skills/go/`** — an implementation-orchestration pipeline: give it an
-  idea, a GitHub issue, or a plan file, and it drives the work end-to-end to
-  a squash-merged PR (plan → issue → isolated worktree → implement → simplify
-  → review → resolve feedback → CI loop → merge → persist outcome).
-- **`skills/project-memory/`** — project-agnostic durable memory backed by an
-  Obsidian vault, with a repo-relative `docs/plans/` fallback for plans.
-- **`campaign/campaign.py`** — a serial queue drain: pulls the next issue off
-  a labeled GitHub queue and runs `/go` on it in a fresh agent pane, one unit
-  at a time.
+The interesting parts:
 
-## Requirements
-
-- **`gh`** (authenticated) — issue queue and PR operations.
-- **`herdr`** — launches and monitors the agent panes the campaign loop runs
-  units in.
-- **`omp`** — the agent harness that executes `/go` inside each pane.
-- **Python ≥ 3.11** — every script is stdlib-only; nothing to install.
+- **`.agents/skills/go/`** — an implementation-orchestration pipeline: give
+  it an idea, a GitHub issue, or a plan file, and it drives the work
+  end-to-end to a squash-merged PR (plan → issue → isolated worktree →
+  implement → simplify → review → resolve feedback → CI loop → merge →
+  persist outcome).
+- **`.agents/skills/project-memory/`** — project-agnostic durable memory
+  backed by an Obsidian vault, with a repo-relative `docs/plans/` fallback
+  for plans.
+- **`.local/bin/campaign`** — a serial queue drain: runs the next unit of a
+  hand-maintained campaign queue through `/go` in a fresh agent pane, one
+  unit at a time, stopping on the first non-shipped outcome.
 
 ## Install
 
-Clone to `~/.agents` only if you don't already have one:
-
 ```bash
-git clone https://github.com/Vzlentin/.agents "$HOME/.agents"
+git clone https://github.com/Vzlentin/dotfiles ~/dotfiles
+~/dotfiles/install.sh
 ```
 
-If you already have a `~/.agents`, fork this repo instead, or copy the
-`skills/` you want into your existing directory. Harnesses that walk
-`~/.agents/skills` (omp, Codex) pick the skills up from the user home in any
-repo.
+`install.sh` is idempotent: it symlinks `~/.agents` to the repo's `.agents/`
+(whole-dir — harnesses that walk `~/.agents/skills` pick the skills up in
+any repo) and each other payload per-file (`~/.local/bin/campaign`, …).
+Anything already in the way is moved aside to `<path>.pre-dotfiles`, never
+deleted.
 
 Untracked (CLI-managed) skills are restorable from the tracked
-`.skill-lock.json` manifest.
-
-## Per-project configuration
-
-Each target repo declares its specifics in a committed `.agents/config.toml`.
-Everything is optional; a missing file or table means defaults:
-
-```toml
-[go]
-quality_gates = ["uv run ruff check .", "uv run pytest"]  # gate commands, in order
-setup_check = "uv run python -c 'import mypackage'"       # proves the provisioned env works
-
-[campaign]
-queue_label = "queue"            # label marking issues ready to run
-claim_label = "claimed"          # label added when a unit is claimed
-title_filter = "^U\\d+"          # only issues whose title matches are eligible
-plan = "docs/plans/campaign.md"  # campaign plan, repo-relative
-log = "docs/plans/campaign-log.md"
-```
-
-Deep details live next to the code: the go skill docs
-([skills/go/references/worktree-provisioning.md](skills/go/references/worktree-provisioning.md))
-for `[go]`, and the header of
-[`campaign/campaign.py`](campaign/campaign.py) for `[campaign]`.
+`.agents/.skill-lock.json` manifest.
 
 ## Campaign
 
 ```bash
-python campaign/campaign.py <workrepo>
+campaign <name>     # from inside the work repo
 ```
 
-Drains the labeled issue queue of `<workrepo>`'s origin repo: claims the next
-issue, launches `/go` on it in a fresh agent pane, waits for the outcome, and
-stops on the first non-shipped unit. All config keys, their defaults, and the
-`CAMPAIGN_PLAN` / `CAMPAIGN_LOG` env overrides are documented in the header
-of [`campaign/campaign.py`](campaign/campaign.py).
+A campaign is a state directory in the vault project folder
+(`$OBSIDIAN_VAULT_PATH/Projects/<project>/campaigns/<name>/`): a
+hand-maintained `queue` (one unit per line), an optional `config`
+(`plan=…`, `timeout_h=…`), and a machine-appended `log.jsonl` ledger. The
+loop picks the first queue unit without a shipped ledger entry, launches
+`/go <unit>` in a fresh agent pane, blocks on a completion sentinel, reads
+the unit's outcome from the `/go` run state, appends the ledger, and stops
+on anything non-shipped — so a re-run naturally retries the failed unit.
+Full behavior and the campaign-dir format are documented in the header of
+[`.local/bin/campaign`](.local/bin/campaign).
 
 The loop keys on the `/go` run-state contract (`issue` and `outcome` in
 `<git-common-dir>/go-runs/<slug>.json`); see
-[skills/go/SKILL.md](skills/go/SKILL.md).
+[.agents/skills/go/SKILL.md](.agents/skills/go/SKILL.md).
+
+Requires on PATH: `git`, `jq`, `herdr` (agent panes), `omp` (the agent
+harness), `python3`.
 
 ## Development
 
@@ -82,6 +66,7 @@ The loop keys on the `/go` run-state contract (`issue` and `outcome` in
 pip install pytest ruff   # or: uv sync
 pytest
 ruff check .
+shellcheck .local/bin/campaign install.sh
 ```
 
-CI runs the pytest suite on Ubuntu and Windows, plus ruff.
+CI runs the pytest suite on Ubuntu and Windows, plus ruff and shellcheck.

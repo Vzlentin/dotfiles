@@ -12,7 +12,7 @@ def load_script_module(path: Path) -> ModuleType:
     """Import a standalone script (outside any package) as a module.
 
     Used for the skill scripts that tests exercise directly, e.g.
-    ``skills/go/scripts/``. The module is registered in ``sys.modules`` under
+    ``.agents/skills/go/scripts/``. The module is registered in ``sys.modules`` under
     its stem so dataclasses and pickling resolve it.
     """
     name = path.stem

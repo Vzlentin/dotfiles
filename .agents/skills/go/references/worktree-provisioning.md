@@ -27,11 +27,7 @@ worktree takes seconds when the package cache is shared; **never** copy the
 main virtualenv between worktrees (it is typically non-relocatable — absolute
 paths in its config and scripts).
 
-## Environment gate
-
-The project declares its gate in `<repo>/.agents/config.toml` (`[go]` table):
-`setup_check` is a command that proves the provisioned environment actually
-works (an import smoke test, a compile check). Setup steps can fail in ways a
-zero exit code hides (an `|| true` guard, a partially-populated environment);
-the setup check runs after all steps and catches a worktree that provisioned
-"successfully" but cannot actually run the project.
+Setup steps can fail in ways a zero exit code hides (an `|| true` guard, a
+partially-populated environment). If a provisioned worktree behaves oddly at
+Stage 1, smoke-test the environment (an import check, a compile check) before
+blaming the implementation.

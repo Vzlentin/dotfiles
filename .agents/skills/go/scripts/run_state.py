@@ -6,7 +6,10 @@ so both resolve the same file; and because it lives inside ``.git`` the state
 is untracked and private by construction.
 
 Commands: ``init <slug> [--force]``, ``set <slug> <key> <value>``,
-``get <slug> [key]``, ``list``.
+``get <slug> [key]``, ``list [--json]``. ``list`` prints bare slugs;
+``list --json`` prints every run's full state as one JSON array (unreadable
+state files are skipped), for callers that match on fields — e.g. a campaign
+loop resolving a unit to its run via ``issue`` or a ``slug`` prefix.
 """
 
 import argparse
@@ -91,12 +94,21 @@ def cmd_get(slug: str, key: str | None) -> int:
     return 0
 
 
-def cmd_list() -> int:
-    """List the slugs of all recorded runs."""
+def cmd_list(as_json: bool) -> int:
+    """List recorded runs: bare slugs, or full states as a JSON array."""
     directory = state_dir()
-    if directory.is_dir():
-        for path in sorted(directory.glob("*.json")):
+    paths = sorted(directory.glob("*.json")) if directory.is_dir() else []
+    if not as_json:
+        for path in paths:
             print(path.stem)
+        return 0
+    states = []
+    for path in paths:
+        try:
+            states.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            continue  # a corrupt state file must not break every caller of list
+    print(json.dumps(states, indent=2, sort_keys=True))
     return 0
 
 
@@ -118,7 +130,8 @@ def main(argv: list[str] | None = None) -> int:
     p_get.add_argument("slug")
     p_get.add_argument("key", nargs="?")
 
-    sub.add_parser("list", help="list recorded run slugs")
+    p_list = sub.add_parser("list", help="list recorded run slugs")
+    p_list.add_argument("--json", action="store_true", help="print full states as a JSON array")
 
     args = parser.parse_args(argv)
     if args.command == "init":
@@ -127,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_set(args.slug, args.key, args.value)
     if args.command == "get":
         return cmd_get(args.slug, args.key)
-    return cmd_list()
+    return cmd_list(args.json)
 
 
 if __name__ == "__main__":

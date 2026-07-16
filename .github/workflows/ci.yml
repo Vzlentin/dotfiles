@@ -29,3 +29,9 @@ jobs:
           python-version: "3.12"
       - run: pip install ruff
       - run: ruff check .
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck .local/bin/campaign install.sh

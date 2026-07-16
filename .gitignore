@@ -1,10 +1,45 @@
-# Allowlist: skills are untracked by default. Third-party CLI-managed skills
-# (installed via the skills CLI) are reproducible from .skill-lock.json, which
-# is tracked as the restore manifest.
-skills/*
-!skills/go/
-!skills/project-memory/
+# Default-deny allowlist: nothing is tracked unless explicitly listed below.
+# This is a public dotfiles repo — config dirs allowlist individual files
+# (never whole dirs), so tokens, auth, and runtime state can't be committed
+# by accident.
+/*
 
+# Repo meta and dev tooling (root level, not deployed)
+!/.gitignore
+!/.gitattributes
+!/.github/
+!/AGENTS.md
+!/README.md
+!/LICENSE
+!/install.sh
+!/pyproject.toml
+!/tests/
+
+# ~/.agents payload: tracked skills + the skill-lock restore manifest.
+# Skills are untracked by default; a new tracked skill needs its own
+# !/.agents/skills/<name>/ entry.
+!/.agents/
+/.agents/*
+!/.agents/.skill-lock.json
+!/.agents/skills/
+/.agents/skills/*
+!/.agents/skills/go/
+!/.agents/skills/project-memory/
+
+# ~/.local/bin payload, per-file
+!/.local/
+/.local/*
+!/.local/bin/
+/.local/bin/*
+!/.local/bin/campaign
+
+# ~/.codex, ~/.omp, ~/.config: allowlist individual files as they are
+# curated in, e.g.:
+# !/.codex/
+# /.codex/*
+# !/.codex/config.toml
+
+# Python droppings (anywhere)
 __pycache__/
 *.py[cod]
 .pytest_cache/
