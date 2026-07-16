@@ -24,9 +24,13 @@
 # The next unit is the first queue line with no shipped ledger entry — a
 # re-run after a failure naturally retries the failed unit, and queue edits
 # mid-campaign are picked up (the queue is re-read each iteration). Each
-# unit runs as `omp "/skill:go <unit> ..."` in a fresh pane; the loop blocks
-# once on a completion sentinel echoed after omp exits (no polling), then
-# reads the /go run state exactly once: outcome present -> as recorded;
+# unit runs as `omp "/skill:go <unit> ..."` in a fresh pane. omp keeps its
+# TUI open after the run (deliberately — the pane stays inspectable), so
+# completion is detected via agent status rather than process exit: wait
+# for the agent to reach `working` (short timeout, guards against matching
+# the pre-start idle state), then block on the first `idle` — a /go run is
+# a single omp turn, so idle after working is genuine completion. The loop
+# then reads the /go run state exactly once: outcome present -> as recorded;
 # absent -> crashed (Stage 6 provably never ran); wait timed out -> timeout,
 # with one agent-status peek (blocked-on-input vs hung). A marker file
 # touched at launch guards retries: an outcome only counts if its state
@@ -47,7 +51,7 @@ set -euo pipefail
 shopt -s nullglob
 
 RUN_STATE="$HOME/.agents/skills/go/scripts/run_state.py"
-SENTINEL=__CAMPAIGN_DONE__
+WORKING_TIMEOUT_MS=$((5 * 60 * 1000)) # max wait for the agent to start working
 
 die() { echo "campaign: $*" >&2; exit 1; }
 
@@ -143,13 +147,20 @@ while UNIT=$(next_unit); do
   herdr pane rename "$PANE" "go-$UNIT" >/dev/null
 
   MARKER=$(mktemp) # stale-outcome guard: outcomes older than launch don't count
-  # The command line echoed in the pane must not self-match the sentinel,
-  # hence the quote split in the echo below.
-  herdr pane run "$PANE" "omp $(printf '%q' "$PROMPT"); echo \"__CAMPAIGN_\"\"DONE__\"" >/dev/null
+  herdr pane run "$PANE" "omp $(printf '%q' "$PROMPT")" >/dev/null
+
+  # omp keeps its TUI open after the run (deliberate: the pane stays
+  # inspectable), so completion is detected via agent status, not exit:
+  # wait for working (guards against matching the pre-start idle state),
+  # then the first idle is genuine completion (/go is a single omp turn).
+  # If the working wait times out (omp never started, or finished before
+  # the wait attached), fall through to the run-state read: the MARKER
+  # guard resolves it (fresh outcome -> as recorded; nothing ran -> crashed).
+  herdr wait agent-status "$PANE" --status working --timeout "$WORKING_TIMEOUT_MS" >/dev/null || true
 
   SLUG=""
   PR=""
-  if herdr wait output "$PANE" --match "$SENTINEL" --timeout "$TIMEOUT_MS" >/dev/null; then
+  if herdr wait agent-status "$PANE" --status idle --timeout "$TIMEOUT_MS" >/dev/null; then
     STATE=$(state_for "$UNIT")
     SLUG=$(jq -r '.slug // empty' <<<"$STATE")
     PR=$(jq -r '.pr // empty' <<<"$STATE")
@@ -160,7 +171,9 @@ while UNIT=$(next_unit); do
     OUTCOME=${OUTCOME:-crashed}
   else
     OUTCOME=timeout
-    STATUS=$(herdr pane get "$PANE" | jq -r '.result.pane.agent_status // "unknown"')
+    # Failure-proof: a vanished pane must not abort the script (set -e)
+    # before the ledger write below.
+    STATUS=$(herdr pane get "$PANE" 2>/dev/null | jq -r '.result.pane.agent_status // "unknown"' || echo unknown)
     if [ "$STATUS" = blocked ]; then
       echo "$UNIT: timed out — agent is BLOCKED (waiting on input) in pane go-$UNIT"
     else
