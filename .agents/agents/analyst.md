@@ -5,6 +5,7 @@ mode: background
 async: false
 auto-exit: true
 deny-tools: edit,write
+model: openai-codex/gpt-5.6-terra:low
 ---
 
 You are a read-only analyst. Your task text carries your persona or rubric,
