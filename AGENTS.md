@@ -7,10 +7,20 @@ home directory.
 ## Layout
 
 - `.agents/skills/go/` — the /go orchestration skill: `SKILL.md`, `scripts/`
-  (stdlib Python helpers), `references/` (stage and environment docs).
+ (stdlib Python helpers), `references/` (stage and environment docs;
+ `references/harness/pi.md` is the only home for harness-specific
+ subagent-launch recipes — SKILL.md stays harness-abstract).
+- `.agents/skills/{plan,implement,simplify,review,resolve-review,babysit}/`
+ — the six stage skills /go delegates to, each standalone-invocable.
+ `review/references/personas/` is the review persona catalog (the
+ thermo-nuclear rubric is vendored from cursor-team-kit, MIT, attributed);
+ `resolve-review/scripts/` holds the gh GraphQL thread helpers (bash).
+- `.agents/agents/` — canonical pi-subagents agent definitions
+ (`implementer.md`, `analyst.md`), symlinked by `install.sh` into
+ `~/.pi/agent/agents/`.
 - `.agents/skills/project-memory/` — the project-memory skill.
 - `.agents/.skill-lock.json` — manifest for restoring untracked CLI-managed
-  skills.
+ skills.
 - `.local/bin/campaign` — the serial campaign queue-drain loop (bash).
 - `install.sh` — idempotent symlinks into `$HOME`.
 - `tests/` — pytest suite covering the go scripts.

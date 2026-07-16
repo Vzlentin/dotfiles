@@ -33,22 +33,26 @@ def _git(args: list[str], cwd: Path) -> str:
     return proc.stdout.strip()
 
 
-def test_go_primary_worker_is_pane_backed() -> None:
-    skill = (REPO_ROOT / ".agents" / "skills" / "go" / "SKILL.md").read_text(
-        encoding="utf-8"
-    )
-    brief = (
-        REPO_ROOT / ".agents" / "skills" / "go" / "references" / "ce-work-brief.md"
-    ).read_text(encoding="utf-8")
+def test_go_harness_specifics_are_isolated_in_the_pi_recipe() -> None:
+    """SKILL.md states the subagent contract abstractly and delegates the
+    concrete launch to references/harness/pi.md; only the recipe file may
+    carry harness-specific invocations. Swapping harnesses must mean adding a
+    recipe file, never editing SKILL.md."""
+    go_dir = REPO_ROOT / ".agents" / "skills" / "go"
+    skill = (go_dir / "SKILL.md").read_text(encoding="utf-8")
+    recipe = (go_dir / "references" / "harness" / "pi.md").read_text(encoding="utf-8")
 
-    assert "herdr pane split --current --direction right" in skill
-    assert 'herdr pane run "$PANE" "omp $(printf \'%q\' "$PROMPT")"' in skill
-    assert '--status working' in skill
-    assert '--status idle' in skill
-    assert "Do not invoke the `task`, `job`, or `irc` tools" in brief
-    removed_agent = "side" + "kick"
-    assert removed_agent not in skill.casefold()
-    assert removed_agent not in brief.casefold()
+    assert "references/harness/pi.md" in skill
+    for host_specific in ("herdr", "omp ", "PI_SUBAGENT", "subagent("):
+        assert host_specific not in skill, f"harness detail {host_specific!r} leaked into SKILL.md"
+
+    assert 'agent: "implementer"' in recipe
+    assert 'agent: "analyst"' in recipe
+    assert "PI_SUBAGENT_MUX" in recipe
+    assert "async: false" in recipe
+
+    brief_path = go_dir / "references" / "ce-work-brief.md"
+    assert not brief_path.exists(), "the ce-work brief is superseded by the implement skill"
 
 
 @pytest.fixture
