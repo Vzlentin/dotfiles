@@ -87,16 +87,16 @@ QUEUE="$DIR/queue"
 LEDGER="$DIR/log.jsonl"
 [ -f "$QUEUE" ] || die "no queue at $QUEUE — create the campaign dir by hand (see the header of this script)"
 
-PLAN=""
-TIMEOUT_H=14
-AGENT_CMD="pi"
-if [ -f "$DIR/config" ]; then
-  PLAN=$(sed -n 's/^plan=//p' "$DIR/config" | tail -n1)
-  t=$(sed -n 's/^timeout_h=//p' "$DIR/config" | tail -n1)
-  if [ -n "$t" ]; then TIMEOUT_H=$t; fi
-  a=$(sed -n 's/^agent_cmd=//p' "$DIR/config" | tail -n1)
-  if [ -n "$a" ]; then AGENT_CMD=$a; fi
-fi
+cfg() { # key -> last value for key=... in the config file, if any
+  [ -f "$DIR/config" ] || return 0
+  sed -n "s/^$1=//p" "$DIR/config" | tail -n1
+}
+
+PLAN=$(cfg plan)
+TIMEOUT_H=$(cfg timeout_h)
+TIMEOUT_H=${TIMEOUT_H:-14}
+AGENT_CMD=$(cfg agent_cmd)
+AGENT_CMD=${AGENT_CMD:-pi}
 TIMEOUT_S=$((TIMEOUT_H * 3600))
 
 command -v "${AGENT_CMD%% *}" >/dev/null || die "agent command not on PATH: ${AGENT_CMD%% *}"
@@ -181,7 +181,7 @@ while UNIT=$(next_unit); do
 
   if [ -z "$OUTCOME" ]; then
     OUTCOME=timeout
-    echo "$UNIT: timed out after ${TIMEOUT_H}h with no recorded outcome — the run may be hung, blocked on input, or crashed before Stage 8. Inspect pane go-$UNIT."
+    echo "$UNIT: no outcome recorded after ${TIMEOUT_H}h — the run may be hung, blocked on input, or crashed before Stage 8."
   fi
 
   append_ledger "$UNIT" "$OUTCOME" "$PR" "$SLUG"

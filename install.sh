@@ -6,6 +6,7 @@
 # repo). Existing correct links are left alone; anything else in the way is
 # moved aside to <path>.pre-dotfiles rather than deleted.
 set -euo pipefail
+shopt -s nullglob
 
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

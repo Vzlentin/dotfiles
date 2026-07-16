@@ -33,23 +33,26 @@ fi
 PR_NUMBER=$1
 
 if [ -n "${2:-}" ]; then
-  OWNER=${2%%/*}
-  REPO=${2##*/}
+  SLUG=$2
 else
   # `|| true` is load-bearing: under `set -e` a failed command substitution
   # in an assignment aborts the script before the friendly error below.
-  OWNER=$(gh repo view --json owner -q .owner.login 2>/dev/null || true)
-  REPO=$(gh repo view --json name -q .name 2>/dev/null || true)
+  SLUG=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
 fi
+OWNER=${SLUG%%/*}
+REPO=${SLUG##*/}
 
 if [ -z "$OWNER" ] || [ -z "$REPO" ]; then
   echo "error: could not resolve owner/repo — run from inside the target repo or pass OWNER/REPO" >&2
   exit 1
 fi
 
-threads_pages=$(gh api graphql --paginate --slurp \
-  -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUMBER" \
-  -f query='
+fetch_pages() { # graphql-query -> slurped array of result pages
+  gh api graphql --paginate --slurp \
+    -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUMBER" -f query="$1"
+}
+
+threads_pages=$(fetch_pages '
 query Threads($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
@@ -80,9 +83,7 @@ query Threads($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
   }
 }')
 
-comments_pages=$(gh api graphql --paginate --slurp \
-  -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUMBER" \
-  -f query='
+comments_pages=$(fetch_pages '
 query Comments($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
@@ -98,9 +99,7 @@ query Comments($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
   }
 }')
 
-reviews_pages=$(gh api graphql --paginate --slurp \
-  -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUMBER" \
-  -f query='
+reviews_pages=$(fetch_pages '
 query Reviews($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
@@ -128,14 +127,12 @@ jq -n \
   [$comments[].data.repository.pullRequest.comments.nodes[]] as $all_comments |
   [$reviews[].data.repository.pullRequest.reviews.nodes[]] as $all_reviews |
   ["codecov"] as $ci_bot_logins |
+  def external: select(.author.login != $author.login)
+    | select(.author.login as $l | $ci_bot_logins | index($l) | not);
   {
     review_threads: [$all_threads[] | select(.isResolved == false) | { node: . }],
-    pr_comments: [$all_comments[]
-      | select(.author.login != $author.login)
-      | select(.author.login as $l | $ci_bot_logins | index($l) | not)
+    pr_comments: [$all_comments[] | external
       | select(.body | test("^\\s*$") | not)],
     review_bodies: [$all_reviews[]
-      | select(.body != null and .body != "")
-      | select(.author.login != $author.login)
-      | select(.author.login as $l | $ci_bot_logins | index($l) | not)]
+      | select(.body != null and .body != "") | external]
   }'
