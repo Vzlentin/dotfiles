@@ -3,6 +3,7 @@ name: implementer
 description: Full-capability implementation worker for one unit of work. Launched sync by an orchestrator (e.g. /go) with a self-contained brief; runs the implement skill in an inspectable interactive pane and reports the PR when done.
 mode: interactive
 async: false
+auto-exit: true
 trust-project: true
 ---
 

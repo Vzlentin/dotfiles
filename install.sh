@@ -39,14 +39,6 @@ for agent in "$REPO/.agents/agents/"*.md; do
   link "$agent" "$HOME/.pi/agent/agents/$(basename "$agent")"
 done
 
-# pi skill discovery: pi loads global skills only from ~/.pi/agent/skills/,
-# so mirror every skill dir there (tracked and CLI-managed alike — ~/.agents
-# is this repo, so both kinds live under .agents/skills/). Per-dir so a
-# skill added later just needs a re-run of this script.
-for skill in "$REPO/.agents/skills/"*/; do
-  link "${skill%/}" "$HOME/.pi/agent/skills/$(basename "$skill")"
-done
-
 # ~/.codex, ~/.omp, ~/.config entries get their own `link` line here as
 # files are curated into the allowlist, e.g.:
 #   link "$REPO/.codex/config.toml" "$HOME/.codex/config.toml"

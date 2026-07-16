@@ -1,6 +1,7 @@
 ---
 name: go
-description: Implementation-orchestration pipeline. Given a plain idea, a GitHub issue (#N / number / roadmap code), or a path to a plan file, drive it end-to-end to a merged PR with persisted outcome.
+description: Drive one work item through planning, implementation, review, CI, merge, and persistence.
+disable-model-invocation: true
 ---
 
 You are running the implementation-orchestration pipeline for the work item in
@@ -304,14 +305,12 @@ yourself. On pass, record it:
 
 ## Stage 4 — Simplify (`/simplify`, inline)
 
-Invoke the `simplify` skill from `WORKDIR` (inline — it owns its three-lens
-analyst fan-out). Scope is the branch diff vs `main`. The skill applies
-accepted fixes itself, reruns the project's quality gates in the foreground,
-and **commits + pushes only on green** — if the rerun is red it fixes or
-reverts before committing.
+Invoke the `simplify` skill from `WORKDIR` (inline). It owns its scope,
+analyst fan-out, finding dispositions, fixes, and verification.
 
-**GATE:** working tree clean before Stage 5, with any simplify commit landed
-only after a green rerun.
+**GATE:** all three lenses completed; every finding was applied or skipped with
+a reason; any applied changes passed the project's gates and were pushed; and
+the working tree is clean before Stage 5.
 
 ---
 
@@ -333,7 +332,7 @@ thread.
 
 Invoke the `resolve-review` skill from `WORKDIR` (inline) for this PR. It
 judges every unresolved thread centrally (Stage 5's findings plus any
-human/bot comments that arrived), fixes the valid ones in `WORKDIR`, commits +
+human/bot inline threads that arrived), fixes the valid ones in `WORKDIR`, commits +
 pushes on green gates, then replies and resolves each thread.
 
 **GATE:** no unresolved review threads remain except ones it explicitly tagged
@@ -345,7 +344,7 @@ not block the merge unless they flag a correctness risk — use judgment.
 ## Stage 7 — Babysit the PR to green (`/babysit`, inline)
 
 Invoke the `babysit` skill from `WORKDIR` (inline) for this PR: it resolves
-clear merge conflicts, triages late comments, and fixes in-scope CI failures
+clear merge conflicts, triages late review threads, and fixes in-scope CI failures
 in a bounded loop — the bounds and guardrails are babysit's own. It never
 merges.
 
@@ -359,10 +358,11 @@ recapturing it after every push, and poll:
 python3 "$SKILL_DIR/scripts/ci_verdict.py" verdict $HEAD_SHA
 ```
 
-If babysit stops short (bounds hit, out-of-scope failure, intent conflict),
-append a `## CI Failures Unresolved` section to the PR body
-(`gh pr edit <PR> --body-file <tmp>`), do **not** merge red, and take the
-preserve path (Stage 8, `failed`).
+If babysit stops short, append a `## Babysit Stop` section to the PR body with
+the exact category and failing state (`gh pr edit <PR> --body-file <tmp>`).
+For an iteration or repeated-signature stop, include the unresolved CI checks.
+Take the preserve path (Stage 8, `failed`); merge remains reserved for a green,
+fully triaged result.
 
 **GATE:** the PR is green per `ci_verdict.py` for the current `HEAD_SHA`
 (recorded via `run_state.py set <slug> head_sha $HEAD_SHA`), or babysit

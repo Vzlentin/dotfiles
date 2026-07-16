@@ -12,10 +12,10 @@ Two named agents, canonical in the dotfiles repo at `.agents/agents/` and
 symlinked by `install.sh` into `~/.pi/agent/agents/` (pi-subagents' global
 discovery path; project-local `.pi/agents/` would override by name):
 
-- **`implementer`** — interactive, sync, full tools, trusts the project so
-  the child loads the project's `AGENTS.md` and skills (`/implement` must
-  resolve in the child). Its pane stays open and inspectable after
-  completion.
+- **`implementer`** — interactive, sync, auto-exiting, full tools, and trusted
+  for the project so the child loads its `AGENTS.md` and skills (`/implement`
+  must resolve in the child). Its pane is inspectable while it runs and closes
+  after its final response.
 - **`analyst`** — background, sync, edit/write denied. Not fully read-only
   by construction — bash remains available for `git diff`/`gh` inspection —
   so the agent definition's non-mutating instructions carry the rest. The
@@ -24,7 +24,8 @@ discovery path; project-local `.pi/agents/` would override by name):
 
 The exact frontmatter flags live in `.agents/agents/implementer.md` and
 `analyst.md` — those files are the authority, and the contract test pins the
-load-bearing ones (`async: false`, `deny-tools`, `trust-project`).
+load-bearing ones (`async: false`, `auto-exit: true`, `deny-tools`,
+`trust-project`).
 
 ## Sync semantics — zero polling
 

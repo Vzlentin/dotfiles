@@ -80,7 +80,35 @@ def test_agent_definitions_pin_the_pipeline_contract() -> None:
     assert "mode: background" in analyst
     assert "deny-tools: edit,write" in analyst, "analysts must stay read-only"
     assert "mode: interactive" in implementer
+    assert "auto-exit: true" in implementer, "sync implementer must return without operator input"
     assert "trust-project: true" in implementer, "/implement must resolve in the child"
+
+
+def test_stage_skills_pin_invocation_and_completion_contracts() -> None:
+    """The stage split must sharpen rather than weaken each completion gate."""
+    skills_dir = REPO_ROOT / ".agents" / "skills"
+    go = (skills_dir / "go" / "SKILL.md").read_text(encoding="utf-8")
+    implement = (skills_dir / "implement" / "SKILL.md").read_text(encoding="utf-8")
+    simplify = (skills_dir / "simplify" / "SKILL.md").read_text(encoding="utf-8")
+    review = (skills_dir / "review" / "SKILL.md").read_text(encoding="utf-8")
+    babysit = (skills_dir / "babysit" / "SKILL.md").read_text(encoding="utf-8")
+    comments = (
+        skills_dir / "resolve-review" / "scripts" / "get-pr-comments"
+    ).read_text(encoding="utf-8")
+
+    assert "disable-model-invocation: true" in go, "/go is explicitly user-triggered"
+    assert "account for every task in the spec" in implement
+    assert "all three analysts returned" in simplify
+    assert re.search(r"every input\s+finding appears\s+once", review)
+    assert "every currently unresolved review thread" in babysit
+    assert "pr_comments" not in comments and "review_bodies" not in comments
+
+
+def test_install_uses_one_global_skill_discovery_path() -> None:
+    """~/.agents/skills is already a native pi discovery path."""
+    install = (REPO_ROOT / "install.sh").read_text(encoding="utf-8")
+    assert 'link "$REPO/.agents" "$HOME/.agents"' in install
+    assert "$HOME/.pi/agent/skills/" not in install
 
 
 @pytest.fixture

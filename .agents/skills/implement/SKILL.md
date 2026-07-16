@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Implement a unit of work from a spec or plan on a feature branch, TDD at pre-agreed seams, quality gates in the foreground, finishing with a pushed branch and a PR that closes the backing issue.
+description: Implement a spec or plan as a pull request. Use for feature-branch implementation or when an orchestrator delegates its implementation stage.
 ---
 
 # implement
@@ -32,6 +32,11 @@ decision, stop and report the blocker instead of guessing.
 - Run the typecheck and the targeted tests for changed files regularly while
   building; run the full suite once at the end.
 - Commit in logical units with conventional messages as you go.
+
+**BUILD GATE:** Before finishing, account for every task in the spec: name the
+implementing files and verification evidence, and record a reason for every
+TDD skip. An unimplemented or unverified task is a blocker, not a completed
+build.
 
 ## Finish
 

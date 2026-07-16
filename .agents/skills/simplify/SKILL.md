@@ -1,6 +1,6 @@
 ---
 name: simplify
-description: Simplify a branch's diff against main while preserving behavior — three read-only analyst lenses (code quality/slop, performance, reuse) fan out in parallel, then the orchestrator applies accepted fixes and commits only on green gates.
+description: Simplify a branch diff without changing behavior. Use before review or when introduced code needs structural, performance, or reuse cleanup.
 ---
 
 # simplify
@@ -24,6 +24,9 @@ its lens below pasted into the task text, and the output contract: findings
 as `severity (P0-P3) — file:line — what — verbatim quoted line — proposed
 fix`, behavior-preserving fixes only, zero findings valid.
 
+**STEP 1 GATE:** all three analysts returned, or a named launch failure stops
+the skill; retain every returned finding for disposition in Step 2.
+
 **Lens 1 — code quality & slop.** AI-slop and structure: comments that
 narrate the obvious or break local style; defensive checks and try/catch on
 trusted internal paths; casts that bypass the type system; deep nesting that
@@ -45,9 +48,10 @@ config or constants that already exist elsewhere.
 
 ## Step 2 — Apply, verify, commit
 
-Analysts never write; the orchestrator applies. For each finding, judge it:
-apply clear behavior-preserving improvements, skip false positives and taste
-calls (note them, don't argue). **Never simplify away a safety check** at a
+Analysts never write; the orchestrator applies. Give every retained finding
+exactly one disposition: apply a clear behavior-preserving improvement, or
+skip it with a concrete false-positive or taste-call reason. **Preserve every
+safety check** at a
 trust boundary — validation of external input, security guards, error
 handling that prevents data loss.
 

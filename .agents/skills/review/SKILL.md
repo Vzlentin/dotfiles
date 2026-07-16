@@ -1,6 +1,6 @@
 ---
 name: review
-description: Multi-persona code review of a PR — parallel read-only analysts return structured findings, the orchestrator dedups and corroborates, then posts actionable findings as resolvable inline PR threads via gh.
+description: Review a PR and post actionable findings as resolvable inline threads. Use for PR code review or when an orchestration pipeline reaches review.
 ---
 
 # review
@@ -47,14 +47,19 @@ intent summary + the diff (or its path) + this output contract:
 
 ## Step 3 — Merge
 
-- **Validate**: drop findings without quoted evidence or a real `file:line`.
-- **Dedup** by file + line (±3) + issue; keep the highest severity and note
-  every persona that flagged it.
-- **Corroborate**: 2+ personas on the same finding is the strongest signal —
-  say so in the thread body.
-- **Calibrate**: P0 = breakage/vulnerability/data loss, P1 = likely defect in
-  normal use, P2 = meaningful edge case or maintainability trap, P3 = minor.
-  Drop pure-taste nits that the project's linter or conventions don't back.
+Assign every analyst finding exactly one recorded disposition:
+
+- **Post** when it has quoted evidence and a real `file:line`.
+- **Deduplicate** by file + line (±3) + issue into a named posted finding; keep
+  the highest severity and record every persona that corroborated it.
+- **Drop** with a concrete reason when evidence/location validation fails or
+  calibration finds only unsupported taste.
+
+Calibrate before posting: P0 = breakage/vulnerability/data loss, P1 = likely
+defect in normal use, P2 = meaningful edge case or maintainability trap,
+P3 = minor. Two or more corroborating personas are the strongest signal; name
+them in the thread body. Step 3 is complete when every input finding appears
+once in the disposition record.
 
 ## Step 4 — Post as resolvable PR threads
 
@@ -75,5 +80,6 @@ resolve stage's own-comment filter would silently drop it. Only inline
 threads are guaranteed to reach the resolve stage. Do not push code, do not
 fix anything here — review only.
 
-Finish with a summary: personas run, findings posted per severity (with
-thread URLs), findings dropped in validation, or "zero findings" when clean.
+Finish with a summary: personas run; every finding disposition (posted with
+severity and thread URL, deduplicated into which post, or dropped with reason);
+and "zero findings" when every persona returned clean.

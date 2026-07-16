@@ -1,6 +1,6 @@
 ---
 name: resolve-review
-description: Resolve a PR's unresolved review threads — judge every thread centrally, fix the valid ones, push on green gates, then reply with quoted context and resolve the threads via GraphQL.
+description: Resolve unresolved PR review threads. Use after review or whenever unresolved inline threads are pending.
 ---
 
 # resolve-review
@@ -27,9 +27,9 @@ repo):
 <skill-dir>/scripts/get-pr-comments <PR> [OWNER/REPO]
 ```
 
-It returns unresolved inline review threads plus non-author top-level
-comments and review bodies. `isOutdated` means the diff moved, not that the
-concern was addressed — resolution state is the only authoritative signal.
+It returns unresolved inline review threads. `isOutdated` means the diff
+moved, not that the concern was addressed — resolution state is the only
+authoritative signal.
 
 ## Step 2 — Judge every thread centrally (the legitimacy gate)
 
