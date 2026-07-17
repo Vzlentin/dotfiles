@@ -15,16 +15,23 @@
 !/pyproject.toml
 !/tests/
 
-# ~/.agents payload: tracked skills + the skill-lock restore manifest.
-# Skills are untracked by default; a new tracked skill needs its own
-# !/.agents/skills/<name>/ entry.
+# ~/.agents payload: tracked skills + agent definitions + the skill-lock
+# restore manifest. Skills are untracked by default; a new tracked skill
+# needs its own !/.agents/skills/<name>/ entry.
 !/.agents/
 /.agents/*
 !/.agents/.skill-lock.json
+!/.agents/agents/
 !/.agents/skills/
 /.agents/skills/*
+!/.agents/skills/babysit/
 !/.agents/skills/go/
+!/.agents/skills/implement/
+!/.agents/skills/plan/
 !/.agents/skills/project-memory/
+!/.agents/skills/resolve-review/
+!/.agents/skills/review/
+!/.agents/skills/simplify/
 
 # ~/.local/bin payload, per-file
 !/.local/

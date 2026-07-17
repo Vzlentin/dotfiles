@@ -1,12 +1,12 @@
-# Stage 0d — mode and provisioning rationale
+# Stage 2 — mode and provisioning rationale
 
 The git-state read, mode decision, and provisioning mechanics live in
 `$SKILL_DIR/scripts/provision_worktree.py` (`decide` / `provision`);
-SKILL.md's Stage 0d owns the GATE. This file keeps the judgment behind them.
+SKILL.md's Stage 2 owns the GATE. This file keeps the judgment behind them.
 
 ## Why the mode split
 
-DIRECT mode (on `main` and clean) lets `ce-work` branch inside the main
+DIRECT mode (on `main` and clean) lets the implementer branch inside the main
 checkout — cheapest path, nothing to preserve. Any other state — another
 branch, detached HEAD, or a dirty tree — means the user's checkout carries
 context that must not move, so WORKTREE mode cuts an isolated worktree on a
@@ -29,5 +29,5 @@ paths in its config and scripts).
 
 Setup steps can fail in ways a zero exit code hides (an `|| true` guard, a
 partially-populated environment). If a provisioned worktree behaves oddly at
-Stage 1, smoke-test the environment (an import check, a compile check) before
+Stage 3, smoke-test the environment (an import check, a compile check) before
 blaming the implementation.

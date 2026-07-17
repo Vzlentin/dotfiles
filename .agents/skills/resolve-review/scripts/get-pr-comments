@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# get-pr-comments — fetch a PR's unresolved inline review threads as JSON.
+#
+# usage: get-pr-comments PR_NUMBER [OWNER/REPO]
+#
+# Run from inside the target repo (owner/repo auto-detected via gh) or pass
+# OWNER/REPO explicitly. Output object keys:
+#
+#   review_threads  unresolved inline review threads, each with id,
+#                   isOutdated, path, line info, and up to 100 comments
+#
+# The reviewThreads connection is paginated. Per-thread comments are capped at
+# 100 without follow-up pagination. `isOutdated` means the diff hunk moved, not
+# that the concern was addressed; only resolution state is authoritative, so
+# outdated-but-unresolved threads are surfaced.
+#
+# Adapted from the ce-resolve-pr-feedback skill in Every's
+# compound-engineering plugin (https://github.com/EveryInc/compound-engineering).
+#
+# shellcheck disable=SC2016  # single-quoted $vars are GraphQL variables, not shell
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "usage: get-pr-comments PR_NUMBER [OWNER/REPO]" >&2
+  exit 1
+fi
+
+PR_NUMBER=$1
+
+if [ -n "${2:-}" ]; then
+  SLUG=$2
+else
+  # `|| true` is load-bearing: under `set -e` a failed command substitution
+  # in an assignment aborts the script before the friendly error below.
+  SLUG=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
+fi
+OWNER=${SLUG%%/*}
+REPO=${SLUG##*/}
+
+if [ -z "$OWNER" ] || [ -z "$REPO" ]; then
+  echo "error: could not resolve owner/repo — run from inside the target repo or pass OWNER/REPO" >&2
+  exit 1
+fi
+
+fetch_pages() { # graphql-query -> slurped array of result pages
+  gh api graphql --paginate --slurp \
+    -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUMBER" -f query="$1"
+}
+
+threads_pages=$(fetch_pages '
+query Threads($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      reviewThreads(first: 100, after: $endCursor) {
+        nodes {
+          id
+          isResolved
+          isOutdated
+          path
+          line
+          originalLine
+          startLine
+          originalStartLine
+          comments(first: 100) {
+            nodes {
+              id
+              author { login }
+              body
+              createdAt
+              url
+            }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}')
+
+jq -n \
+  --argjson threads "$threads_pages" '
+  [$threads[].data.repository.pullRequest.reviewThreads.nodes[]] as $all_threads |
+  {
+    review_threads: [$all_threads[] | select(.isResolved == false) | { node: . }]
+  }'

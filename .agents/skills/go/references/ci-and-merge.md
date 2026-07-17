@@ -1,11 +1,12 @@
-# Stage 5 — CI verdict, merge, and cleanup policy
+# Stages 7–8 — CI verdict, merge, and cleanup policy
 
 The mechanics live in the skill scripts: `ci_verdict.py` (verdict over the
 typed check-runs API, failure signature, failed-log pull) and
 `merge_cleanup.py` (`closes #N` verification, squash-merge, merge-gated
-cleanup by mode). SKILL.md's Stage 5 owns the loop shape — the max-3-iterations
-cap, the repeated-signature stop, the on-green merge decision, and the GATE.
-This file keeps the policy behind them.
+cleanup by mode). SKILL.md's Stage 7 owns the loop shape — the
+max-3-iterations cap and repeated-signature stop live in `/babysit` — and
+Stage 8 owns the on-green merge decision and the GATE. This file keeps the
+policy behind them.
 
 ## Verdict policy
 
@@ -31,7 +32,7 @@ the worktree removal is **not** forced: uncommitted work inside the worktree
 refuses the removal (exit 2, merged-but-cleanup-incomplete) instead of being
 destroyed.
 
-- **Direct mode** (the main checkout is on the PR branch from Stage 1): return
+- **Direct mode** (the main checkout is on the PR branch from Stage 3): return
   to `main`, fast-forward, drop the branch.
 - **Worktree mode** (the main checkout never left the user's branch/dirty
   tree): remove the worktree and drop the branch **without** `git checkout

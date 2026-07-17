@@ -87,7 +87,7 @@ rather than hardcoding a path.
 
 ### Plan placement and relocation
 
-`/ce-plan` writes a fresh plan to the repo at
+A planning skill (e.g. `/plan`) writes a fresh plan to the repo at
 `docs/plans/YYYY-MM-DD-NNN-<type>-<name>-plan.md`. Place it at the resolved
 store:
 

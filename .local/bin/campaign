@@ -13,6 +13,8 @@
 #   `- config     optional key=value lines:
 #                   plan=<campaign plan path>   context line for the prompt
 #                   timeout_h=<hours>           per-unit timeout (default 14)
+#                   agent_cmd=<command>         interactive agent command run
+#                                               in the pane (default: pi)
 #
 # There is no init ceremony: mkdir -p the directory and hand-write queue
 # (and optionally config). <project> is the work repo's basename matched
@@ -24,26 +26,28 @@
 # The next unit is the first queue line with no shipped ledger entry — a
 # re-run after a failure naturally retries the failed unit, and queue edits
 # mid-campaign are picked up (the queue is re-read each iteration). Each
-# unit runs as `omp "/skill:go <unit> ..."` in a fresh pane. omp keeps its
-# TUI open after the run (deliberately — the pane stays inspectable), so
-# completion is detected via agent status rather than process exit: wait
-# for the agent to reach `working` (short timeout, guards against matching
-# the pre-start idle state), then block on the first `idle` — a /go run is
-# a single omp turn, so idle after working is genuine completion. The loop
-# then reads the /go run state exactly once: outcome present -> as recorded;
-# absent -> crashed (Stage 6 provably never ran); wait timed out -> timeout,
-# with one agent-status peek (blocked-on-input vs hung). A marker file
-# touched at launch guards retries: an outcome only counts if its state
-# JSON is newer than the launch (a retried unit can't re-read its old
-# outcome).
+# unit runs as `<agent_cmd> "/skill:go <unit> ..."` in a fresh herdr pane;
+# the agent keeps its TUI open after the run (deliberately — the pane stays
+# inspectable), so herdr is used for pane split/rename/run only, never for
+# completion detection. Completion is detected by polling the /go run state:
+# /go's terminal stage records an `outcome` key, so the loop polls
+# <git-common-dir>/go-runs/<slug>.json until the outcome appears or the
+# per-unit timeout expires. Retries are guarded twice: any terminal
+# `outcome` left by a previous run is cleared (run_state.py unset) before
+# launch, and an outcome only counts if its state JSON is newer than the
+# launch marker. No fresh outcome within the timeout is recorded as
+# `timeout` — the run may be hung, blocked on input, or crashed before
+# recording an outcome; the pane is preserved for inspection either way.
 #
-# Contract with /go (SKILL.md): Stage 0c records `issue` and Stage 6 records
-# `outcome` in <git-common-dir>/go-runs/<slug>.json, read here via
+# Contract with /go (SKILL.md): the plan/issue stage records `issue` and the
+# terminal merge-and-persist stage records `outcome` in
+# <git-common-dir>/go-runs/<slug>.json, read here via
 # `run_state.py list --json`. Code units (U9a) match the slug prefix
 # (u9a-...), numeric units match the `issue` field.
 #
-# Requires on PATH: git, jq, herdr, omp, python3. The pane shell must be
-# bash (the prompt is quoted with `printf %q`).
+# Requires on PATH: git, jq, herdr, python3, and the configured agent
+# command (default pi). The pane shell must be bash (the prompt is quoted
+# with `printf %q`).
 #
 # Exit codes: 0 when the queue drains, 1 on the first non-shipped outcome
 # or any setup failure.
@@ -51,14 +55,14 @@ set -euo pipefail
 shopt -s nullglob
 
 RUN_STATE="$HOME/.agents/skills/go/scripts/run_state.py"
-WORKING_TIMEOUT_MS=$((5 * 60 * 1000)) # max wait for the agent to start working
+POLL_INTERVAL_S=30 # seconds between run-state polls
 
 die() { echo "campaign: $*" >&2; exit 1; }
 
 [ $# -eq 1 ] || die "usage: campaign <name>"
 NAME=$1
 
-for tool in git jq herdr omp python3; do
+for tool in git jq herdr python3; do
   command -v "$tool" >/dev/null || die "required tool not on PATH: $tool"
 done
 [ -f "$RUN_STATE" ] || die "run_state.py not found at $RUN_STATE"
@@ -85,14 +89,19 @@ QUEUE="$DIR/queue"
 LEDGER="$DIR/log.jsonl"
 [ -f "$QUEUE" ] || die "no queue at $QUEUE — create the campaign dir by hand (see the header of this script)"
 
-PLAN=""
-TIMEOUT_H=14
-if [ -f "$DIR/config" ]; then
-  PLAN=$(sed -n 's/^plan=//p' "$DIR/config" | tail -n1)
-  t=$(sed -n 's/^timeout_h=//p' "$DIR/config" | tail -n1)
-  if [ -n "$t" ]; then TIMEOUT_H=$t; fi
-fi
-TIMEOUT_MS=$((TIMEOUT_H * 3600 * 1000))
+cfg() { # key -> last value for key=... in the config file, if any
+  [ -f "$DIR/config" ] || return 0
+  sed -n "s/^$1=//p" "$DIR/config" | tail -n1
+}
+
+PLAN=$(cfg plan)
+TIMEOUT_H=$(cfg timeout_h)
+TIMEOUT_H=${TIMEOUT_H:-14}
+AGENT_CMD=$(cfg agent_cmd)
+AGENT_CMD=${AGENT_CMD:-pi}
+TIMEOUT_S=$((TIMEOUT_H * 3600))
+
+command -v "${AGENT_CMD%% *}" >/dev/null || die "agent command not on PATH: ${AGENT_CMD%% *}"
 
 shipped() { # unit -> exit 0 when the ledger has a shipped entry for it
   [ -f "$LEDGER" ] || return 1
@@ -124,10 +133,10 @@ state_for() { # unit -> print the matching /go run-state JSON object, if any
   fi
 }
 
-prompt_for() { # unit -> the omp prompt: /skill:go line + optional plan context
+prompt_for() { # unit -> the agent prompt: /skill:go line + optional plan context
   printf '/skill:go %s' "$1"
   if [ -n "$PLAN" ]; then
-    printf "\nCAMPAIGN CONTEXT — not the unit spec: the campaign plan is %s. Use this unit's section as planning input only; Stage 0b still makes a unit plan." "$PLAN"
+    printf "\nCAMPAIGN CONTEXT — not the unit spec: the campaign plan is %s. Use this unit's section as planning input only; the planning stage still makes a unit plan." "$PLAN"
   fi
 }
 
@@ -146,45 +155,52 @@ while UNIT=$(next_unit); do
   [ -n "$PANE" ] || die "herdr pane split failed"
   herdr pane rename "$PANE" "go-$UNIT" >/dev/null
 
-  MARKER=$(mktemp) # stale-outcome guard: outcomes older than launch don't count
-  herdr pane run "$PANE" "omp $(printf '%q' "$PROMPT")" >/dev/null
+  # Retry guard, part 1: a retried unit resumes its old state file, which
+  # still carries the previous run's terminal `outcome`. Clear it before
+  # launch — otherwise the new run's first mid-run `set` would refresh the
+  # file's mtime and launder the stale outcome past the marker check below.
+  PRIOR=$(state_for "$UNIT")
+  if [ -n "$PRIOR" ] && [ -n "$(jq -r '.outcome // empty' <<<"$PRIOR")" ]; then
+    python3 "$RUN_STATE" unset "$(jq -r .slug <<<"$PRIOR")" outcome
+  fi
 
-  # omp keeps its TUI open after the run (deliberate: the pane stays
-  # inspectable), so completion is detected via agent status, not exit:
-  # wait for working (guards against matching the pre-start idle state),
-  # then the first idle is genuine completion (/go is a single omp turn).
-  # If the working wait times out (omp never started, or finished before
-  # the wait attached), fall through to the run-state read: the MARKER
-  # guard resolves it (fresh outcome -> as recorded; nothing ran -> crashed).
-  herdr wait agent-status "$PANE" --status working --timeout "$WORKING_TIMEOUT_MS" >/dev/null || true
+  MARKER=$(mktemp) # retry guard, part 2: outcomes older than launch don't count
+  herdr pane run "$PANE" "$AGENT_CMD $(printf '%q' "$PROMPT")" >/dev/null
 
+  # Completion detection: poll the /go run state for a fresh terminal
+  # `outcome` (/go always writes one, even on failure).
+  DEADLINE=$((SECONDS + TIMEOUT_S))
   SLUG=""
   PR=""
-  if herdr wait agent-status "$PANE" --status idle --timeout "$TIMEOUT_MS" >/dev/null; then
+  OUTCOME=""
+  while [ "$SECONDS" -lt "$DEADLINE" ]; do
     STATE=$(state_for "$UNIT")
-    SLUG=$(jq -r '.slug // empty' <<<"$STATE")
-    PR=$(jq -r '.pr // empty' <<<"$STATE")
-    OUTCOME=$(jq -r '.outcome // empty' <<<"$STATE")
-    if [ -n "$OUTCOME" ] && ! [ "$RUNS_DIR/$SLUG.json" -nt "$MARKER" ]; then
-      OUTCOME="" # stale: recorded before this launch, so this run never wrote one
+    if [ -n "$STATE" ]; then
+      SLUG=$(jq -r '.slug // empty' <<<"$STATE")
+      PR=$(jq -r '.pr // empty' <<<"$STATE")
+      OUTCOME=$(jq -r '.outcome // empty' <<<"$STATE")
+      if [ -n "$OUTCOME" ] && [ -n "$SLUG" ] && [ "$RUNS_DIR/$SLUG.json" -nt "$MARKER" ]; then
+        break # fresh terminal outcome from this launch
+      fi
+      SLUG="" # stale or partial state: no field of it belongs in the ledger
+      PR=""
+      OUTCOME=""
     fi
-    OUTCOME=${OUTCOME:-crashed}
-  else
-    OUTCOME=timeout
-    # Failure-proof: a vanished pane must not abort the script (set -e)
-    # before the ledger write below.
-    STATUS=$(herdr pane get "$PANE" 2>/dev/null | jq -r '.result.pane.agent_status // "unknown"' || echo unknown)
-    if [ "$STATUS" = blocked ]; then
-      echo "$UNIT: timed out — agent is BLOCKED (waiting on input) in pane go-$UNIT"
-    else
-      echo "$UNIT: timed out — agent looks hung (status: $STATUS) in pane go-$UNIT"
-    fi
-  fi
+    sleep "$POLL_INTERVAL_S"
+  done
   rm -f "$MARKER"
+
+  if [ -z "$OUTCOME" ]; then
+    OUTCOME=timeout
+    echo "$UNIT: no outcome recorded after ${TIMEOUT_H}h — the run may be hung, blocked on input, or crashed before recording an outcome."
+  fi
 
   append_ledger "$UNIT" "$OUTCOME" "$PR" "$SLUG"
   if [ "$OUTCOME" = shipped ]; then
     echo "=== $UNIT: shipped ($(date -Iseconds)) ==="
+    # The outcome is written before the agent's final report renders; give
+    # the turn a moment to finish before tearing the pane down.
+    sleep 60
     herdr pane close "$PANE" >/dev/null
   else
     echo "$UNIT: $OUTCOME — pane go-$UNIT preserved for debugging. Stopping."

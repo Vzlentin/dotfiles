@@ -6,6 +6,7 @@
 # repo). Existing correct links are left alone; anything else in the way is
 # moved aside to <path>.pre-dotfiles rather than deleted.
 set -euo pipefail
+shopt -s nullglob
 
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -30,6 +31,13 @@ link "$REPO/.agents" "$HOME/.agents"
 
 # Per-file payloads.
 link "$REPO/.local/bin/campaign" "$HOME/.local/bin/campaign"
+
+# pi-subagents agent definitions: canonical copies live in .agents/agents/,
+# discovered by pi-subagents at ~/.pi/agent/agents/. Per-file so untracked
+# agents added by the CLI never land in the repo.
+for agent in "$REPO/.agents/agents/"*.md; do
+  link "$agent" "$HOME/.pi/agent/agents/$(basename "$agent")"
+done
 
 # ~/.codex, ~/.omp, ~/.config entries get their own `link` line here as
 # files are curated into the allowlist, e.g.:

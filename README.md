@@ -10,11 +10,29 @@ The interesting parts:
 
 - **`.agents/skills/go/`** — an implementation-orchestration pipeline: give
   it an idea, a GitHub issue, or a plan file, and it drives the work
-  end-to-end to a squash-merged PR (plan → issue → isolated worktree →
-  implement → simplify → review → resolve feedback → CI loop → merge →
-  persist outcome). Its primary `ce-work` implementation runs as a separate
-  root `omp` session in a herdr pane, so the worker stays visible and
-  inspectable instead of disappearing into an in-process task tree.
+  end-to-end to a squash-merged PR (plan + issue → isolated worktree →
+  implement → simplify → review → resolve feedback → babysit CI → merge →
+  persist outcome). Each stage delegates to one of the stage skills below;
+  harness specifics (how subagents launch on pi +
+  [pi-subagents](https://github.com/edxeth/pi-subagents)) are isolated in
+  `references/harness/pi.md`, so supporting another harness is adding one
+  file.
+- **Six stage skills**, each standalone-invocable and pipeline-friendly:
+  `plan/` (zero-context-executor unit plans, headless-safe), `implement/`
+  (TDD to a pushed PR with `closes #N`; adapted from
+  [Matt Pocock's skills](https://github.com/mattpocock/skills)), `simplify/`
+  (three read-only lenses over the branch diff; adapted from Cursor's
+  `/simplify` + team-kit `deslop`), `review/` (persona analyst panel posting
+  resolvable PR threads; architecture adapted from
+  [compound-engineering](https://github.com/EveryInc/compound-engineering)'s
+  `ce-code-review`, with the cursor-team-kit thermo-nuclear rubric vendored
+  as the harsh maintainability persona), `resolve-review/` (central
+  legitimacy gate, fix/reply/resolve via `gh` GraphQL; adapted from
+  `ce-resolve-pr-feedback`), and `babysit/` (bounded conflicts/comments/CI
+  loop; adapted from Cursor's built-in `babysit` — it never merges).
+- **`.agents/agents/`** — canonical pi-subagents agent definitions: an
+  interactive full-capability `implementer` and a read-only background
+  `analyst`, symlinked by `install.sh` into `~/.pi/agent/agents/`.
 - **`.agents/skills/project-memory/`** — project-agnostic durable memory
   backed by an Obsidian vault, with a repo-relative `docs/plans/` fallback
   for plans.
@@ -31,9 +49,9 @@ git clone https://github.com/Vzlentin/dotfiles ~/dotfiles
 
 `install.sh` is idempotent: it symlinks `~/.agents` to the repo's `.agents/`
 (whole-dir — harnesses that walk `~/.agents/skills` pick the skills up in
-any repo) and each other payload per-file (`~/.local/bin/campaign`, …).
-Anything already in the way is moved aside to `<path>.pre-dotfiles`, never
-deleted.
+any repo) and each other payload per-file (`~/.local/bin/campaign`, plus each
+agent definition into `~/.pi/agent/agents/`). Anything already in the way is
+moved aside to `<path>.pre-dotfiles`, never deleted.
 
 Untracked (CLI-managed) skills are restorable from the tracked
 `.agents/.skill-lock.json` manifest.
@@ -47,20 +65,21 @@ campaign <name>     # from inside the work repo
 A campaign is a state directory in the vault project folder
 (`$OBSIDIAN_VAULT_PATH/Projects/<project>/campaigns/<name>/`): a
 hand-maintained `queue` (one unit per line), an optional `config`
-(`plan=…`, `timeout_h=…`), and a machine-appended `log.jsonl` ledger. The
-loop picks the first queue unit without a shipped ledger entry, launches
-`/go <unit>` in a fresh agent pane, blocks on a completion sentinel, reads
-the unit's outcome from the `/go` run state, appends the ledger, and stops
-on anything non-shipped — so a re-run naturally retries the failed unit.
-Full behavior and the campaign-dir format are documented in the header of
+(`plan=…`, `timeout_h=…`, `agent_cmd=…`), and a machine-appended `log.jsonl`
+ledger. The loop picks the first queue unit without a shipped ledger entry,
+launches `/go <unit>` via the configured agent command (default `pi`) in a
+fresh agent pane, polls the `/go` run state until a fresh terminal outcome
+appears (or the per-unit timeout expires), appends the ledger, and stops on
+anything non-shipped — so a re-run naturally retries the failed unit. Full
+behavior and the campaign-dir format are documented in the header of
 [`.local/bin/campaign`](.local/bin/campaign).
 
 The loop keys on the `/go` run-state contract (`issue` and `outcome` in
 `<git-common-dir>/go-runs/<slug>.json`); see
 [.agents/skills/go/SKILL.md](.agents/skills/go/SKILL.md).
 
-Requires on PATH: `git`, `jq`, `herdr` (agent panes), `omp` (the agent
-harness), `python3`.
+Requires on PATH: `git`, `jq`, `herdr` (agent panes), `python3`, and the
+configured agent command (default `pi`).
 
 ## Development
 
@@ -68,7 +87,7 @@ harness), `python3`.
 pip install pytest ruff   # or: uv sync
 pytest
 ruff check .
-shellcheck .local/bin/campaign install.sh
+shellcheck .local/bin/campaign install.sh .agents/skills/resolve-review/scripts/*
 ```
 
 CI runs the pytest suite on Ubuntu and Windows, plus ruff and shellcheck.

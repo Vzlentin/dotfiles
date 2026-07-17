@@ -8,6 +8,7 @@ collision refusal.
 """
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -33,22 +34,81 @@ def _git(args: list[str], cwd: Path) -> str:
     return proc.stdout.strip()
 
 
-def test_go_primary_worker_is_pane_backed() -> None:
-    skill = (REPO_ROOT / ".agents" / "skills" / "go" / "SKILL.md").read_text(
-        encoding="utf-8"
-    )
-    brief = (
-        REPO_ROOT / ".agents" / "skills" / "go" / "references" / "ce-work-brief.md"
+def test_go_harness_specifics_are_isolated_in_the_pi_recipe() -> None:
+    """SKILL.md states the subagent contract abstractly and delegates the
+    concrete launch to references/harness/pi.md; only the recipe file may
+    carry harness-specific invocations. Swapping harnesses must mean adding a
+    recipe file, never editing SKILL.md."""
+    go_dir = REPO_ROOT / ".agents" / "skills" / "go"
+    skill = (go_dir / "SKILL.md").read_text(encoding="utf-8")
+    recipe = (go_dir / "references" / "harness" / "pi.md").read_text(encoding="utf-8")
+
+    assert "references/harness/pi.md" in skill
+    leak = re.search(r"\b(herdr|omp)\b|PI_SUBAGENT|subagent\(", skill)
+    assert leak is None, f"harness detail {leak.group()!r} leaked into SKILL.md"
+
+    assert 'agent: "implementer"' in recipe
+    assert 'agent: "analyst"' in recipe
+    assert "PI_SUBAGENT_MUX" in recipe
+    assert "async: false" in recipe
+
+    brief_path = go_dir / "references" / "ce-work-brief.md"
+    assert not brief_path.exists(), "the ce-work brief is superseded by the implement skill"
+
+
+def test_stage_skills_point_at_the_existing_harness_recipe() -> None:
+    """simplify and review depend on go's harness recipe by path; if the
+    recipe moves, their pointers must break CI instead of rotting silently."""
+    skills_dir = REPO_ROOT / ".agents" / "skills"
+    recipe = skills_dir / "go" / "references" / "harness" / "pi.md"
+    assert recipe.is_file()
+    for name in ("simplify", "review"):
+        text = (skills_dir / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "references/harness/pi.md" in text, f"{name} lost its harness-recipe pointer"
+
+
+def test_agent_definitions_pin_the_pipeline_contract() -> None:
+    """The .agents/agents/ frontmatter is what pi-subagents actually reads
+    (symlinked by install.sh); pin the flags the pipeline's zero-polling and
+    read-only guarantees rely on, not just the recipe prose describing them."""
+    agents_dir = REPO_ROOT / ".agents" / "agents"
+    analyst = (agents_dir / "analyst.md").read_text(encoding="utf-8")
+    implementer = (agents_dir / "implementer.md").read_text(encoding="utf-8")
+
+    for text, name in ((analyst, "analyst"), (implementer, "implementer")):
+        assert "async: false" in text, f"{name} must be sync — the pipeline never polls"
+    assert "mode: background" in analyst
+    assert "deny-tools: edit,write" in analyst, "analysts must stay read-only"
+    assert "mode: interactive" in implementer
+    assert "auto-exit: true" in implementer, "sync implementer must return without operator input"
+    assert "trust-project: true" in implementer, "/implement must resolve in the child"
+
+
+def test_stage_skills_pin_invocation_and_completion_contracts() -> None:
+    """The stage split must sharpen rather than weaken each completion gate."""
+    skills_dir = REPO_ROOT / ".agents" / "skills"
+    go = (skills_dir / "go" / "SKILL.md").read_text(encoding="utf-8")
+    implement = (skills_dir / "implement" / "SKILL.md").read_text(encoding="utf-8")
+    simplify = (skills_dir / "simplify" / "SKILL.md").read_text(encoding="utf-8")
+    review = (skills_dir / "review" / "SKILL.md").read_text(encoding="utf-8")
+    babysit = (skills_dir / "babysit" / "SKILL.md").read_text(encoding="utf-8")
+    comments = (
+        skills_dir / "resolve-review" / "scripts" / "get-pr-comments"
     ).read_text(encoding="utf-8")
 
-    assert "herdr pane split --current --direction right" in skill
-    assert 'herdr pane run "$PANE" "omp $(printf \'%q\' "$PROMPT")"' in skill
-    assert '--status working' in skill
-    assert '--status idle' in skill
-    assert "Do not invoke the `task`, `job`, or `irc` tools" in brief
-    removed_agent = "side" + "kick"
-    assert removed_agent not in skill.casefold()
-    assert removed_agent not in brief.casefold()
+    assert "disable-model-invocation: true" in go, "/go is explicitly user-triggered"
+    assert "account for every task in the spec" in implement
+    assert "all three analysts returned" in simplify
+    assert re.search(r"every input\s+finding appears\s+once", review)
+    assert "every currently unresolved review thread" in babysit
+    assert "pr_comments" not in comments and "review_bodies" not in comments
+
+
+def test_install_uses_one_global_skill_discovery_path() -> None:
+    """~/.agents/skills is already a native pi discovery path."""
+    install = (REPO_ROOT / "install.sh").read_text(encoding="utf-8")
+    assert 'link "$REPO/.agents" "$HOME/.agents"' in install
+    assert "$HOME/.pi/agent/skills/" not in install
 
 
 @pytest.fixture
@@ -100,6 +160,23 @@ def test_run_state_init_set_get_roundtrip(
 
     assert run_state.main(["list"]) == 0
     assert capsys.readouterr().out.split() == ["my-slug"]
+
+
+def test_run_state_unset_removes_key_and_is_idempotent(
+    scratch_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The campaign retry guard clears a stale terminal outcome via unset; the
+    key must be gone afterwards and a second unset must not fail."""
+    monkeypatch.chdir(scratch_repo)
+    assert run_state.main(["init", "my-slug"]) == 0
+    assert run_state.main(["set", "my-slug", "outcome", "failed"]) == 0
+    capsys.readouterr()
+
+    assert run_state.main(["unset", "my-slug", "outcome"]) == 0
+    assert run_state.main(["unset", "my-slug", "outcome"]) == 0
+
+    assert run_state.main(["get", "my-slug"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"slug": "my-slug"}
 
 
 def test_run_state_list_json_prints_full_states(
