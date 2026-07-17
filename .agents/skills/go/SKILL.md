@@ -82,22 +82,25 @@ Stage 0 input classification, and a referenced campaign plan is planning
 Each stage delegates to a stage skill; how it's invoked depends on who owns
 the fan-out:
 
-- **Implementer subagent (Stage 3):** launch **one blocking, full-capability
-  implementer child** in `WORKDIR` via the harness's native subagent
-  mechanism, running `/implement` with the filled brief. The child is
-  synchronous — the launch returns when the implementation is done — and its
-  surface stays inspectable while it runs. The concrete launch recipe for
-  this harness lives in `references/harness/pi.md`; adding a harness means
-  adding one file there, not editing this SKILL.md.
+- **Implementer subagent (Stages 3 and 6):** launch **one blocking,
+  full-capability implementer child** in `WORKDIR` via the harness's native
+  subagent mechanism, running the stage skill with a filled brief. The child
+  inherits the parent session's execution configuration, and its surface stays
+  inspectable until the synchronous launch returns.
+- **Hands subagent (Stage 7):** launch **one blocking, full-capability hands
+  child** in `WORKDIR` to run `/babysit`. The agent profile owns its execution
+  configuration; `/go` only supplies the stage brief. Its surface stays
+  inspectable until the synchronous launch returns.
 - **Inline (the `/go` agent runs the skill directly):** `/plan`, `/simplify`,
-  `/review`, `/resolve-review`, `/babysit`. `/plan` runs inline so any
-  clarifying gate can reach you; `/simplify` and `/review` own their own
-  analyst fan-out (also specified in the harness recipe), so `/go` runs them
+  `/review`. `/plan` runs inline so any clarifying gate can reach you;
+  `/simplify` and `/review` own their own analyst fan-out, so `/go` runs them
   itself rather than nesting fan-out inside another subagent.
 
-`/go` never runs the implementation itself and never launches it through a
-mechanism that hides it — the implementation stays a first-class, inspectable
-worker.
+The concrete launch recipes and agent-profile routing live in
+`references/harness/pi.md`; adding a harness means adding one file there, not
+editing this SKILL.md. `/go` never runs implementation, review resolution, or
+CI remediation itself and never launches them through a mechanism that hides
+them — hands-on work stays in a first-class, inspectable worker.
 
 ---
 
@@ -328,12 +331,16 @@ thread.
 
 ---
 
-## Stage 6 — Resolve review feedback (`/resolve-review`, inline)
+## Stage 6 — Resolve review feedback (one blocking implementer subagent)
 
-Invoke the `resolve-review` skill from `WORKDIR` (inline) for this PR. It
-judges every unresolved thread centrally (Stage 5's findings plus any
-human/bot inline threads that arrived), fixes the valid ones in `WORKDIR`, commits +
-pushes on green gates, then replies and resolves each thread.
+Launch **one blocking implementer subagent in `WORKDIR`** to invoke
+`/resolve-review` for this PR (concrete launch recipe in
+`references/harness/pi.md`). Its self-contained brief must name the PR and
+`WORKDIR`, require it to judge every unresolved thread centrally (Stage 5's
+findings plus any human/bot inline threads that arrived), fix valid ones in
+`WORKDIR`, commit + push on green gates, then reply to and resolve each thread.
+Require the final report to list thread dispositions, commits pushed, gate
+results, and any `needs-human` threads.
 
 **GATE:** no unresolved review threads remain except ones it explicitly tagged
 `needs-human`. Surface any `needs-human` threads in the final report; they do
@@ -341,22 +348,26 @@ not block the merge unless they flag a correctness risk — use judgment.
 
 ---
 
-## Stage 7 — Babysit the PR to green (`/babysit`, inline)
+## Stage 7 — Babysit the PR to green (one blocking hands subagent)
 
-Invoke the `babysit` skill from `WORKDIR` (inline) for this PR: it resolves
-clear merge conflicts, triages late review threads, and fixes in-scope CI failures
-in a bounded loop — the bounds and guardrails are babysit's own. It never
-merges.
+Launch **one blocking hands subagent in `WORKDIR`** to invoke `/babysit` for
+this PR (concrete launch recipe in `references/harness/pi.md`). It resolves
+clear merge conflicts, triages late review threads, and fixes in-scope CI
+failures in a bounded loop — the bounds and guardrails are babysit's own. It
+never merges.
 
-Give it the verdict machinery — `ci_verdict.py` is the **only CI truth
-source** on this host (typed check-runs API; verdict semantics in
-`references/ci-and-merge.md`, host caveats in `references/environment.md`).
-Capture the head SHA (`HEAD_SHA=$(cd "$WORKDIR" && git rev-parse HEAD)`),
-recapturing it after every push, and poll:
+Give its self-contained brief the verdict machinery — `ci_verdict.py` is the
+**only CI truth source** on this host (typed check-runs API; verdict semantics
+in `references/ci-and-merge.md`, host caveats in `references/environment.md`).
+The child must capture the head SHA, recapture it after every push, and poll:
 
 ```bash
 python3 "$SKILL_DIR/scripts/ci_verdict.py" verdict $HEAD_SHA
 ```
+
+After the child returns, independently recapture the current head SHA:
+`HEAD_SHA=$(cd "$WORKDIR" && git rev-parse HEAD)`, and run the same verdict
+command once more before applying the GATE.
 
 If babysit stops short, append a `## Babysit Stop` section to the PR body with
 the exact category and failing state (`gh pr edit <PR> --body-file <tmp>`).

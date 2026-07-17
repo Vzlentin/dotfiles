@@ -26,8 +26,11 @@ The interesting parts:
   fix/reply/resolve via `gh` GraphQL), and `babysit/` (bounded
   conflicts/comments/CI loop — it never merges).
 - **`.agents/agents/`** — canonical pi-subagents agent definitions: an
-  interactive full-capability `implementer` and a read-only background
-  `analyst`, symlinked by `install.sh` into `~/.pi/agent/agents/`.
+  interactive full-capability `implementer` that inherits the parent model, an
+  interactive `hands` worker for bounded mechanical execution pinned to Luna
+  xhigh, and a read-only background `analyst` pinned to Terra low. `install.sh`
+  symlinks them into
+  `~/.pi/agent/agents/`; `/go` names roles without carrying model policy.
 - **`.agents/skills/project-memory/`** — project-agnostic durable memory
   backed by an Obsidian vault, with a repo-relative `docs/plans/` fallback
   for plans.

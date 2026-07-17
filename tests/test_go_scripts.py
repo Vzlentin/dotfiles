@@ -48,7 +48,12 @@ def test_go_harness_specifics_are_isolated_in_the_pi_recipe() -> None:
     assert leak is None, f"harness detail {leak.group()!r} leaked into SKILL.md"
 
     assert 'agent: "implementer"' in recipe
+    assert 'agent: "hands"' in recipe
     assert 'agent: "analyst"' in recipe
+    assert 'model: "openai-codex/' not in recipe, "model routing belongs in agent profiles"
+    assert 'thinking: "' not in recipe, "thinking routing belongs in agent profiles"
+    assert "Fetch every unresolved inline thread" in recipe
+    assert "`ci_verdict.py` is the only CI truth source" in recipe
     assert "PI_SUBAGENT_MUX" in recipe
     assert "async: false" in recipe
 
@@ -74,14 +79,30 @@ def test_agent_definitions_pin_the_pipeline_contract() -> None:
     agents_dir = REPO_ROOT / ".agents" / "agents"
     analyst = (agents_dir / "analyst.md").read_text(encoding="utf-8")
     implementer = (agents_dir / "implementer.md").read_text(encoding="utf-8")
+    hands = (agents_dir / "hands.md").read_text(encoding="utf-8")
 
-    for text, name in ((analyst, "analyst"), (implementer, "implementer")):
+    for text, name in (
+        (analyst, "analyst"),
+        (implementer, "implementer"),
+        (hands, "hands"),
+    ):
         assert "async: false" in text, f"{name} must be sync — the pipeline never polls"
     assert "mode: background" in analyst
     assert "deny-tools: edit,write" in analyst, "analysts must stay read-only"
-    assert "mode: interactive" in implementer
-    assert "auto-exit: true" in implementer, "sync implementer must return without operator input"
-    assert "trust-project: true" in implementer, "/implement must resolve in the child"
+    assert "model: openai-codex/gpt-5.6-terra:low" in analyst
+    assert "model: openai-codex/gpt-5.6-luna:xhigh" in hands
+    for text, name in ((implementer, "implementer"), (hands, "hands")):
+        frontmatter = text.split("---", 2)[1]
+        assert "mode: interactive" in frontmatter
+        assert "auto-exit: true" in frontmatter, f"sync {name} must return autonomously"
+        assert "trust-project: true" in frontmatter, f"stage skills must resolve in {name}"
+    implementer_frontmatter = implementer.split("---", 2)[1]
+    assert not re.search(r"^model:", implementer_frontmatter, re.MULTILINE), (
+        "implementer must inherit the parent model"
+    )
+    assert not re.search(r"^thinking:", implementer_frontmatter, re.MULTILINE), (
+        "implementer must inherit the parent thinking level"
+    )
 
 
 def test_stage_skills_pin_invocation_and_completion_contracts() -> None:
@@ -97,6 +118,9 @@ def test_stage_skills_pin_invocation_and_completion_contracts() -> None:
     ).read_text(encoding="utf-8")
 
     assert "disable-model-invocation: true" in go, "/go is explicitly user-triggered"
+    assert not re.search(r"\b(?:Sol|Terra|Luna|xhigh|gpt-\d)", go, re.IGNORECASE), (
+        "model names and levels belong in agent profiles, not /go"
+    )
     assert "account for every task in the spec" in implement
     assert "all three analysts returned" in simplify
     assert re.search(r"every input\s+finding appears\s+once", review)
