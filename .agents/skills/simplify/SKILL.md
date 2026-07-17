@@ -10,10 +10,6 @@ the branch diff against the default branch (`git diff origin/main...HEAD`,
 plus staged/unstaged changes); never widen it to pre-existing code unless a
 fix directly depends on touching it.
 
-Adapted from Cursor's built-in `/simplify` and the cursor-team-kit `deslop`
-skill (<https://github.com/cursor/plugins>), with the structural ambition of
-the thermo-nuclear code-quality rubric.
-
 ## Step 1 — Fan out three analyst lenses
 
 Launch three **blocking, read-only analysts in parallel** via the harness's

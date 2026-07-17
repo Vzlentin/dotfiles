@@ -10,9 +10,6 @@ branch's PR) with a panel of read-only persona analysts, and post the
 findings where they can be worked: **resolvable inline review threads on the
 PR**. Zero findings is a valid outcome.
 
-Architecture adapted (radically leaner) from the compound-engineering
-`ce-code-review` skill by Every (<https://github.com/EveryInc/compound-engineering>).
-
 ## Step 1 — Scope
 
 Resolve the PR (`gh pr view --json number,title,body,headRefOid,baseRefName`)

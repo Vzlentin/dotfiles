@@ -5,9 +5,6 @@
 #
 # Prints the thread's id, isResolved, path, and line as JSON confirmation.
 #
-# Adapted from the ce-resolve-pr-feedback skill in Every's
-# compound-engineering plugin (https://github.com/EveryInc/compound-engineering).
-#
 # shellcheck disable=SC2016  # single-quoted $vars are GraphQL variables, not shell
 set -euo pipefail
 

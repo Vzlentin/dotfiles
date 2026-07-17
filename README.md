@@ -19,17 +19,12 @@ The interesting parts:
   file.
 - **Six stage skills**, each standalone-invocable and pipeline-friendly:
   `plan/` (zero-context-executor unit plans, headless-safe), `implement/`
-  (TDD to a pushed PR with `closes #N`; adapted from
-  [Matt Pocock's skills](https://github.com/mattpocock/skills)), `simplify/`
-  (three read-only lenses over the branch diff; adapted from Cursor's
-  `/simplify` + team-kit `deslop`), `review/` (persona analyst panel posting
-  resolvable PR threads; architecture adapted from
-  [compound-engineering](https://github.com/EveryInc/compound-engineering)'s
-  `ce-code-review`, with the cursor-team-kit thermo-nuclear rubric vendored
-  as the harsh maintainability persona), `resolve-review/` (central
-  legitimacy gate, fix/reply/resolve via `gh` GraphQL; adapted from
-  `ce-resolve-pr-feedback`), and `babysit/` (bounded conflicts/comments/CI
-  loop; adapted from Cursor's built-in `babysit` — it never merges).
+  (TDD to a pushed PR with `closes #N`), `simplify/` (three read-only lenses
+  over the branch diff), `review/` (persona analyst panel posting resolvable
+  PR threads, with a vendored thermo-nuclear rubric as the harsh
+  maintainability persona), `resolve-review/` (central legitimacy gate,
+  fix/reply/resolve via `gh` GraphQL), and `babysit/` (bounded
+  conflicts/comments/CI loop — it never merges).
 - **`.agents/agents/`** — canonical pi-subagents agent definitions: an
   interactive full-capability `implementer` and a read-only background
   `analyst`, symlinked by `install.sh` into `~/.pi/agent/agents/`.

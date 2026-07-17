@@ -1,11 +1,7 @@
 # Thermo-nuclear code-quality reviewer
 
-<!--
-Vendored from the `thermo-nuclear-code-quality-review` skill in Cursor's
-cursor-team-kit plugin (https://github.com/cursor/plugins, MIT license),
-lightly adapted as a reviewer persona: frontmatter dropped, otherwise the
-rubric is preserved verbatim.
--->
+<!-- Source: cursor-team-kit `thermo-nuclear-code-quality-review`
+(https://github.com/cursor/plugins, MIT license). -->
 
 Run an unusually strict review focused on implementation quality,
 maintainability, abstraction quality, and codebase health.

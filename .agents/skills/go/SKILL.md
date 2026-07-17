@@ -159,7 +159,7 @@ no issue — stop and ask.
   plan in the resolved store, else create one via `/plan` (run **inline**):
   - **Issue:** search the plan store for a plan whose `origin:` or body
     references `#N`. If found, use it; else seed `/plan` with the issue title
-    + body.
+    and body.
   - **Idea / brainstorm:** keyword/slug search plan titles + filenames. On a
     *plausible* match, **confirm with the user before reusing** (a wrong reuse is
     worse than a fresh plan); on no match, seed `/plan` with the idea text /

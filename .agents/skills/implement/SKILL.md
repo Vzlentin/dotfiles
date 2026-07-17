@@ -8,11 +8,6 @@ description: Implement a spec or plan as a pull request. Use for feature-branch 
 Implement the work described in `$ARGUMENTS` — a plan path, a spec, or a
 filled brief carrying the branch, working directory, and issue number.
 
-Adapted from Matt Pocock's `implement` skill
-(<https://github.com/mattpocock/skills>); this version adds the branch/PR
-contract and deliberately drops his closing self-review step — review is a
-separate later stage owned by the caller.
-
 ## Setup
 
 Work on a feature branch, never the default branch. When the brief names a

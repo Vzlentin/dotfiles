@@ -14,9 +14,6 @@
 # that the concern was addressed; only resolution state is authoritative, so
 # outdated-but-unresolved threads are surfaced.
 #
-# Adapted from the ce-resolve-pr-feedback skill in Every's
-# compound-engineering plugin (https://github.com/EveryInc/compound-engineering).
-#
 # shellcheck disable=SC2016  # single-quoted $vars are GraphQL variables, not shell
 set -euo pipefail
 

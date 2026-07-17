@@ -10,8 +10,6 @@ PR) to a merge-ready state: mergeable, CI green, review threads triaged. You
 **never merge** — the caller owns the merge gate. Exit with the PR green, or
 with a clear stop reason.
 
-Adapted from Cursor's built-in `babysit` skill.
-
 ## Loop
 
 Work these three surfaces until all are clean or a stop condition fires:

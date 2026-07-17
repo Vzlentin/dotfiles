@@ -6,9 +6,6 @@
 # The body is read from stdin to avoid shell-escaping issues with markdown
 # (quotes, newlines). Prints the created comment's id and url as JSON.
 #
-# Adapted from the ce-resolve-pr-feedback skill in Every's
-# compound-engineering plugin (https://github.com/EveryInc/compound-engineering).
-#
 # shellcheck disable=SC2016  # single-quoted $vars are GraphQL variables, not shell
 set -euo pipefail
 

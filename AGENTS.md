@@ -13,7 +13,7 @@ home directory.
 - `.agents/skills/{plan,implement,simplify,review,resolve-review,babysit}/`
  — the six stage skills /go delegates to, each standalone-invocable.
  `review/references/personas/` is the review persona catalog (the
- thermo-nuclear rubric is vendored from cursor-team-kit, MIT, attributed);
+ thermo-nuclear rubric is vendored MIT content — keep its license notice);
  `resolve-review/scripts/` holds the gh GraphQL thread helpers (bash).
 - `.agents/agents/` — canonical pi-subagents agent definitions
  (`implementer.md`, `analyst.md`), symlinked by `install.sh` into
