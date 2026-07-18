@@ -35,6 +35,17 @@ link "$REPO/.local/bin/campaign" "$HOME/.local/bin/campaign"
 # pi-subagents agent definitions: canonical copies live in .agents/agents/,
 # discovered by pi-subagents at ~/.pi/agent/agents/. Per-file so untracked
 # agents added by the CLI never land in the repo.
+# Retire dangling links to definitions removed or renamed in this repo while
+# preserving user-owned and CLI-managed agents.
+for installed_agent in "$HOME/.pi/agent/agents/"*.md; do
+  if [ -L "$installed_agent" ]; then
+    target=$(readlink "$installed_agent")
+    if [[ $target == "$REPO/.agents/agents/"* ]] && [ ! -e "$target" ]; then
+      rm "$installed_agent"
+      echo "removed $installed_agent (definition retired)"
+    fi
+  fi
+done
 for agent in "$REPO/.agents/agents/"*.md; do
   link "$agent" "$HOME/.pi/agent/agents/$(basename "$agent")"
 done

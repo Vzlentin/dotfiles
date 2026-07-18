@@ -49,7 +49,7 @@ def test_go_harness_specifics_are_isolated_in_the_pi_recipe() -> None:
 
     assert 'agent: "implementer"' in recipe
     assert 'agent: "hands"' in recipe
-    assert 'agent: "analyst"' in recipe
+    assert 'agent: "scout"' in recipe
     assert 'model: "openai-codex/' not in recipe, "model routing belongs in agent profiles"
     assert 'thinking: "' not in recipe, "thinking routing belongs in agent profiles"
     assert "Fetch every unresolved inline thread" in recipe
@@ -77,19 +77,19 @@ def test_agent_definitions_pin_the_pipeline_contract() -> None:
     (symlinked by install.sh); pin the flags the pipeline's zero-polling and
     read-only guarantees rely on, not just the recipe prose describing them."""
     agents_dir = REPO_ROOT / ".agents" / "agents"
-    analyst = (agents_dir / "analyst.md").read_text(encoding="utf-8")
+    scout = (agents_dir / "scout.md").read_text(encoding="utf-8")
     implementer = (agents_dir / "implementer.md").read_text(encoding="utf-8")
     hands = (agents_dir / "hands.md").read_text(encoding="utf-8")
 
     for text, name in (
-        (analyst, "analyst"),
+        (scout, "scout"),
         (implementer, "implementer"),
         (hands, "hands"),
     ):
         assert "async: false" in text, f"{name} must be sync — the pipeline never polls"
-    assert "mode: background" in analyst
-    assert "deny-tools: edit,write" in analyst, "analysts must stay read-only"
-    assert "model: openai-codex/gpt-5.6-terra:low" in analyst
+    assert "mode: background" in scout
+    assert "deny-tools: edit,write" in scout, "scouts must stay read-only"
+    assert "model: openai-codex/gpt-5.6-terra:low" in scout
     assert "model: openai-codex/gpt-5.6-luna:xhigh" in hands
     for text, name in ((implementer, "implementer"), (hands, "hands")):
         frontmatter = text.split("---", 2)[1]
@@ -103,6 +103,20 @@ def test_agent_definitions_pin_the_pipeline_contract() -> None:
     assert not re.search(r"^thinking:", implementer_frontmatter, re.MULTILINE), (
         "implementer must inherit the parent thinking level"
     )
+
+
+def test_worker_agent_is_full_capability_kimi_generalist() -> None:
+    worker = (REPO_ROOT / ".agents" / "agents" / "worker.md").read_text(encoding="utf-8")
+    frontmatter = worker.split("---", 2)[1]
+
+    assert "name: worker" in frontmatter
+    assert "mode: interactive" in frontmatter
+    assert "async: false" in frontmatter
+    assert "auto-exit: true" in frontmatter
+    assert "trust-project: true" in frontmatter
+    assert "tools: all" in frontmatter
+    assert "model: opencode-go/kimi-k3:high" in frontmatter
+    assert "allow-model-override: false" in frontmatter
 
 
 def test_stage_skills_pin_invocation_and_completion_contracts() -> None:
@@ -122,7 +136,7 @@ def test_stage_skills_pin_invocation_and_completion_contracts() -> None:
         "model names and levels belong in agent profiles, not /go"
     )
     assert "account for every task in the spec" in implement
-    assert "all three analysts returned" in simplify
+    assert "all three scouts returned" in simplify
     assert re.search(r"every input\s+finding appears\s+once", review)
     assert "every currently unresolved review thread" in babysit
     assert "pr_comments" not in comments and "review_bodies" not in comments

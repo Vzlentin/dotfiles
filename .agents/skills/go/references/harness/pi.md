@@ -21,15 +21,15 @@ discovery path; project-local `.pi/agents/` would override by name):
   the general worker for bounded mechanical procedures; its profile owns its
   execution configuration. `/go` uses it for babysitting, whose brief forbids
   merging.
-- **`analyst`** — background, sync, edit/write denied. Its profile owns its
+- **`scout`** — background, sync, edit/write denied. Its profile owns its
   execution configuration.
   Not fully read-only by construction — bash remains available for `git
   diff`/`gh` inspection — so the agent definition's non-mutating instructions
   carry the rest. The persona/lens identity arrives in the task text pasted
-  from the calling skill's persona files — there is one analyst agent, not one
+  from the calling skill's persona files — there is one scout agent, not one
   per persona.
 
-The exact frontmatter flags live in `.agents/agents/{implementer,hands,analyst}.md`
+The exact frontmatter flags live in `.agents/agents/{implementer,hands,scout}.md`
 — those files are the authority, and the contract test pins the load-bearing
 ones (`async: false`, `auto-exit: true`, `deny-tools`, `trust-project`, and
 model routing).
@@ -46,8 +46,8 @@ assistant message comes back as that tool call's result. So:
   polling, no waits.
 - **Stage 7 (babysit):** one `subagent` call for `hands`. The call returns when
   babysitting reaches green or a bounded stop.
-- **Analyst fanout (simplify's 3 lenses, review's persona panel):** issue all
-  `subagent` calls for `analyst` **in one message/batch**. The batch returns
+- **Scout fanout (simplify's 3 lenses, review's persona panel):** issue all
+  `subagent` calls for `scout` **in one message/batch**. The batch returns
   all findings together.
 
 ## Launch shapes
@@ -117,12 +117,12 @@ preserve path.
 )
 ```
 
-Analyst batch (one call per lens/persona, all in a single batch; task = the
+Scout batch (one call per lens/persona, all in a single batch; task = the
 persona/lens text pasted verbatim + scope + output contract):
 
 ```
-subagent(agent: "analyst", name: "review-correctness", title: "Correctness review", cwd: "<WORKDIR>", task: "<persona + diff + contract>")
-subagent(agent: "analyst", name: "review-security",    title: "Security review",    cwd: "<WORKDIR>", task: "<persona + diff + contract>")
+subagent(agent: "scout", name: "review-correctness", title: "Correctness review", cwd: "<WORKDIR>", task: "<persona + diff + contract>")
+subagent(agent: "scout", name: "review-security",    title: "Security review",    cwd: "<WORKDIR>", task: "<persona + diff + contract>")
 …
 ```
 
@@ -156,6 +156,6 @@ not fall back to doing the hands-on stage inline in the parent.
 - A human (or the campaign loop) triggers a run with pi's skill command:
   `pi '/skill:go <unit>'` — arguments after the command are appended to the
   skill content.
-- The `analyst`/`implementer`/`hands` children are launched by the
+- The `scout`/`implementer`/`hands` children are launched by the
   *orchestrating session* via the `subagent` tool; stage skills never shell
   out to `pi` directly.

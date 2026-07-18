@@ -10,17 +10,17 @@ the branch diff against the default branch (`git diff origin/main...HEAD`,
 plus staged/unstaged changes); never widen it to pre-existing code unless a
 fix directly depends on touching it.
 
-## Step 1 — Fan out three analyst lenses
+## Step 1 — Fan out three scout lenses
 
-Launch three **blocking, read-only analysts in parallel** via the harness's
+Launch three **blocking, read-only scouts in parallel** via the harness's
 native subagent mechanism (for the pi recipe, see the `go` skill's
 `references/harness/pi.md`; with no subagent mechanism, run the three lenses
-inline, one after another). Each analyst gets the full diff (or its path),
+inline, one after another). Each scout gets the full diff (or its path),
 its lens below pasted into the task text, and the output contract: findings
 as `severity (P0-P3) — file:line — what — verbatim quoted line — proposed
 fix`, behavior-preserving fixes only, zero findings valid.
 
-**STEP 1 GATE:** all three analysts returned, or a named launch failure stops
+**STEP 1 GATE:** all three scouts returned, or a named launch failure stops
 the skill; retain every returned finding for disposition in Step 2.
 
 **Lens 1 — code quality & slop.** AI-slop and structure: comments that
@@ -44,7 +44,7 @@ config or constants that already exist elsewhere.
 
 ## Step 2 — Apply, verify, commit
 
-Analysts never write; the orchestrator applies. Give every retained finding
+Scouts never write; the orchestrator applies. Give every retained finding
 exactly one disposition: apply a clear behavior-preserving improvement, or
 skip it with a concrete false-positive or taste-call reason. **Preserve every
 safety check** at a

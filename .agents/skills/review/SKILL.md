@@ -6,7 +6,7 @@ description: Review a PR and post actionable findings as resolvable inline threa
 # review
 
 Review the PR in `$ARGUMENTS` (a PR number, or blank for the current
-branch's PR) with a panel of read-only persona analysts, and post the
+branch's PR) with a panel of read-only persona scouts, and post the
 findings where they can be worked: **resolvable inline review threads on the
 PR**. Zero findings is a valid outcome.
 
@@ -17,7 +17,7 @@ and compute the diff from the merge base (`git diff -U10 $(git merge-base
 HEAD origin/<base>)`). Read the PR title/body for intent. If the working tree
 is not the PR head, stop and report rather than reviewing the wrong tree.
 
-## Step 2 — Fan out persona analysts
+## Step 2 — Fan out persona scouts
 
 Pick personas from `references/personas/` in this skill's directory:
 
@@ -30,10 +30,10 @@ Pick personas from `references/personas/` in this skill's directory:
   mechanism that could silently pass (CI gates, test harnesses, merge
   checks).
 
-Launch the selected personas as **blocking, read-only analysts in parallel**
+Launch the selected personas as **blocking, read-only scouts in parallel**
 via the harness's native subagent mechanism (pi recipe: the `go` skill's
 `references/harness/pi.md`; no mechanism: run them inline sequentially).
-Each analyst's task text = the persona file content, pasted verbatim + the
+Each scout's task text = the persona file content, pasted verbatim + the
 intent summary + the diff (or its path) + this output contract:
 
 > Return findings as a list. Each: `P0|P1|P2|P3 — file:line — title — the
@@ -44,7 +44,7 @@ intent summary + the diff (or its path) + this output contract:
 
 ## Step 3 — Merge
 
-Assign every analyst finding exactly one recorded disposition:
+Assign every scout finding exactly one recorded disposition:
 
 - **Post** when it has quoted evidence and a real `file:line`.
 - **Deduplicate** by file + line (±3) + issue into a named posted finding; keep

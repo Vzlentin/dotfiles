@@ -20,17 +20,18 @@ The interesting parts:
 - **Six stage skills**, each standalone-invocable and pipeline-friendly:
   `plan/` (zero-context-executor unit plans, headless-safe), `implement/`
   (TDD to a pushed PR with `closes #N`), `simplify/` (three read-only lenses
-  over the branch diff), `review/` (persona analyst panel posting resolvable
+  over the branch diff), `review/` (persona scout panel posting resolvable
   PR threads, with a vendored thermo-nuclear rubric as the harsh
   maintainability persona), `resolve-review/` (central legitimacy gate,
   fix/reply/resolve via `gh` GraphQL), and `babysit/` (bounded
   conflicts/comments/CI loop — it never merges).
 - **`.agents/agents/`** — canonical pi-subagents agent definitions: an
   interactive full-capability `implementer` that inherits the parent model, an
-  interactive `hands` worker for bounded mechanical execution pinned to Luna
-  xhigh, and a read-only background `analyst` pinned to Terra low. `install.sh`
-  symlinks them into
-  `~/.pi/agent/agents/`; `/go` names roles without carrying model policy.
+  interactive `hands` agent for bounded mechanical execution pinned to Luna
+  xhigh, a read-only background `scout` pinned to Terra low, and a versatile
+  full-capability `worker` pinned to Kimi K3 high. `install.sh` symlinks them
+  into `~/.pi/agent/agents/`; `/go` names its pipeline roles without carrying
+  model policy.
 - **`.agents/skills/project-memory/`** — project-agnostic durable memory
   backed by an Obsidian vault, with a repo-relative `docs/plans/` fallback
   for plans.

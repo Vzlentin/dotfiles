@@ -93,7 +93,7 @@ the fan-out:
   inspectable until the synchronous launch returns.
 - **Inline (the `/go` agent runs the skill directly):** `/plan`, `/simplify`,
   `/review`. `/plan` runs inline so any clarifying gate can reach you;
-  `/simplify` and `/review` own their own analyst fan-out, so `/go` runs them
+  `/simplify` and `/review` own their own scout fan-out, so `/go` runs them
   itself rather than nesting fan-out inside another subagent.
 
 The concrete launch recipes and agent-profile routing live in
@@ -309,7 +309,7 @@ yourself. On pass, record it:
 ## Stage 4 — Simplify (`/simplify`, inline)
 
 Invoke the `simplify` skill from `WORKDIR` (inline). It owns its scope,
-analyst fan-out, finding dispositions, fixes, and verification.
+scout fan-out, finding dispositions, fixes, and verification.
 
 **GATE:** all three lenses completed; every finding was applied or skipped with
 a reason; any applied changes passed the project's gates and were pushed; and
@@ -319,7 +319,7 @@ the working tree is clean before Stage 5.
 
 ## Stage 5 — Review (`/review`, inline)
 
-Invoke the `review` skill from `WORKDIR` (inline — it owns the persona analyst
+Invoke the `review` skill from `WORKDIR` (inline — it owns the persona scout
 fan-out) against this PR. Its actionable findings land as **resolvable inline
 PR review threads** so Stage 6 has something to resolve. Review is read-only:
 it posts threads, never pushes code.

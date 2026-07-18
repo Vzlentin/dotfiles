@@ -16,7 +16,8 @@ home directory.
  thermo-nuclear rubric is vendored MIT content — keep its license notice);
  `resolve-review/scripts/` holds the gh GraphQL thread helpers (bash).
 - `.agents/agents/` — canonical pi-subagents agent definitions
- (`implementer.md`, `hands.md`, `analyst.md`), symlinked by `install.sh` into
+ (`implementer.md`, `hands.md`, `scout.md`, `worker.md`), symlinked by
+ `install.sh` into
  `~/.pi/agent/agents/`.
 - `.agents/skills/project-memory/` — the project-memory skill.
 - `.agents/.skill-lock.json` — manifest for restoring untracked CLI-managed
