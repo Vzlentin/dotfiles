@@ -15,6 +15,13 @@
 !/pyproject.toml
 !/tests/
 
+# Decision prototype asset, kept on its throwaway prototype branch.
+!/docs/
+/docs/*
+!/docs/prototypes/
+/docs/prototypes/*
+!/docs/prototypes/live-control-room.html
+
 # ~/.agents payload: tracked skills + agent definitions + the skill-lock
 # restore manifest. Skills are untracked by default; a new tracked skill
 # needs its own !/.agents/skills/<name>/ entry.

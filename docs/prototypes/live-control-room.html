@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control room prototype</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d1117;
+      --panel: #141a22;
+      --panel-2: #1a222d;
+      --panel-3: #202b38;
+      --line: #344152;
+      --text: #ecf2f8;
+      --muted: #9babbc;
+      --blue: #69a7ff;
+      --blue-bg: #173052;
+      --green: #74d99f;
+      --green-bg: #163b2b;
+      --amber: #ffc768;
+      --amber-bg: #493515;
+      --red: #ff8585;
+      --red-bg: #4a2327;
+      --violet: #c3a4ff;
+      --violet-bg: #342752;
+      --radius: 10px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); min-width: 1120px; }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 2px solid var(--blue); outline-offset: 2px;
+    }
+
+    .prototype-note {
+      padding: 5px 16px; background: #2c2414; color: #f2d797; border-bottom: 1px solid #5a4720;
+      font-size: 12px; text-align: center;
+    }
+    .topbar {
+      height: 58px; display: flex; align-items: center; gap: 24px; padding: 0 18px;
+      border-bottom: 1px solid var(--line); background: #10151c;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 210px; font-weight: 750; }
+    .brand-mark {
+      display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px;
+      background: linear-gradient(145deg, #75aaff, #7857dd); color: white;
+    }
+    .global-nav { display: flex; align-self: stretch; gap: 4px; }
+    .nav-button {
+      border: 0; border-bottom: 2px solid transparent; color: var(--muted); background: transparent;
+      padding: 0 13px; font-weight: 650;
+    }
+    .nav-button:hover { color: var(--text); background: #171e27; }
+    .nav-button.active { color: var(--text); border-bottom-color: var(--blue); }
+    .count {
+      display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 6px;
+      border-radius: 99px; background: var(--amber-bg); color: var(--amber); font-size: 11px;
+    }
+    .top-spacer { flex: 1; }
+    .daemon { color: var(--green); font-size: 12px; }
+    .route { display: none; }
+    .route.active { display: block; }
+
+    .campaign-header {
+      min-height: 112px; padding: 15px 20px 12px; border-bottom: 1px solid var(--line); background: var(--panel);
+    }
+    .campaign-title-row { display: flex; align-items: flex-start; gap: 14px; }
+    .campaign-title-row h1 { font-size: 20px; margin: 2px 0 4px; }
+    .subtle { color: var(--muted); font-size: 12px; }
+    .chips { display: flex; gap: 6px; margin-top: 8px; }
+    .chip, .badge {
+      display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 99px;
+      padding: 3px 8px; font-size: 11px; color: var(--muted); background: var(--panel-2);
+    }
+    .chip.active, .badge.blue { color: var(--blue); border-color: #315f99; background: var(--blue-bg); }
+    .chip.good, .badge.good { color: var(--green); border-color: #2c704d; background: var(--green-bg); }
+    .chip.warn, .badge.warn { color: var(--amber); border-color: #785b22; background: var(--amber-bg); }
+    .chip.danger, .badge.danger { color: var(--red); border-color: #7b373b; background: var(--red-bg); }
+    .badge.violet { color: var(--violet); border-color: #654aa2; background: var(--violet-bg); }
+    .campaign-actions { margin-left: auto; display: flex; gap: 8px; }
+    .button {
+      border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; background: var(--panel-2); color: var(--text);
+      font-size: 12px; font-weight: 650;
+    }
+    .button:hover { border-color: #60728a; background: var(--panel-3); }
+    .button.primary { border-color: #3e78bf; background: #22528b; }
+    .button.ghost { background: transparent; }
+    .button.danger { color: var(--red); }
+    .button.small { padding: 5px 8px; font-size: 11px; }
+    .lifecycle { display: flex; align-items: center; gap: 7px; margin-top: 12px; font-size: 11px; color: var(--muted); }
+    .lifecycle-step { display: flex; align-items: center; gap: 6px; }
+    .lifecycle-step::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #596575; }
+    .lifecycle-step.done::before { background: var(--green); }
+    .lifecycle-step.current { color: var(--blue); font-weight: 700; }
+    .lifecycle-step.current::before { background: var(--blue); box-shadow: 0 0 0 3px #254a79; }
+    .lifecycle-line { width: 40px; border-top: 1px solid #4a5767; }
+
+    .control-layout {
+      height: calc(100vh - 202px); min-height: 590px; display: grid; grid-template-columns: 270px minmax(510px, 1fr) 350px;
+    }
+    .rail, .inspector { background: var(--panel); overflow: auto; }
+    .rail { border-right: 1px solid var(--line); padding: 14px; }
+    .inspector { border-left: 1px solid var(--line); }
+    .section-title {
+      margin: 0 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em;
+      font-size: 10px; font-weight: 800;
+    }
+    .attention-card {
+      width: 100%; text-align: left; border: 1px solid var(--line); border-left-width: 3px; border-radius: 8px;
+      background: var(--panel-2); color: var(--text); padding: 10px; margin-bottom: 9px;
+    }
+    .attention-card:hover { background: var(--panel-3); }
+    .attention-card.gate { border-left-color: var(--violet); }
+    .attention-card.warning { border-left-color: var(--amber); }
+    .attention-card.danger { border-left-color: var(--red); }
+    .attention-card strong { display: block; font-size: 12px; margin-bottom: 4px; }
+    .attention-card span { color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .rail-footer { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+
+    .workspace { overflow: hidden; background: #0f141b; }
+    .workspace-toolbar {
+      height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .breadcrumbs { display: flex; align-items: center; gap: 5px; font-size: 12px; min-width: 220px; }
+    .crumb { color: var(--blue); border: 0; background: transparent; padding: 3px; }
+    .crumb.current { color: var(--text); font-weight: 700; cursor: default; }
+    .toolbar-spacer { flex: 1; }
+    .search {
+      width: 180px; border: 1px solid var(--line); background: #0f151d; color: var(--text);
+      border-radius: 7px; padding: 6px 9px; font-size: 11px;
+    }
+    .graph-scroll { height: calc(100% - 52px); overflow: auto; }
+    .graph-stage { position: relative; width: 820px; min-height: 560px; margin: 20px auto; }
+    .edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+    .edge { stroke: #526277; stroke-width: 2; fill: none; }
+    .edge.active { stroke: var(--blue); }
+    .edge.warn { stroke: var(--amber); stroke-dasharray: 5 4; }
+    .graph-node {
+      position: absolute; width: 190px; min-height: 90px; text-align: left; padding: 10px;
+      border: 1px solid #415065; border-top: 3px solid #617087; border-radius: 9px;
+      color: var(--text); background: #18212c; box-shadow: 0 8px 18px #0004;
+    }
+    .graph-node:hover { border-color: #7186a1; transform: translateY(-1px); }
+    .graph-node.selected { box-shadow: 0 0 0 2px var(--blue), 0 8px 18px #0005; }
+    .graph-node.good { border-top-color: var(--green); }
+    .graph-node.active { border-top-color: var(--blue); }
+    .graph-node.warn { border-top-color: var(--amber); }
+    .graph-node.pending { border-top-color: #6a7788; opacity: .86; }
+    .node-kind { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+    .node-name { display: block; margin: 4px 0 7px; font-size: 12px; font-weight: 750; line-height: 1.25; }
+    .node-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 10px; color: var(--muted); }
+    .node-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .context-bar { height: 5px; border-radius: 99px; background: #303b49; margin: 7px 0 3px; overflow: hidden; }
+    .context-bar > span { display: block; height: 100%; background: var(--blue); }
+    .context-bar.high > span { background: var(--amber); }
+    .context-label { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); }
+    .graph-key {
+      position: absolute; left: 10px; bottom: 10px; display: flex; gap: 10px; border: 1px solid var(--line);
+      border-radius: 7px; background: #111820e8; padding: 7px; color: var(--muted); font-size: 9px;
+    }
+
+    .inspector-head { padding: 15px; border-bottom: 1px solid var(--line); }
+    .inspector-head h2 { font-size: 15px; margin: 5px 0 4px; }
+    .inspector-tabs { display: flex; border-bottom: 1px solid var(--line); padding: 0 10px; overflow-x: auto; }
+    .inspector-tab {
+      padding: 9px 8px; border: 0; border-bottom: 2px solid transparent; color: var(--muted); background: transparent;
+      font-size: 10px; white-space: nowrap;
+    }
+    .inspector-tab.active { color: var(--text); border-bottom-color: var(--blue); }
+    .inspector-body { padding: 14px; }
+    .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 12px 0; }
+    .fact { border: 1px solid var(--line); border-radius: 7px; padding: 8px; background: var(--panel-2); }
+    .fact span { display: block; color: var(--muted); font-size: 9px; margin-bottom: 3px; }
+    .fact strong { font-size: 11px; }
+    .activity-list { list-style: none; padding: 0; margin: 8px 0; }
+    .activity-list li { position: relative; padding: 0 0 13px 17px; border-left: 1px solid #405064; margin-left: 4px; }
+    .activity-list li::before {
+      content: ""; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--blue); left: -4px; top: 3px;
+    }
+    .activity-list strong { display: block; font-size: 11px; }
+    .activity-list span { color: var(--muted); font-size: 10px; }
+    .message-box { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+    textarea, input, select {
+      width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 8px;
+      background: #0e141c; color: var(--text);
+    }
+    textarea { resize: vertical; min-height: 72px; }
+    .form-help { color: var(--muted); font-size: 10px; line-height: 1.4; margin: 5px 0; }
+    .message-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; }
+    .delivery { color: var(--amber); font-size: 10px; }
+    .chat { display: flex; flex-direction: column; gap: 9px; margin: 10px 0; }
+    .bubble { max-width: 92%; border-radius: 9px; padding: 9px 10px; font-size: 11px; line-height: 1.45; }
+    .bubble.gate { align-self: flex-start; background: var(--panel-3); }
+    .bubble.operator { align-self: flex-end; background: var(--blue-bg); border: 1px solid #315e96; }
+
+    .page { max-width: 1160px; margin: 0 auto; padding: 28px; }
+    .page-header { display: flex; align-items: center; margin-bottom: 22px; }
+    .page-header h1 { margin: 0; font-size: 23px; }
+    .page-header .button { margin-left: auto; }
+    .catalog-section { margin: 24px 0; }
+    .campaign-row {
+      display: grid; grid-template-columns: minmax(280px, 1.4fr) 150px 150px 120px 40px; align-items: center;
+      gap: 12px; width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 9px;
+      background: var(--panel); color: var(--text); padding: 12px 14px; margin-bottom: 8px;
+    }
+    .campaign-row:hover { background: var(--panel-2); border-color: #64748a; }
+    .campaign-row strong { display: block; font-size: 13px; margin-bottom: 3px; }
+    .campaign-row span { color: var(--muted); font-size: 11px; }
+    .catalog-tools { display: flex; gap: 8px; width: 440px; }
+    .catalog-tools .search { width: 280px; }
+
+    .improvement-grid { display: grid; grid-template-columns: 240px 1fr; gap: 18px; }
+    .role-list, .candidate-panel { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+    .role-list { padding: 9px; }
+    .role-item { width: 100%; border: 0; border-radius: 7px; padding: 10px; background: transparent; color: var(--text); text-align: left; }
+    .role-item.active, .role-item:hover { background: var(--panel-3); }
+    .candidate-panel { padding: 18px; }
+    .candidate-card { border: 1px solid var(--line); border-radius: 9px; padding: 13px; margin-top: 10px; background: var(--panel-2); }
+    .candidate-title { display: flex; align-items: center; gap: 8px; }
+    .candidate-title .badge { margin-left: auto; }
+    .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 12px 0; }
+
+    dialog {
+      width: min(680px, 86vw); border: 1px solid #526176; border-radius: 12px; padding: 0;
+      background: var(--panel); color: var(--text); box-shadow: 0 30px 80px #000a;
+    }
+    dialog::backdrop { background: #06080bbd; }
+    .dialog-head { display: flex; align-items: center; border-bottom: 1px solid var(--line); padding: 14px 17px; }
+    .dialog-head h2 { margin: 0; font-size: 16px; }
+    .dialog-head button { margin-left: auto; }
+    .dialog-body { padding: 17px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); padding: 12px 17px; }
+    .field { margin-bottom: 13px; }
+    .field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .statechart { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 22px 0; }
+    .state-box { border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-width: 110px; text-align: center; color: var(--muted); }
+    .state-box.current { color: var(--blue); border-color: var(--blue); background: var(--blue-bg); }
+    .state-arrow { color: var(--muted); }
+    .revision-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    .change-list { margin: 15px 0; padding: 0; list-style: none; }
+    .change-list li { padding: 9px; border-bottom: 1px solid var(--line); font-size: 11px; }
+    .change-symbol { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 7px; border-radius: 50%; background: var(--panel-3); }
+    .toast {
+      position: fixed; right: 20px; bottom: 20px; z-index: 10; border: 1px solid #4d6685; border-radius: 8px;
+      background: #172333; padding: 11px 14px; font-size: 11px; box-shadow: 0 10px 30px #0008;
+      opacity: 0; transform: translateY(12px); pointer-events: none; transition: .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="prototype-note">Low-fidelity interaction prototype — demonstrates hierarchy and navigation, not production styling or complete behavior.</div>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">◇</span> Orchestration</div>
+    <nav class="global-nav" aria-label="Primary navigation">
+      <button class="nav-button active" data-route="campaign">Campaigns</button>
+      <button class="nav-button" data-route="attention">Needs attention <span class="count">3</span></button>
+      <button class="nav-button" data-route="improvement">Improvement <span class="count">2</span></button>
+    </nav>
+    <div class="top-spacer"></div>
+    <span class="daemon">● Supervisor ready</span>
+  </header>
+
+  <main id="campaignRoute" class="route active">
+    <section class="campaign-header">
+      <div class="campaign-title-row">
+        <div>
+          <div class="subtle">Campaign · cmp_01JQ8M</div>
+          <h1 id="campaignTitle">Adaptive orchestration architecture</h1>
+          <div class="chips">
+            <span class="chip active" id="controlStateChip">active</span>
+            <span class="chip good" id="admissionChip">running</span>
+            <span class="chip warn">waiting</span>
+            <span class="chip">Revision 7</span>
+          </div>
+        </div>
+        <div class="campaign-actions" id="liveActions">
+          <button class="button" id="pauseButton">Pause admission</button>
+          <button class="button" id="activityButton">Activity</button>
+          <button class="button" id="statechartButton">Statechart</button>
+          <button class="button danger" id="cancelButton">Request cancellation</button>
+        </div>
+        <div class="campaign-actions hidden" id="historyActions">
+          <span class="chip">Read-only history</span>
+          <button class="button primary" id="successorButton">Start successor Campaign</button>
+        </div>
+      </div>
+      <div class="lifecycle" aria-label="Campaign lifecycle">
+        <span class="lifecycle-step done">Draft</span><span class="lifecycle-line"></span>
+        <span class="lifecycle-step current" id="activeLifecycle">Active · admission running</span><span class="lifecycle-line"></span>
+        <span class="lifecycle-step" id="terminalLifecycle">Terminal</span>
+      </div>
+    </section>
+
+    <div class="control-layout">
+      <aside class="rail">
+        <h2 class="section-title">Needs attention · this Campaign</h2>
+        <button class="attention-card gate" id="gateCard">
+          <strong>Human Gate · Migration seam</strong>
+          <span>Choose which compatibility adapter enters the first migration slice.</span>
+        </button>
+        <button class="attention-card warning" id="stalledCard">
+          <strong>Recovery semantics stalled</strong>
+          <span>No Actor Node is ready or active. Revision or operator input may be required.</span>
+        </button>
+        <button class="attention-card warning" id="contextCard">
+          <strong>Context pressure · Reviewer</strong>
+          <span>82% used. Compaction may be needed before the next review pass.</span>
+        </button>
+        <div class="rail-footer">
+          <h2 class="section-title">Campaign controls</h2>
+          <div class="subtle">Commands are reviewed and submitted to the Supervisor. The canvas never mutates state directly.</div>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <div class="workspace-toolbar">
+          <div class="breadcrumbs" id="breadcrumbs"></div>
+          <div class="toolbar-spacer"></div>
+          <input class="search" id="graphSearch" placeholder="Search graph…" aria-label="Search graph">
+          <button class="button small" id="focusButton">Focus: active path</button>
+          <button class="button small" id="revisionButton">Revision review</button>
+        </div>
+        <div class="graph-scroll"><div class="graph-stage" id="graphStage"></div></div>
+      </section>
+
+      <aside class="inspector" id="inspector"></aside>
+    </div>
+  </main>
+
+  <main id="catalogRoute" class="route">
+    <div class="page">
+      <div class="page-header">
+        <div><h1>Campaigns</h1><div class="subtle">Start, operate, and inspect durable efforts.</div></div>
+        <button class="button primary" id="newCampaignButton">New Campaign</button>
+      </div>
+      <div class="catalog-tools">
+        <input class="search" placeholder="Search Campaigns…">
+        <select aria-label="Filter Campaigns"><option>All Project Bindings</option><option>dotfiles</option><option>agent-runtime</option></select>
+      </div>
+      <section class="catalog-section">
+        <h2 class="section-title">Needs intervention</h2>
+        <button class="campaign-row" data-open="active">
+          <div><strong>Adaptive orchestration architecture</strong><span>3 attention items · changed 2m ago</span></div>
+          <span class="badge warn">waiting</span><span>Revision 7</span><span>dotfiles</span><span>›</span>
+        </button>
+      </section>
+      <section class="catalog-section">
+        <h2 class="section-title">Active</h2>
+        <button class="campaign-row" data-open="active">
+          <div><strong>Release automation hardening</strong><span>2 active Work Items · changed 8m ago</span></div>
+          <span class="badge blue">active</span><span>Revision 3</span><span>dotfiles</span><span>›</span>
+        </button>
+      </section>
+      <section class="catalog-section">
+        <h2 class="section-title">Draft</h2>
+        <button class="campaign-row" data-new="true">
+          <div><strong>Agent evaluation refresh</strong><span>Goal recorded · initial Work Graph not yet proposed</span></div>
+          <span class="badge">draft</span><span>—</span><span>agent-runtime</span><span>›</span>
+        </button>
+      </section>
+      <section class="catalog-section">
+        <h2 class="section-title">Recently terminal</h2>
+        <button class="campaign-row" data-open="history">
+          <div><strong>Campaign queue compatibility study</strong><span>Succeeded yesterday · immutable history</span></div>
+          <span class="badge good">succeeded</span><span>Revision 5</span><span>dotfiles</span><span>›</span>
+        </button>
+      </section>
+    </div>
+  </main>
+
+  <main id="attentionRoute" class="route">
+    <div class="page">
+      <div class="page-header"><div><h1>Needs attention</h1><div class="subtle">One queue across Campaigns; every item links to its graph context.</div></div></div>
+      <section class="catalog-section">
+        <button class="campaign-row" id="globalGate">
+          <div><strong>Migration seam · Human Gate</strong><span>Adaptive orchestration architecture · conversation waiting</span></div>
+          <span class="badge violet">Human Gate</span><span>Work Item</span><span>dotfiles</span><span>›</span>
+        </button>
+        <button class="campaign-row" data-open="active">
+          <div><strong>Recovery semantics stalled</strong><span>Adaptive orchestration architecture · no ready or active work</span></div>
+          <span class="badge warn">stalled</span><span>Actor Graph</span><span>dotfiles</span><span>›</span>
+        </button>
+        <button class="campaign-row" data-route-target="improvement">
+          <div><strong>Reviewer v4 candidate judgment</strong><span>Improvement · evaluation evidence ready</span></div>
+          <span class="badge violet">Improvement</span><span>Actor Program</span><span>global</span><span>›</span>
+        </button>
+      </section>
+    </div>
+  </main>
+
+  <main id="improvementRoute" class="route">
+    <div class="page">
+      <div class="page-header"><div><h1>Improvement</h1><div class="subtle">Candidate Actor Programs are global; operational adoption remains graph-scoped.</div></div></div>
+      <div class="improvement-grid">
+        <aside class="role-list">
+          <h2 class="section-title">Actor Roles</h2>
+          <button class="role-item active"><strong>Reviewer</strong><div class="subtle">2 candidates</div></button>
+          <button class="role-item"><strong>Planner</strong><div class="subtle">1 approved version</div></button>
+          <button class="role-item"><strong>Implementer</strong><div class="subtle">No candidates</div></button>
+        </aside>
+        <section class="candidate-panel">
+          <div class="candidate-title"><div><div class="subtle">Actor Role</div><h2 style="margin:3px 0">Reviewer</h2></div><span class="badge good">v3 approved · adopted by 4 graphs</span></div>
+          <div class="candidate-card">
+            <div class="candidate-title"><strong>Reviewer v4 · candidate</strong><span class="badge violet">judgment needed</span></div>
+            <p class="subtle">Generated from 18 isolated eval Attempts across 3 source Campaigns. No operational authority.</p>
+            <div class="metric-grid">
+              <div class="fact"><span>Correctness evidence</span><strong>17 / 18 passed</strong></div>
+              <div class="fact"><span>Regression set</span><strong>42 examples</strong></div>
+              <div class="fact"><span>Provenance</span><strong>Fully pinned</strong></div>
+            </div>
+            <button class="button">Review evidence</button> <button class="button primary" id="candidateGate">Open Human Gate</button>
+          </div>
+          <div class="candidate-card">
+            <div class="candidate-title"><strong>Reviewer v3.1 · approved</strong><span class="badge blue">not adopted</span></div>
+            <p class="subtle">Approved Actor Program version. A successor Actor Graph Revision is still required for operational use.</p>
+            <button class="button">Find eligible Actor Nodes</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <dialog id="newCampaignDialog">
+    <div class="dialog-head"><h2>New Campaign</h2><button class="button ghost" data-close="newCampaignDialog">Close</button></div>
+    <div class="dialog-body">
+      <div class="field"><label for="seedType">Starting point</label><select id="seedType"><option>Goal and inputs</option><option>Resolved Wayfinder map</option><option>Existing implementation tickets</option></select></div>
+      <div class="field"><label for="goal">Goal</label><textarea id="goal" placeholder="What should this Campaign accomplish?"></textarea><div class="form-help">A planning Actor Program can propose the initial Work Graph from this goal alone.</div></div>
+      <div class="form-grid">
+        <div class="field"><label for="projectBinding">Primary Project Binding</label><select id="projectBinding"><option>dotfiles</option><option>agent-runtime</option></select></div>
+        <div class="field"><label for="issueBacking">Issue Backing Mode</label><select id="issueBacking"><option value="none">none</option><option value="required">required</option></select></div>
+      </div>
+      <div class="field"><label for="inputs">Inputs</label><input id="inputs" placeholder="Issue URLs, Wayfinder map, artifacts, or notes"></div>
+    </div>
+    <div class="dialog-actions"><button class="button" data-close="newCampaignDialog">Cancel</button><button class="button primary" id="createDraftButton">Create draft Campaign</button></div>
+  </dialog>
+
+  <dialog id="statechartDialog">
+    <div class="dialog-head"><h2>Campaign statechart · diagnostic view</h2><button class="button ghost" data-close="statechartDialog">Close</button></div>
+    <div class="dialog-body">
+      <div class="statechart"><div class="state-box">Draft</div><span class="state-arrow">→</span><div class="state-box current">Active<br><small>admission running</small></div><span class="state-arrow">→</span><div class="state-box">Terminal</div></div>
+      <ul class="activity-list">
+        <li><strong>Current state entered</strong><span>CampaignActivated · journal sequence 814</span></li>
+        <li><strong>Available command · pause admission</strong><span>Reversible; active Attempts continue.</span></li>
+        <li><strong>Unavailable transition · succeed</strong><span>Completion Rule not satisfied: 3 required Work Items nonterminal.</span></li>
+      </ul>
+    </div>
+  </dialog>
+
+  <dialog id="revisionDialog">
+    <div class="dialog-head"><h2>Revision review · candidate 8 against current 7</h2><button class="button ghost" data-close="revisionDialog">Close</button></div>
+    <div class="dialog-body">
+      <p class="subtle">Semantic effects are grouped by domain meaning; this is not a Git-style textual diff.</p>
+      <div class="revision-summary">
+        <div class="fact"><span>Added work</span><strong>2</strong></div><div class="fact"><span>Skipped future work</span><strong>1</strong></div>
+        <div class="fact"><span>Policy changes</span><strong>1</strong></div><div class="fact"><span>Protected unchanged</span><strong>6</strong></div>
+      </div>
+      <ul class="change-list">
+        <li><span class="change-symbol" style="color:var(--green)">+</span><strong>Add “Import legacy run state”</strong> after compatibility adapter</li>
+        <li><span class="change-symbol" style="color:var(--green)">+</span><strong>Add “Validate replay parity”</strong> as required sink work</li>
+        <li><span class="change-symbol" style="color:var(--amber)">↷</span><strong>Skip “Direct ledger migration”</strong> before authorization</li>
+        <li><span class="change-symbol" style="color:var(--violet)">≋</span><strong>Change Reviewer binding</strong> to approved v3.1 for future authorization</li>
+      </ul>
+      <div class="form-help">Activation will provision missing issue backing before the Revision becomes current.</div>
+    </div>
+    <div class="dialog-actions"><button class="button" data-close="revisionDialog">Keep as candidate</button><button class="button primary" id="activateRevision">Review activation command</button></div>
+  </dialog>
+
+  <dialog id="commandDialog">
+    <div class="dialog-head"><h2 id="commandTitle">Review Campaign command</h2><button class="button ghost" data-close="commandDialog">Close</button></div>
+    <div class="dialog-body" id="commandBody"></div>
+    <div class="dialog-actions"><button class="button" data-close="commandDialog">Cancel</button><button class="button primary" id="submitCommand">Submit to Supervisor</button></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const routes = {
+      campaign: document.getElementById('campaignRoute'),
+      catalog: document.getElementById('catalogRoute'),
+      attention: document.getElementById('attentionRoute'),
+      improvement: document.getElementById('improvementRoute')
+    };
+    const graphStage = document.getElementById('graphStage');
+    const breadcrumbs = document.getElementById('breadcrumbs');
+    const inspector = document.getElementById('inspector');
+    let graphMode = 'work';
+    let paused = false;
+    let historical = false;
+
+    function showRoute(name) {
+      Object.values(routes).forEach(route => route.classList.remove('active'));
+      routes[name].classList.add('active');
+      document.querySelectorAll('.nav-button').forEach(button => button.classList.toggle('active', button.dataset.route === (name === 'catalog' ? 'campaign' : name)));
+    }
+
+    function toast(message) {
+      const element = document.getElementById('toast');
+      element.textContent = message;
+      element.classList.add('show');
+      clearTimeout(element.timer);
+      element.timer = setTimeout(() => element.classList.remove('show'), 2500);
+    }
+
+    function workGraph() {
+      graphMode = 'work';
+      breadcrumbs.innerHTML = '<button class="crumb current">Adaptive orchestration architecture</button><span>›</span><span>Work Graph</span>';
+      graphStage.innerHTML = `
+        <svg class="edges" viewBox="0 0 820 560" aria-hidden="true"><defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#526277"/></marker></defs>
+          <path class="edge active" marker-end="url(#arrow)" d="M210 240 C240 240 238 130 270 130"/><path class="edge" marker-end="url(#arrow)" d="M210 240 C240 240 238 360 270 360"/>
+          <path class="edge active" marker-end="url(#arrow)" d="M460 130 C490 130 490 130 520 130"/><path class="edge warn" marker-end="url(#arrow)" d="M460 360 C490 360 490 360 520 360"/>
+          <path class="edge" marker-end="url(#arrow)" d="M615 176 C615 230 615 258 615 310"/>
+        </svg>
+        <button class="graph-node good" style="left:20px;top:195px" data-work="Runtime substrate"><span class="node-kind">Work Item</span><span class="node-name">Runtime substrate</span><span class="node-meta" style="color:var(--green)"><span class="node-dot"></span>succeeded</span></button>
+        <button class="graph-node active" style="left:270px;top:85px" data-work="Manifest & compiler"><span class="node-kind">Work Item</span><span class="node-name">Manifest & compiler</span><span class="node-meta" style="color:var(--blue)"><span class="node-dot"></span>active · 2 Attempts</span></button>
+        <button class="graph-node warn" style="left:270px;top:315px" data-work="Recovery semantics"><span class="node-kind">Work Item</span><span class="node-name">Recovery semantics</span><span class="node-meta" style="color:var(--amber)"><span class="node-dot"></span>stalled · intervention</span></button>
+        <button class="graph-node active" style="left:520px;top:85px" data-work="Control-room contract"><span class="node-kind">Work Item</span><span class="node-name">Control-room contract</span><span class="node-meta"><span class="badge violet">Human Gate</span><span class="badge blue">1 active</span></span></button>
+        <button class="graph-node pending" style="left:520px;top:315px" data-work="Migration specification"><span class="node-kind">Work Item</span><span class="node-name">Migration specification</span><span class="node-meta"><span class="node-dot"></span>pending · not ready</span></button>
+        <div class="graph-key"><span>● current Revision 7</span><span>Dashed edge · attention</span><span>5 hidden satisfied nodes</span></div>`;
+      graphStage.querySelectorAll('[data-work]').forEach(node => node.addEventListener('click', () => actorGraph(node.dataset.work)));
+      renderWorkInspector('Control-room contract');
+    }
+
+    function actorGraph(workItem) {
+      graphMode = 'actor';
+      breadcrumbs.innerHTML = `<button class="crumb" id="backToWork">Adaptive orchestration architecture</button><span>›</span><span>${workItem}</span><span>›</span><span class="crumb current">Actor Graph</span>`;
+      graphStage.innerHTML = `
+        <svg class="edges" viewBox="0 0 820 560" aria-hidden="true"><defs><marker id="actorArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#526277"/></marker></defs>
+          <path class="edge active" marker-end="url(#actorArrow)" d="M210 250 C245 250 235 140 280 140"/><path class="edge active" marker-end="url(#actorArrow)" d="M470 140 C510 140 510 250 550 250"/>
+          <path class="edge" marker-end="url(#actorArrow)" d="M470 140 C505 140 500 390 550 390"/>
+        </svg>
+        <button class="graph-node good" style="left:20px;top:205px" data-actor="Planner"><span class="node-kind">Actor Role</span><span class="node-name">Planner</span><span class="node-meta" style="color:var(--green)"><span class="node-dot"></span>satisfied · Attempt 1</span></button>
+        <button class="graph-node active" style="left:280px;top:95px" data-actor="Implementer"><span class="node-kind">Actor Role</span><span class="node-name">Implementer</span><span class="node-meta" style="color:var(--blue)"><span class="node-dot"></span>active · Attempt 2</span><span class="context-bar"><span style="width:63%"></span></span><span class="context-label"><span>Context</span><span>63%</span></span><span class="node-meta"><span class="badge warn">1 message</span></span></button>
+        <button class="graph-node pending" style="left:550px;top:205px" data-actor="Reviewer"><span class="node-kind">Actor Role</span><span class="node-name">Reviewer</span><span class="node-meta"><span class="node-dot"></span>unstarted</span><span class="context-bar high"><span style="width:82%"></span></span><span class="context-label"><span>Previous context</span><span>82%</span></span><span class="badge violet">candidate</span></button>
+        <button class="graph-node pending" style="left:550px;top:345px" data-gate-node="true"><span class="node-kind">Human Gate</span><span class="node-name">Migration seam</span><span class="node-meta"><span class="badge violet">conversation waiting</span></span></button>
+        <div class="graph-key"><span>Actor Graph Revision 12</span><span>Auto layout · dependency depth</span></div>`;
+      document.getElementById('backToWork').addEventListener('click', workGraph);
+      graphStage.querySelectorAll('[data-actor]').forEach(node => node.addEventListener('click', () => renderAttemptInspector(node.dataset.actor)));
+      graphStage.querySelector('[data-gate-node]').addEventListener('click', renderGateInspector);
+      renderAttemptInspector('Implementer');
+    }
+
+    function inspectorShell(kind, title, subtitle, body, tabs = ['Overview', 'Attempts', 'Evidence', 'History']) {
+      inspector.innerHTML = `<div class="inspector-head"><div class="subtle">${kind}</div><h2>${title}</h2><div class="subtle">${subtitle}</div></div>
+        <div class="inspector-tabs">${tabs.map((tab, index) => `<button class="inspector-tab ${index === 0 ? 'active' : ''}">${tab}</button>`).join('')}</div><div class="inspector-body">${body}</div>`;
+      inspector.querySelectorAll('.inspector-tab').forEach(tab => tab.addEventListener('click', () => {
+        inspector.querySelectorAll('.inspector-tab').forEach(candidate => candidate.classList.remove('active')); tab.classList.add('active');
+        toast(`${tab.textContent} uses the same journal-backed evidence in this prototype.`);
+      }));
+    }
+
+    function renderWorkInspector(title) {
+      inspectorShell('Work Item', title, 'Primary binding · dotfiles', `
+        <div class="chips"><span class="chip active">active</span><span class="chip warn">waiting</span></div>
+        <div class="facts"><div class="fact"><span>Current Actor Graph</span><strong>Revision 12</strong></div><div class="fact"><span>Issue backing</span><strong>#17</strong></div><div class="fact"><span>Active Attempts</span><strong>1</strong></div><div class="fact"><span>Human Gates</span><strong>1 waiting</strong></div></div>
+        <button class="button primary" id="openActorGraph">Open Actor Graph</button>
+        <h3 class="section-title" style="margin-top:18px">Recent Activity</h3><ul class="activity-list"><li><strong>Attempt 2 started</strong><span>Implementer · 4m ago</span></li><li><strong>Operator Message queued</strong><span>For Implementer Attempt 2 · 2m ago</span></li><li><strong>Human Gate opened</strong><span>Migration seam · 1m ago</span></li></ul>`);
+      document.getElementById('openActorGraph').addEventListener('click', () => actorGraph(title));
+    }
+
+    function renderAttemptInspector(role) {
+      const active = role === 'Implementer';
+      inspectorShell('Actor Attempt', `${role} · Attempt ${active ? '2' : '1'}`, `Actor Program ${active ? 'v6' : 'v3'} · Graph Revision 12`, `
+        <div class="chips"><span class="chip ${active ? 'active' : 'good'}">${active ? 'running' : 'succeeded'}</span><span class="chip">work</span></div>
+        <div class="fact" style="margin-top:12px"><span>Context use</span><strong>${active ? '80,640 / 128,000 · 63%' : '71,212 / 128,000 · terminal'}</strong><div class="context-bar ${active ? '' : 'high'}"><span style="width:${active ? '63' : '56'}%"></span></div></div>
+        <h3 class="section-title" style="margin-top:16px">Structured activity</h3><ul class="activity-list" id="attemptActivity"><li><strong>Checkpoint recorded</strong><span>Implementation plan updated · 1m ago</span></li><li><strong>Artifact Reference produced</strong><span>commit 8bc9f17 · 2m ago</span></li><li><strong>Tool action completed</strong><span>pytest · 63 passed · 3m ago</span></li></ul>
+        ${active ? `<div class="message-box"><h3 class="section-title">Send Operator Message</h3><textarea id="operatorMessage" placeholder="Add context or ask the Actor to consider something…"></textarea><div class="form-help">Queued for this Attempt only. Messages may produce proposals but cannot silently change authority or graph state.</div><div class="message-actions"><span class="delivery">1 queued · awaiting delivery</span><button class="button primary small" id="sendMessage">Queue message</button></div></div>` : ''}`);
+      if (active) document.getElementById('sendMessage').addEventListener('click', () => {
+        const box = document.getElementById('operatorMessage');
+        if (!box.value.trim()) return;
+        document.getElementById('attemptActivity').insertAdjacentHTML('afterbegin', `<li><strong>Operator Message queued</strong><span>${box.value.replace(/[<>]/g, '')} · now</span></li>`);
+        box.value = ''; toast('Message queued for Implementer Attempt 2.');
+      });
+    }
+
+    function renderGateInspector() {
+      inspector.innerHTML = `<div class="inspector-head"><div class="subtle">Human Gate · conversation</div><h2>Choose the migration seam</h2><div class="subtle">Control-room contract · authorized operator required</div></div>
+        <div class="inspector-body"><div class="chat" id="gateChat"><div class="bubble gate">Which existing mechanism should the first migration slice put behind an adapter: campaign queue state, the /go run-state contract, or herdr execution?</div><div class="bubble operator">Start with the /go run-state contract because it already has an executable regression oracle.</div><div class="bubble gate">Recommended. Should the adapter preserve the flat v1 keys exactly at its external seam, or only preserve their observable outcomes?</div></div>
+        <textarea id="gateMessage" placeholder="Answer in free text…"></textarea><div class="message-actions"><span class="subtle">The gate asks one question at a time.</span><button class="button primary small" id="sendGateMessage">Send</button></div></div>`;
+      document.getElementById('sendGateMessage').addEventListener('click', () => {
+        const box = document.getElementById('gateMessage'); if (!box.value.trim()) return;
+        document.getElementById('gateChat').insertAdjacentHTML('beforeend', `<div class="bubble operator">${box.value.replace(/[<>]/g, '')}</div><div class="bubble gate">I’ll incorporate that. When we reach shared understanding, I’ll propose one concise judgment for conversational confirmation.</div>`);
+        box.value = '';
+      });
+    }
+
+    function renderActivityInspector() {
+      inspectorShell('Campaign', 'Activity', 'One journal-backed timeline', `<ul class="activity-list"><li><strong>Human Gate opened</strong><span>Migration seam · sequence 842</span></li><li><strong>Operator Message queued</strong><span>Implementer Attempt 2 · sequence 841</span></li><li><strong>Artifact Reference recorded</strong><span>commit 8bc9f17 · sequence 840</span></li><li><strong>Actor Attempt authorized</strong><span>Implementer Attempt 2 · Revision 12 · sequence 837</span></li><li><strong>Graph Revision activated</strong><span>Work Graph Revision 7 · sequence 814</span></li></ul>`, ['All', 'Commands', 'Transitions', 'Messages', 'Evidence']);
+    }
+
+    function openCampaign(asHistory = false) {
+      historical = asHistory;
+      showRoute('campaign');
+      document.getElementById('campaignTitle').textContent = asHistory ? 'Campaign queue compatibility study' : 'Adaptive orchestration architecture';
+      document.getElementById('liveActions').classList.toggle('hidden', asHistory);
+      document.getElementById('historyActions').classList.toggle('hidden', !asHistory);
+      document.getElementById('controlStateChip').textContent = asHistory ? 'terminal' : 'active';
+      document.getElementById('controlStateChip').className = `chip ${asHistory ? 'good' : 'active'}`;
+      document.getElementById('admissionChip').textContent = asHistory ? 'succeeded' : (paused ? 'paused' : 'running');
+      document.getElementById('activeLifecycle').className = `lifecycle-step ${asHistory ? 'done' : 'current'}`;
+      document.getElementById('terminalLifecycle').className = `lifecycle-step ${asHistory ? 'current' : ''}`;
+      workGraph();
+    }
+
+    document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => {
+      if (button.dataset.route === 'campaign') showRoute('catalog'); else showRoute(button.dataset.route);
+    }));
+    document.querySelectorAll('[data-open]').forEach(button => button.addEventListener('click', () => openCampaign(button.dataset.open === 'history')));
+    document.querySelectorAll('[data-route-target]').forEach(button => button.addEventListener('click', () => showRoute(button.dataset.routeTarget)));
+    document.getElementById('newCampaignButton').addEventListener('click', () => document.getElementById('newCampaignDialog').showModal());
+    document.querySelectorAll('[data-new]').forEach(button => button.addEventListener('click', () => document.getElementById('newCampaignDialog').showModal()));
+    document.getElementById('createDraftButton').addEventListener('click', () => { document.getElementById('newCampaignDialog').close(); toast('Draft Campaign created; initial Work Graph proposal pending.'); });
+    document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.close).close()));
+    document.getElementById('statechartButton').addEventListener('click', () => document.getElementById('statechartDialog').showModal());
+    document.getElementById('revisionButton').addEventListener('click', () => document.getElementById('revisionDialog').showModal());
+    document.getElementById('activateRevision').addEventListener('click', () => { document.getElementById('revisionDialog').close(); openCommand('Activate candidate Graph Revision 8', 'This command validates non-retroactivity, provisions required issue backing, and atomically advances the current Revision pointer.'); });
+    document.getElementById('pauseButton').addEventListener('click', () => openCommand(paused ? 'Resume admission' : 'Pause admission', paused ? 'Permits new Actor Attempt authorization after validation.' : 'Prevents new Actor Attempts. Already-running Attempts continue.'));
+    document.getElementById('cancelButton').addEventListener('click', () => openCommand('Request Campaign cancellation', 'Closes admission, then drains or durably fences active Attempts before recording a cancelled Outcome.'));
+    document.getElementById('activityButton').addEventListener('click', renderActivityInspector);
+    document.getElementById('gateCard').addEventListener('click', () => { if (graphMode === 'work') actorGraph('Control-room contract'); renderGateInspector(); });
+    document.getElementById('globalGate').addEventListener('click', () => { openCampaign(false); actorGraph('Control-room contract'); renderGateInspector(); });
+    document.getElementById('candidateGate').addEventListener('click', () => toast('Candidate judgment added to Needs attention as a conversational Human Gate.'));
+    document.getElementById('contextCard').addEventListener('click', () => { actorGraph('Control-room contract'); renderAttemptInspector('Reviewer'); });
+    document.getElementById('stalledCard').addEventListener('click', () => actorGraph('Recovery semantics'));
+    document.getElementById('focusButton').addEventListener('click', event => { event.currentTarget.textContent = event.currentTarget.textContent.includes('active') ? 'Focus: attention' : 'Focus: active path'; toast('Hidden dependency counts remain visible when focus changes.'); });
+    document.getElementById('successorButton').addEventListener('click', () => document.getElementById('newCampaignDialog').showModal());
+
+    function openCommand(title, body) {
+      document.getElementById('commandTitle').textContent = title;
+      document.getElementById('commandBody').innerHTML = `<div class="facts"><div class="fact"><span>Target</span><strong>Campaign cmp_01JQ8M</strong></div><div class="fact"><span>Expected Revision</span><strong>Work Graph 7</strong></div><div class="fact"><span>Required authority</span><strong>Campaign operator</strong></div><div class="fact"><span>Reversible</span><strong>${title.includes('cancellation') ? 'No' : 'Yes'}</strong></div></div><p class="subtle">${body}</p>`;
+      document.getElementById('commandDialog').showModal();
+    }
+    document.getElementById('submitCommand').addEventListener('click', () => {
+      const title = document.getElementById('commandTitle').textContent;
+      if (title.includes('Pause')) { paused = true; document.getElementById('admissionChip').textContent = 'paused'; document.getElementById('admissionChip').className = 'chip warn'; document.getElementById('pauseButton').textContent = 'Resume admission'; }
+      if (title.includes('Resume')) { paused = false; document.getElementById('admissionChip').textContent = 'running'; document.getElementById('admissionChip').className = 'chip good'; document.getElementById('pauseButton').textContent = 'Pause admission'; }
+      document.getElementById('commandDialog').close(); toast('Typed command submitted to the Supervisor.');
+    });
+
+    document.getElementById('graphSearch').addEventListener('input', event => {
+      const query = event.target.value.toLowerCase();
+      graphStage.querySelectorAll('.graph-node').forEach(node => node.style.opacity = !query || node.textContent.toLowerCase().includes(query) ? '' : '.18');
+    });
+
+    workGraph();
+  </script>
+</body>
+</html>
