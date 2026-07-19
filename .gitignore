@@ -15,6 +15,14 @@
 !/pyproject.toml
 !/tests/
 
+# Research assets, per-file. Wayfinder research notes are allowlisted lazily
+# as research tickets resolve.
+!/docs/
+/docs/*
+!/docs/research/
+/docs/research/*
+!/docs/research/orchestration-substrate.md
+
 # ~/.agents payload: tracked skills + agent definitions + the skill-lock
 # restore manifest. Skills are untracked by default; a new tracked skill
 # needs its own !/.agents/skills/<name>/ entry.
