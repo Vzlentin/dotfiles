@@ -46,6 +46,13 @@
 # /.codex/*
 # !/.codex/config.toml
 
+# Research assets (per-file allowlist)
+!/docs/
+/docs/*
+!/docs/research/
+/docs/research/*
+!/docs/research/dspy-gepa-substrate.md
+
 # Python droppings (anywhere)
 __pycache__/
 *.py[cod]
