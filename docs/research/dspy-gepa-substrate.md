@@ -27,8 +27,8 @@ supported path and avoids this conflict.
 
 *GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning*
 (Agrawal et al., arXiv:2507.19457, published 2025-07-25). Reports GEPA outperforming
-GRPO by ~10% average (up to 20%) on its benchmarks while using up to 35x fewer
-rollouts, and outperforming MIPROv2. Claims are paper-side; treat as directional
+GRPO by 6% on average (up to 20%) across six tasks while using up to 35x fewer
+rollouts, and outperforming MIPROv2 by over 10%. Claims are paper-side; treat as directional
 evidence that reflective evolution is sample-efficient, not as a guarantee for our
 Actor Programs.
 
