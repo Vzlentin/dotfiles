@@ -373,7 +373,7 @@ function diagnosticModal() {
 
 const COMMANDS = {
   retry: { title: 'Re-arm retries on WI-4', target: 'C-1042 → WI-4 Migrate historical entries',
-    effect: 'Retry budget 0/3 → 0/2; Attempt 4 spawns under current Revision r12 with narrowed batch scope.',
+    effect: 'Retry allowance 0/3 → 0/2; Attempt 4 spawns under current Revision r12 with narrowed batch scope.',
     revision: 'No Graph Revision change', capability: 'grants none new', reversible: 'Reversible until Attempt 4 starts', impact: 'medium' },
   'retry-wi': { title: 'Retry Work Item', target: '', effect: 'Spawns a fresh Attempt under current Revision.',
     revision: 'No Graph Revision change', capability: 'grants none new', reversible: 'Reversible until attempt starts', impact: 'medium' },
