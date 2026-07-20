@@ -9,17 +9,25 @@ Prototype question (GitHub issue #9):
 Usage:
     python3 prototype.py                        # interactive curses TUI
     python3 prototype.py --snapshot A --campaign active --width 120 --height 36
-    python3 prototype.py --snapshot B --campaign active --expand w1
+    python3 prototype.py --snapshot B --campaign active --expand 412
     python3 prototype.py --snapshot C --campaign shipped
 
 Behavior:
-    Renders two seed Campaigns (one active, one shipped/immutable) as a single
-    hierarchical Work Graph. Campaign-level Decisions and Work Items are
-    compound nodes; Enter expands exactly one of them inline to reveal the
-    Actor Graph it owns (logical /go stages for Work Items, a Wayfinder
-    discipline for Decisions). Plans, Attempts, costs, logs, and metrics are
-    deliberately absent. Three layout variants share the same data and state,
-    each with its own layout algorithm and reading direction:
+    Renders two views of the public Calibre Stage 3 Gate B Campaign from issue
+    #397. The active view is an explicitly reconstructed midpoint, not a claim
+    of an exact historical runtime snapshot. The shipped view records the
+    actual final topology: planning issues #398, #399, #400, #401, #402,
+    #403, and #405 plus work issues #406-#417 succeeded, PRs #418-#429
+    merged, and the final owner GO Decision resolved.
+
+    Campaign-level Decisions and Work Items are compound nodes; Enter expands
+    exactly one of them inline to reveal its Actor Graph (Wayfinder disciplines
+    for Decisions and logical /go stages for Work Items). Plans are attached
+    artifacts, never graph nodes. The real graph has seven planning Decisions,
+    twelve serial Work Items, and one final owner GO Decision. Plans, Attempts,
+    costs, logs, and metrics are deliberately absent. Three layout variants
+    share the same data and state, each with its own layout algorithm and
+    reading direction:
 
       A -- Metro/Rails:   wide left-to-right dependency railway; chains share
                           rails, fan-out/joins are vertical track buses.
@@ -30,11 +38,13 @@ Behavior:
 
     All layout is derived from nodes/edges at render time (no stored x/y).
     State is encoded glyph-first (non-color-only); color only reinforces.
+    Oversized layouts use a bounded viewport that follows the selected node;
+    header and footer stay fixed and edge continuation uses ASCII indicators.
 
     Interactive controls: 1/2/3 variant, c campaign, arrows/Tab move,
     Enter expand/collapse or focus-stub an actor, n next needs-operator node,
-    ? help/legend, q quit. Snapshot mode prints the same layout deterministically
-    for review.
+    ? help/legend, q quit. Snapshot mode prints the same bounded viewport
+    deterministically for review.
 """
 from __future__ import annotations
 
@@ -86,76 +96,144 @@ class Campaign:
 
 # --------------------------------------------------------------------------
 # Seed data (fixed, in-memory; no persistence).
+# Public source: https://github.com/Vzlentin/calibre/issues/397
+# Planning children: #398, #399, #400, #401, #402, #403, #405. Work
+# children: #406-#417, merged by PRs #418-#429. The active view is a
+# reconstruction; shipped is final.
 # --------------------------------------------------------------------------
 def _actor(id, label, state, needs_operator=False, question=""):
     return Node(id=id, label=label, kind="actor", state=state,
                 needs_operator=needs_operator, question=question)
 
 
+def _decision_actors(issue, discipline, state="done"):
+    return ([_actor("%s-%s" % (issue, discipline), discipline, state),
+             _actor("%s-resolve" % issue, "resolve", state)],
+            [("%s-%s" % (issue, discipline), "%s-resolve" % issue)])
+
+
+def _go_actors(prefix, state):
+    stages = ("plan", "implement", "simplify", "review", "resolve", "babysit")
+    actors = [_actor("%s-%s" % (prefix, stage), stage, state)
+              for stage in stages]
+    edges = [(actors[i].id, actors[i + 1].id)
+             for i in range(len(actors) - 1)]
+    return actors, edges
+
+
+def _midpoint_actors(shipped=False):
+    """Return #412's reconstructed graph, or its all-done final form."""
+    stages = [
+        _actor("412-plan", "plan", "done"),
+        _actor("412-implement", "implement", "done"),
+        _actor("412-simplify-structure", "simplify: structure scout", "active"),
+        _actor("412-simplify-performance", "simplify: performance scout", "active"),
+        _actor("412-simplify-reuse", "simplify: reuse scout", "takeable"),
+        _actor("412-simplify-join", "simplify: join/apply", "pending"),
+        _actor("412-review-structure", "review: structure scout", "pending"),
+        _actor("412-review-performance", "review: performance scout", "pending"),
+        _actor("412-review-reuse", "review: reuse scout", "pending"),
+        _actor("412-review-join", "review: join/post", "pending"),
+        _actor("412-resolve", "resolve", "pending"),
+        _actor("412-babysit", "babysit", "pending"),
+    ]
+    if shipped:
+        for actor in stages:
+            actor.state = "done"
+    edges = [
+        ("412-plan", "412-implement"),
+        ("412-implement", "412-simplify-structure"),
+        ("412-implement", "412-simplify-performance"),
+        ("412-implement", "412-simplify-reuse"),
+        ("412-simplify-structure", "412-simplify-join"),
+        ("412-simplify-performance", "412-simplify-join"),
+        ("412-simplify-reuse", "412-simplify-join"),
+        ("412-simplify-join", "412-review-structure"),
+        ("412-simplify-join", "412-review-performance"),
+        ("412-simplify-join", "412-review-reuse"),
+        ("412-review-structure", "412-review-join"),
+        ("412-review-performance", "412-review-join"),
+        ("412-review-reuse", "412-review-join"),
+        ("412-review-join", "412-resolve"),
+        ("412-resolve", "412-babysit"),
+    ]
+    return stages, edges
+
+
+def _decision(issue, label, discipline, state="done"):
+    actors, edges = _decision_actors(issue, discipline, state)
+    return Node(issue, label, "decision", state, actors=actors, aedges=edges)
+
+
+def _work(issue, label, state):
+    if issue == "412":
+        actors, edges = _midpoint_actors(shipped=state == "done")
+    else:
+        actor_state = "done" if state == "done" else "pending"
+        actors, edges = _go_actors(issue, actor_state)
+    return Node(issue, label, "work", state, actors=actors, aedges=edges)
+
+
+def _campaign_nodes(work_states, go_state):
+    decisions = [
+        _decision("398", "#398 ownership boundary", "grilling"),
+        _decision("399", "#399 reconciliation formulations", "prototype"),
+        _decision("400", "#400 parity reference", "research"),
+        _decision("401", "#401 event-driver contract", "grilling"),
+        _decision("403", "#403 adaptive policy boundary", "grilling"),
+        _decision("402", "#402 serial sublandings", "grilling"),
+        _decision("405", "#405 execution plan", "task"),
+    ]
+    work_specs = [
+        ("406", "#406 S3-U10a runtime contracts"),
+        ("407", "#407 S3-U10b split-conformal"),
+        ("408", "#408 S3-U11a observe-loop core"),
+        ("409", "#409 S3-U11b observe-loop cutover"),
+        ("410", "#410 S3-U12a reconciliation core"),
+        ("411", "#411 S3-U12b projection adapters"),
+        ("412", "#412 S3-U13a weighted conformal"),
+        ("413", "#413 S3-U13b sequential-adaptive"),
+        ("414", "#414 S3-U13c ACI parity gate"),
+        ("415", "#415 S3-U14a event driver"),
+        ("416", "#416 S3-U14b driver equivalence"),
+        ("417", "#417 S3-U14c VN2 dry-run"),
+    ]
+    works = [_work(issue, label, work_states[issue])
+             for issue, label in work_specs]
+    go_actors, go_edges = _decision_actors("go", "owner GO", go_state)
+    final_go = Node("go", "final owner GO", "decision", go_state,
+                    actors=go_actors, aedges=go_edges)
+    return decisions + works + [final_go]
+
+
+def _campaign_edges():
+    return [
+        ("398", "401"),
+        ("400", "403"),
+        ("398", "402"), ("399", "402"), ("400", "402"),
+        ("401", "402"), ("403", "402"),
+        ("402", "405"), ("405", "406"),
+        ("406", "407"), ("407", "408"), ("408", "409"),
+        ("409", "410"), ("410", "411"), ("411", "412"),
+        ("412", "413"), ("413", "414"), ("414", "415"),
+        ("415", "416"), ("416", "417"), ("417", "go"),
+    ]
+
+
 def build_active() -> Campaign:
-    d1 = Node("d1", "pick layout", "decision", "done",
-              actors=[_actor("d1a1", "research", "done"),
-                      _actor("d1a2", "prototype", "done"),
-                      _actor("d1a3", "decide", "done")],
-              aedges=[("d1a1", "d1a2"), ("d1a2", "d1a3")])
-    w1 = Node("w1", "tui variants", "work", "active",
-              actors=[_actor("w1a0", "scout", "done"),
-                      _actor("w1a1", "scout:ui", "done"),
-                      _actor("w1a2", "scout:grid", "done"),
-                      _actor("w1a3", "plan", "done"),
-                      _actor("w1a4", "implement", "active")],
-              aedges=[("w1a0", "w1a1"), ("w1a0", "w1a2"),
-                      ("w1a1", "w1a3"), ("w1a2", "w1a3"),
-                      ("w1a3", "w1a4")])
-    w2 = Node("w2", "snapshot harness", "work", "active",
-              actors=[_actor("w2a1", "plan", "done"),
-                      _actor("w2a2", "implement", "active")],
-              aedges=[("w2a1", "w2a2")])
-    d2 = Node("d2", "expansion model", "decision", "active",
-              needs_operator=True,
-              question="Should expansion nest inside the parent rail, or replace it?",
-              actors=[_actor("d2a1", "grill:1", "failed"),
-                      _actor("d2a2", "grill:2", "active", needs_operator=True,
-                             question="One more grilling round on nest-vs-replace, or decide now?"),
-                      _actor("d2a3", "decide", "pending")],
-              aedges=[("d2a1", "d2a2"), ("d2a2", "d2a3")])
-    w3 = Node("w3", "keyboard polish", "work", "takeable",
-              actors=[_actor("w3a1", "plan", "pending"),
-                      _actor("w3a2", "implement", "pending")],
-              aedges=[("w3a1", "w3a2")])
-    w4 = Node("w4", "publish", "work", "pending",
-              actors=[_actor("w4a1", "implement", "pending"),
-                      _actor("w4a2", "review", "pending")],
-              aedges=[("w4a1", "w4a2")])
-    return Campaign("active", "live graph control room", "active",
-                    nodes=[d1, w1, w2, d2, w3, w4],
-                    edges=[("d1", "w1"), ("d1", "w2"), ("d1", "d2"),
-                           ("w1", "w3"), ("w2", "w3"),
-                           ("w3", "w4"), ("d2", "w4")])
+    work_states = {str(issue): "done" for issue in range(406, 412)}
+    work_states.update({"412": "active"})
+    work_states.update({str(issue): "pending" for issue in range(413, 418)})
+    return Campaign(
+        "active", "Stage 3 Gate B — reconstructed midpoint", "active",
+        nodes=_campaign_nodes(work_states, "pending"), edges=_campaign_edges())
 
 
 def build_shipped() -> Campaign:
-    d1 = Node("d1", "queue order", "decision", "done",
-              actors=[_actor("d1a1", "research", "done"),
-                      _actor("d1a2", "decide", "done")],
-              aedges=[("d1a1", "d1a2")])
-    w1 = Node("w1", "drain loop", "work", "done",
-              actors=[_actor("w1a1", "plan", "done"),
-                      _actor("w1a2", "implement", "done"),
-                      _actor("w1a3", "review", "done")],
-              aedges=[("w1a1", "w1a2"), ("w1a2", "w1a3")])
-    w2 = Node("w2", "sub-issues", "work", "done",
-              actors=[_actor("w2a1", "plan", "done"),
-                      _actor("w2a2", "implement", "done")],
-              aedges=[("w2a1", "w2a2")])
-    w3 = Node("w3", "docs link", "work", "done",
-              actors=[_actor("w3a1", "implement", "done"),
-                      _actor("w3a2", "review", "done")],
-              aedges=[("w3a1", "w3a2")])
-    return Campaign("shipped", "campaign queue drain", "shipped",
-                    nodes=[d1, w1, w2, w3],
-                    edges=[("d1", "w1"), ("d1", "w2"),
-                           ("w1", "w3"), ("w2", "w3")])
+    work_states = {str(issue): "done" for issue in range(406, 418)}
+    return Campaign(
+        "shipped", "Stage 3 Gate B — final shipped", "shipped",
+        nodes=_campaign_nodes(work_states, "done"), edges=_campaign_edges())
 
 
 CAMPAIGNS = {"active": build_active(), "shipped": build_shipped()}
@@ -725,14 +803,78 @@ HELP = [
     "  ◆ Decision   ■ Work Item   ● Actor (log gutter)",
     "",
     "Only one compound node is expanded at a time.",
+    "Oversized graphs scroll with the selected node; < > ^ v mark overflow.",
     "Shipped Campaigns are immutable: focus/launch are disabled.",
 ]
 
 
 def title_line(camp: Campaign, variant: str) -> str:
-    tag = "immutable — read-only" if camp.immutable else "supervisor draining frontier"
+    if camp.immutable:
+        tag = "actual final topology · immutable/read-only"
+    else:
+        tag = "reconstructed midpoint · supervisor draining frontier"
     return "Campaign: %s  [%s · %s]   variant %s %s" % (
         camp.title, camp.status, tag, variant, VARIANT_NAMES[variant])
+
+
+# --------------------------------------------------------------------------
+# Bounded viewport shared by snapshot and interactive rendering.
+# --------------------------------------------------------------------------
+def _clamp(value, low, high):
+    return max(low, min(value, high))
+
+
+def _focus_item(items, focus_id):
+    if focus_id:
+        for item in items:
+            if item.node.id == focus_id:
+                return item
+    return items[0] if items else None
+
+
+def bounded_view(cvx, items, focus_id, view_w, view_h):
+    """Return visible rows and offsets, keeping the focused item in view."""
+    rows = cvx.rows()
+    graph_h, graph_w = cvx.dims()
+    if not rows:
+        return [], 0, 0
+    view_w = max(1, min(view_w, graph_w))
+    view_h = max(1, min(view_h, graph_h))
+    focus = _focus_item(items, focus_id)
+    if focus is None:
+        target_c, target_r = graph_w // 2, graph_h // 2
+    else:
+        target_c = focus.c + max(0, focus.length - 1) // 2
+        target_r = focus.r
+    x0 = _clamp(target_c - view_w // 2, 0, graph_w - view_w)
+    y0 = _clamp(target_r - view_h // 2, 0, graph_h - view_h)
+
+    visible = []
+    for row in rows[y0:y0 + view_h]:
+        cells = row[x0:x0 + view_w]
+        if x0 > 0:
+            cells[0] = ("<", "overflow")
+        if x0 + view_w < graph_w:
+            cells[-1] = (">", "overflow")
+        visible.append(cells)
+    if y0 > 0 and visible:
+        marker_col = 1 if view_w > 2 else 0
+        visible[0][marker_col] = ("^", "overflow")
+    if y0 + view_h < graph_h and visible:
+        marker_col = 1 if view_w > 2 else 0
+        visible[-1][marker_col] = ("v", "overflow")
+    return visible, x0, y0
+
+
+def _fit(text, width):
+    return text if not width else text[:max(0, width)]
+
+
+def _mark_selection(cvx, items, select):
+    for item in items:
+        if item.node.id == select:
+            cvx.text(item.r, item.c + item.length + 1, "◀", "flag")
+            return
 
 
 # --------------------------------------------------------------------------
@@ -741,18 +883,17 @@ def title_line(camp: Campaign, variant: str) -> str:
 def snapshot(variant, camp_id, expand=None, select=None, width=0, height=0):
     camp = CAMPAIGNS[camp_id]
     cvx, items = LAYOUTS[variant](camp, expand)
-    if select:
-        for it in items:
-            if it.node.id == select:
-                cvx.text(it.r, it.c + it.length + 1, "◀", "flag")
-    h, w = cvx.dims()
-    if (width and w > width) or (height and h + 2 > height):
-        sys.stderr.write("warning: layout %dx%d exceeds %dx%d; printing full\n"
-                         % (w, h + 2, width, height))
-    print(title_line(camp, variant))
-    for row in cvx.rows():
+    _mark_selection(cvx, items, select)
+    _, graph_w = cvx.dims()
+    graph_h, _ = cvx.dims()
+    focus_id = select if any(it.node.id == select for it in items) else None
+    view_w = width or graph_w
+    view_h = max(1, height - 2) if height else graph_h
+    rows, _, _ = bounded_view(cvx, items, focus_id, view_w, view_h)
+    print(_fit(title_line(camp, variant), width))
+    for row in rows:
         print("".join(ch for ch, _ in row).rstrip())
-    print(FOOTER)
+    print(_fit(FOOTER, width))
 
 
 # --------------------------------------------------------------------------
@@ -800,39 +941,30 @@ def tui(stdscr):
 
         stdscr.erase()
         maxy, maxx = stdscr.getmaxyx()
-        gh, gw = cvx.dims()
-        need_h, need_w = gh + 2, gw
-        if maxy < need_h or maxx < need_w:
-            note = "too small: need %dx%d, have %dx%d — resize or q" % (
-                need_w, need_h, maxx, maxy)
-            try:
-                stdscr.addnstr(maxy // 2, max(0, (maxx - len(note)) // 2),
-                               note, maxx - 1, styles["msg"])
-            except curses.error:
-                pass
+        if maxy < 3 or maxx < 1:
             stdscr.refresh()
             ch = stdscr.getch()
             if ch in (ord("q"), 27):
                 return
-            if ch == curses.KEY_RESIZE:
-                continue
             continue
 
-        stdscr.addnstr(0, 0, title_line(camp, variant), maxx - 1, styles["title"])
         sel_item = items[sel]
-        for r, row in enumerate(cvx.rows()):
-            c = 0
-            while c < len(row):
-                ch, style = row[c]
+        rows, x0, y0 = bounded_view(cvx, items, sel_item.node.id,
+                                    maxx, maxy - 2)
+        stdscr.addnstr(0, 0, title_line(camp, variant), maxx - 1,
+                       styles["title"])
+        for r, row in enumerate(rows):
+            for c, (ch, style) in enumerate(row):
                 attr = styles.get(style or "", 0)
-                if (sel_item.r == r + 1 and sel_item.c <= c
-                        and c < sel_item.c + sel_item.length and style != "line"):
+                global_r, global_c = y0 + r, x0 + c
+                if (sel_item.r == global_r and sel_item.c <= global_c
+                        and global_c < sel_item.c + sel_item.length
+                        and style not in ("line", "overflow")):
                     attr |= curses.A_REVERSE
                 try:
                     stdscr.addstr(r + 1, c, ch, attr)
                 except curses.error:
                     pass
-                c += 1
         foot = message if message else FOOTER
         stdscr.addnstr(maxy - 1, 0, foot, maxx - 1,
                        styles["msg"] if message else styles["footer"])
@@ -927,8 +1059,8 @@ def move_sel(items, cur, dr, dc):
 
 # --------------------------------------------------------------------------
 def main(argv=None):
-    p = argparse.ArgumentParser(description="throwaway prototype: live graph "
-                                    "control room TUI (issue #9)")
+    p = argparse.ArgumentParser(description="throwaway prototype: Campaign "
+                                    "graph control-room TUI (issue #9)")
     p.add_argument("--snapshot", choices=["A", "B", "C"],
                    help="print a deterministic text snapshot and exit")
     p.add_argument("--campaign", choices=["active", "shipped"], default="active")

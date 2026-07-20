@@ -1,4 +1,4 @@
-# PROTOTYPE — THROWAWAY: live graph control room TUI
+# PROTOTYPE — THROWAWAY: Campaign graph control-room TUI
 
 **This is a throwaway prototype. Do not productionize it, do not tidy it into
 the repo proper, do not build on it.** It exists to answer one question for
@@ -37,44 +37,57 @@ while keeping details behind expansion?
   sidebars, cards, and inspectors are deliberately absent.
 - Terminal (shipped) Campaigns are immutable: no mutation/focus actions.
 
+## Public Gate B seed
+
+Both selectable views use the real public Calibre Stage 3 Gate B structure from
+[issue #397](https://github.com/Vzlentin/calibre/issues/397): seven planning
+Decisions (#398, #399, #400, #401, #402, #403, and #405), twelve serial
+Work Items (#406–#417), and the final owner GO Decision. The planning dependencies and serial order are represented
+as graph edges; there are no invented Campaign-level parallel `/go` Work Items.
+
+The public work-item issues are [#406](https://github.com/Vzlentin/calibre/issues/406)
+through [#417](https://github.com/Vzlentin/calibre/issues/417), with merged PRs
+[#418](https://github.com/Vzlentin/calibre/pull/418) through
+[#429](https://github.com/Vzlentin/calibre/pull/429).
+
+Exactly two Campaign views are selectable with `c`:
+
+1. **active — reconstructed midpoint:** Decisions #398/#399/#400/#401/#403/#402/#405
+   are resolved; #406–#411 succeeded; #412 is active; #413–#417 are pending
+   because execution is serial; and the final owner GO Decision is pending and
+   not operator-needed. This is an explicit prototype reconstruction, not a
+   claim of an exact historical runtime snapshot. Expanded #412 shows plan and
+   implement done, a simplify scout fan-out with structure/performance active
+   and reuse takeable, then the simplify join/apply, review fan-out, review
+   join/post, resolve, and babysit still pending.
+2. **shipped — actual final topology:** every Decision and Work Item is
+   resolved/succeeded, the final owner GO Decision is resolved, every Actor
+   Graph node is done, and the Campaign is immutable/read-only.
+
 ## The three variants
 
 Same data, same state, three structurally different layout algorithms and
 reading directions — not three color themes. All layout is derived from
-nodes/edges at render time (no stored x/y). Only one compound node is
-expanded at a time, so expansion never produces a mega-graph.
+nodes/edges at render time (no stored x/y). Only one compound node is expanded
+at a time, so expansion never produces a mega-graph.
 
 - **A — Metro/Rails:** a wide left-to-right dependency railway. Columns are
   topological depth, lanes are rails; independent chains share a rail, and
   fan-out/joins are vertical track buses in the gutters. Expansion stretches
-  the node into its Actor Graph in place: descendants shift right and the
-  actor layers occupy the freed columns.
+  the node into its Actor Graph in place.
 - **B — Layered Field:** a top-to-bottom topological strata field. Layers are
   horizontal bands; edges drop vertically between bands with one connector
   row. Expansion inserts the Actor Graph as extra sub-layers centered under
-  the expanded node; descendants shift down.
+  the expanded node.
 - **C — Graph Log:** a narrow-friendly top-to-bottom view inspired by
   `git log --graph`. Every node is one row and dependency rails live in the
   gutter, so branches and joins remain actual graph structure. Expansion
-  renders the Actor Graph as a nested graph log indented under the node with
-  the main rails kept intact.
+  renders the Actor Graph as a nested graph log indented under the node.
 
-## Seed data
-
-Exactly two selectable Campaigns (`c` switches):
-
-1. **active — "live graph control room":** a resolved Decision (`pick
-   layout`) fanning out to two concurrent active Work Items (`tui variants`,
-   `snapshot harness`) and one active Decision (`expansion model`, grilling
-   discipline, needs-operator ⚑); a takeable join (`keyboard polish`); a
-   pending downstream node (`publish`). The `tui variants` Actor Graph shows
-   logical `/go` stages with a scout fan-out/join; the `expansion model`
-   Actor Graph shows a failed grilling round and an active ⚑ round with a
-   free-text question.
-2. **shipped — "campaign queue drain":** all Decisions resolved, all Work
-   Items succeeded, visibly immutable/read-only; expansion is view-only and
-   focus actions are disabled. Useful for judging whether completed graphs
-   become quiet rather than noisy.
+Oversized layouts use a bounded viewport in both interactive and snapshot
+modes. The selected node stays in view as arrows or `Tab` move it. `<` and `>`
+show horizontal continuation; `^` and `v` show vertical continuation. Header
+and terse footer stay fixed.
 
 ## Run
 
@@ -88,38 +101,37 @@ persistence, backend, or external dependency.
 ## Snapshots (deterministic, for review)
 
 ```bash
-python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot A --campaign active --width 120 --height 36
-python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot B --campaign active --expand w1 --width 120 --height 36
-python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot C --campaign active --expand d2 --select d2a2 --width 120 --height 36
-python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot A --campaign shipped --width 120 --height 36
+python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot A --campaign active --expand 412 --select 412-simplify-structure --width 120 --height 36
+python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot B --campaign active --expand 412 --select 412-simplify-performance --width 120 --height 36
+python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot C --campaign active --expand 412 --select 412-simplify-reuse --width 120 --height 36
+python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot C --campaign shipped --select go --width 120 --height 36
 ```
 
-`--expand <id>` renders a compound node expanded, `--select <id>` marks a
-node as selected (`◀`). Snapshot output is the same layout and state the
-interactive TUI renders. Node ids: `d1 w1 w2 d2 w3 w4` (active),
-`d1 w1 w2 w3` (shipped); actor ids are visible in the source seed data.
+The compact viewport can also be checked at 80×24:
+
+```bash
+python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot A --campaign active --expand 412 --select 412-simplify-structure --width 80 --height 24
+python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot B --campaign active --expand 412 --select 412-simplify-performance --width 80 --height 24
+python3 prototypes/live-graph-control-room-tui/prototype.py --snapshot C --campaign active --expand 412 --select 412-simplify-reuse --width 80 --height 24
+```
+
+`--expand <id>` renders one compound node expanded, and `--select <id>`
+marks a node as selected (`◀`) and focuses the viewport on it. Campaign node
+IDs are `398 399 400 401 403 402 405 406 ... 417 go`; expanded #412 Actor
+IDs include `412-simplify-structure`, `412-simplify-performance`, and
+`412-simplify-reuse`.
 
 ## Controls
 
 | key | action |
 | --- | --- |
 | `1` `2` `3` | switch variant A / B / C |
-| `c` | switch active / shipped Campaign |
-| arrows / `Tab` | navigate graph nodes |
-| `Enter` | expand/collapse a Decision or Work Item; on an Actor Node show a temporary "would focus Herdr pane …" stub (disabled when shipped) |
-| `n` | jump to next ⚑ needs-operator node (shows its free-text question) |
+| `c` | switch reconstructed midpoint / final shipped Campaign |
+| arrows / `Tab` | navigate graph nodes and follow the viewport |
+| `Enter` | expand/collapse a Decision or Work Item; on an Actor Node show a temporary focus stub |
+| `n` | jump to the next needs-operator node; active seed correctly reports none |
 | `?` | temporary help/legend overlay |
 | `q` | quit |
 
-A compact "too small: need WxH" message appears when the terminal cannot fit
-the current layout. There is no permanent help chrome beyond one terse
-footer.
-
-## Known visual limitations (accepted for a throwaway)
-
-- Long cross-column edges pass through gutter cells immediately after node
-  labels, which can read as a stray `│` next to a label (e.g. the
-  `d2 → publish` route in variant A).
-- Edge crossings are rendered as `┼` without hop-over marks.
-- Glyph alignment depends on the terminal rendering `✓ ► » ✗ ○ ⚑ ◆ ■ ● ↳` as
-  narrow (width-1) characters.
+Shipped Campaigns are immutable: expansion is view-only and Actor focus is
+disabled.
