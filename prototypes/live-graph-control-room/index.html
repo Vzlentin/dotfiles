@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PROTOTYPE — live-graph control room</title>
+  <!--
+    PROTOTYPE — THROWAWAY. Do not ship.
+
+    Question: What visual hierarchy and interactions let one operator understand
+    and safely control a running Campaign without an unreadable mega-graph?
+
+    Three structurally different variants on one route, switchable via ?variant=A|B|C
+    (bottom-center switcher, ◀ ▶ buttons or arrow keys):
+      A — Graph cockpit:           graph canvas owns the screen; attention rail + inspector flank it.
+      B — Intervention desk:       Needs-attention queue + progress overview dominate; graph is a small secondary surface.
+      C — Activity command center: chronological Activity feed + selected path dominate; graph is a text outline.
+
+    All data is fake and dense; all mutations are in-memory stubs that surface visibly.
+    No persistence, no backend, no tests, no polish.
+  -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="prototype-note" style="padding:5px 16px;background:#2c2414;color:#ffc768;font-size:12px;text-align:center;border-bottom:1px solid #5a4720;">
+    THROWAWAY PROTOTYPE — fake data, in-memory stubs only. Answers: “what hierarchy lets one operator run a Campaign without a mega-graph?”
+  </div>
+  <div id="root"></div>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script src="variant-a.js"></script>
+  <script src="variant-b.js"></script>
+  <script src="variant-c.js"></script>
+  <script>render();</script>
+</body>
+</html>
