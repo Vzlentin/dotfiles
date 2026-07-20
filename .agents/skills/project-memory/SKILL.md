@@ -1,6 +1,6 @@
 ---
 name: project-memory
-description: Project-agnostic agent memory backed by an Obsidian vault. Read at the start of non-trivial tasks; write durable architecture, vision, lessons, and per-task plans.
+description: Project-agnostic agent memory backed by an Obsidian vault. Read narrowly at the start of non-trivial tasks; write durable architecture, vision, scoped solutions, and per-task plans.
 ---
 
 # project-memory
@@ -35,8 +35,8 @@ Rules:
   - **Plans** fall back to the repo-relative `docs/plans/` store (see
     [Plan store location](#plan-store-location)). Plans are work orders, not
     private context, so they may live in the repo.
-  - **Durable memory** (`architecture.md`, `vision.md`, `lessons.md`,
-    `CONCEPTS.md`, `deferred-findings-register.md`, and the `solutions/` store)
+  - **Durable memory** (`architecture.md`, `vision.md`, `CONCEPTS.md`,
+    `deferred-findings-register.md`, and the `solutions/` store)
     is skipped entirely — do not invent a path, fall back to a hardcoded
     location, or write it into the repo. These carry private context that must
     stay out of a (possibly public) repo.
@@ -52,7 +52,6 @@ repository directory:
 $OBSIDIAN_VAULT_PATH/Projects/<project>/
 ├── architecture.md
 ├── vision.md
-├── lessons.md
 ├── CONCEPTS.md                     # shared domain vocabulary
 ├── deferred-findings-register.md   # append-only rolling deferral log
 ├── plans/                          # one transient file per task
@@ -105,9 +104,10 @@ store:
 When a task reaches a terminal outcome, flip the plan's `status` in the resolved
 store to `shipped` (merged) or `failed` (the run stopped short):
 
-- **Vault mode:** set `status` on the vault plan, update `architecture.md` /
-  `lessons.md` where a durable decision or lesson warrants it, and commit the
-  vault; push only if a remote is configured (it is its own git repo).
+- **Vault mode:** set `status` on the vault plan, update `architecture.md` or
+  one narrowly scoped `solutions/` note where a durable decision or reusable
+  pattern warrants it, and commit the vault; push only if a remote is configured
+  (it is its own git repo).
 - **Fallback mode:** set `status` on the `docs/plans/` plan — that file is the
   record. Do **not** write durable vault memory; there is no vault.
 
@@ -143,9 +143,6 @@ Resolve `<project>` exactly as [Plan store location](#plan-store-location) does
   decision lands.
 - **`vision.md`** — product intent: goals, non-goals, north-star, scope.
   Edited only when product direction shifts.
-- **`lessons.md`** — append-only log of corrections, recurring pitfalls, and
-  rules-for-self that prevent repeating mistakes. Append after every user
-  correction.
 - **`CONCEPTS.md`** — the project's shared domain vocabulary. Edited when a term
   is coined, sharpened, or retired.
 - **`deferred-findings-register.md`** — one append-only rolling table of
@@ -160,19 +157,20 @@ Resolve `<project>` exactly as [Plan store location](#plan-store-location) does
 ## When to read
 
 - At the start of any non-trivial task (3+ steps or architectural impact),
-  read `architecture.md`, `vision.md`, and recent `lessons.md` entries.
+  read `architecture.md`, `vision.md`, and the related in-flight plan.
+- Read only the smallest relevant `solutions/` notes, selected by category,
+  frontmatter, or a targeted search. Never bulk-load the store.
 - Before any architectural decision, re-read `architecture.md` and check
   `plans/` for a related in-flight plan.
-- After a user correction, scan `lessons.md` for the relevant pattern
-  before responding.
 
 ## When to write
 
 - **`architecture.md`** — when a design decision is made or an invariant
   changes. Keep entries terse; cite the change in the codebase.
 - **`vision.md`** — only when goals, non-goals, or scope move.
-- **`lessons.md`** — append immediately after any user correction or any
-  mistake that could recur. Each entry: the pattern, the rule for next time.
+- **`solutions/<category>/<slug>.md`** — create or extend one scoped note only
+  for a reusable, project-specific pattern with concrete evidence. Do not
+  persist every correction or one-off mistake.
 - **`plans/<slug>.md`** — create at the start of any multi-step task,
   update through the task, leave behind as the record when complete.
 
@@ -183,7 +181,7 @@ The vault is a directory of Markdown files. Use standard filesystem tools
 
 ```bash
 cat "$OBSIDIAN_VAULT_PATH/Projects/<project>/architecture.md"
-printf '\n## <pattern>\n- rule\n' >> "$OBSIDIAN_VAULT_PATH/Projects/<project>/lessons.md"
+grep -r "<term>" "$OBSIDIAN_VAULT_PATH/Projects/<project>/solutions/" --include="*.md" -l
 cat > "$OBSIDIAN_VAULT_PATH/Projects/<project>/plans/<slug>.md" << 'EOF'
 ...
 EOF
