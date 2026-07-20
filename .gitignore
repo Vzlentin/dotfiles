@@ -46,6 +46,12 @@
 # /.codex/*
 # !/.codex/config.toml
 
+# Throwaway prototypes, one allowlisted directory each (never all of
+# prototypes/ broadly).
+!/prototypes/
+/prototypes/*
+!/prototypes/live-graph-control-room-tui/
+
 # Python droppings (anywhere)
 __pycache__/
 *.py[cod]
