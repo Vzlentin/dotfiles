@@ -817,6 +817,19 @@ def title_line(camp: Campaign, variant: str) -> str:
         camp.title, camp.status, tag, variant, VARIANT_NAMES[variant])
 
 
+def default_focus(camp: Campaign) -> str:
+    """Choose the node that best answers where the Campaign needs attention."""
+    for condition in (
+        lambda node: node.needs_operator,
+        lambda node: node.state == "active",
+        lambda node: node.state == "takeable",
+    ):
+        match = next((node for node in camp.nodes if condition(node)), None)
+        if match:
+            return match.id
+    return camp.nodes[-1].id
+
+
 # --------------------------------------------------------------------------
 # Bounded viewport shared by snapshot and interactive rendering.
 # --------------------------------------------------------------------------
@@ -886,7 +899,8 @@ def snapshot(variant, camp_id, expand=None, select=None, width=0, height=0):
     _mark_selection(cvx, items, select)
     _, graph_w = cvx.dims()
     graph_h, _ = cvx.dims()
-    focus_id = select if any(it.node.id == select for it in items) else None
+    focus_id = (select if any(it.node.id == select for it in items)
+                else default_focus(camp))
     view_w = width or graph_w
     view_h = max(1, height - 2) if height else graph_h
     rows, _, _ = bounded_view(cvx, items, focus_id, view_w, view_h)
@@ -926,7 +940,9 @@ def tui(stdscr):
     styles = make_styles()
 
     variant, camp_id = "A", "active"
-    expanded, selected_id, message, help_on = None, None, None, False
+    expanded = None
+    selected_id = default_focus(CAMPAIGNS[camp_id])
+    message, help_on = None, False
     sel = 0
 
     while True:
@@ -998,6 +1014,8 @@ def tui(stdscr):
         elif ch == ord("c"):
             camp_id = "shipped" if camp_id == "active" else "active"
             expanded = None
+            selected_id = default_focus(CAMPAIGNS[camp_id])
+            sel = 0
         elif ch == curses.KEY_UP:
             sel = move_sel(items, sel, -1, 0)
         elif ch == curses.KEY_DOWN:

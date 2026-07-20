@@ -85,9 +85,11 @@ at a time, so expansion never produces a mega-graph.
   renders the Actor Graph as a nested graph log indented under the node.
 
 Oversized layouts use a bounded viewport in both interactive and snapshot
-modes. The selected node stays in view as arrows or `Tab` move it. `<` and `>`
-show horizontal continuation; `^` and `v` show vertical continuation. Header
-and terse footer stay fixed.
+modes. A running Campaign opens on operator-needed work when present, otherwise
+on its active or takeable frontier (#412 in the reconstructed midpoint). The
+selected node stays in view as arrows or `Tab` move it. `<` and `>` show
+horizontal continuation; `^` and `v` show vertical continuation. Header and
+terse footer stay fixed.
 
 ## Run
 
