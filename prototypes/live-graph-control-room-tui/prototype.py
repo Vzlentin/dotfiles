@@ -515,62 +515,20 @@ def layout_metro(camp: Campaign, expand_id):
         items.sort(key=lambda it: (it.r, it.c))
         return cvx, items
 
-    # Lay the selected Actor Graph independently. Its columns are local to
-    # the nested graph, while its rows start below every Campaign rail.
-    actor_by_id = {a.id: a for a in exp.actors}
-    actor_order = topo_order(exp.actors, exp.aedges)
-    actor_depth = depths(exp.actors, exp.aedges)
-    actor_col = {a.id: actor_depth[a.id] for a in actor_order}
-    actor_succ, actor_pred = adjacency(exp.actors, exp.aedges)
-    actor_lane = assign_lanes(actor_order, actor_col,
-                              actor_pred, actor_succ)
-
-    actor_colw = {}
-    for a in actor_order:
-        c = actor_col[a.id]
-        actor_colw[c] = max(actor_colw.get(c, 0), label_length(a))
-    actor_x_local, x = {}, 0
-    for c in sorted(actor_colw):
-        actor_x_local[c] = x
-        x += actor_colw[c] + gap
-
-    actor_lanes = sorted(set(actor_lane.values()))
-    actor_row_local = {lane: i * 2 for i, lane in enumerate(actor_lanes)}
+    # Completed work reads as history: a narrow top-to-bottom graph log keeps
+    # Actor fan-out and joins visible without extending the Campaign rail.
+    actor_rows, actor_tracks = log_rows(exp.actors, exp.aedges)
     actor_base = max(campaign_row.values()) + 3
-    actor_row = {lane: actor_base + row
-                 for lane, row in actor_row_local.items()}
-
-    # Put the first Actor Graph node under the selected Campaign parent. This
-    # gives the nested graph a visible ownership rail without a heading or a
-    # duplicate copy of the parent.
-    roots = [a for a in actor_order if not actor_pred.get(a.id)]
-    root_left = min(actor_x_local[actor_col[a.id]] for a in roots)
-    root_right = max(actor_x_local[actor_col[a.id]] + label_length(a)
-                     for a in roots)
-    root_center = (root_left + root_right) / 2
     parent = by_id[exp.id]
     parent_x = campaign_x[campaign_col[exp.id]]
-    parent_center = parent_x + label_length(parent) / 2
-    actor_shift = round(parent_center - root_center)
-    actor_shift = max(actor_shift, -min(actor_x_local.values()))
-    actor_x = {c: value + actor_shift for c, value in actor_x_local.items()}
-
-    root_row = actor_row[actor_lane[roots[0].id]]
     parent_row = campaign_row[campaign_lane[exp.id]]
-    cvx.vline(round(parent_center), parent_row + 1, root_row)
-
-    for u, v in exp.aedges:
-        draw_positioned_edge(
-            u, v,
-            actor_col,
-            actor_lane,
-            actor_x,
-            actor_row,
-            actor_by_id,
-        )
-    for a in actor_order:
-        draw_node(cvx, items, a, "actor",
-                  actor_row[actor_lane[a.id]], actor_x[actor_col[a.id]])
+    parent_center = parent_x + label_length(parent) // 2
+    actor_x = parent_x + 2
+    cvx.vline(parent_center, parent_row + 1, actor_base)
+    cvx.hline(actor_base, min(parent_center, actor_x),
+              max(parent_center, actor_x))
+    draw_log_rows(cvx, items, actor_rows, actor_tracks, actor_base,
+                  actor_x, "actor")
 
     items.sort(key=lambda it: (it.r, it.c))
     return cvx, items
