@@ -80,6 +80,18 @@ The loop keys on the `/go` run-state contract (`issue` and `outcome` in
 Requires on PATH: `git`, `jq`, `herdr` (agent panes), `python3`, and the
 configured agent command (default `pi`).
 
+## Live graph prototype
+
+Variant A (Metro/Rails) is state-aware: expanding an active, takeable, or
+pending Decision or Work Item splices its Actor Graph left-to-right into the
+Campaign route and shifts downstream nodes right. Expanding a done or failed
+parent keeps the Campaign rail compact and shows the historical Actor Graph
+vertically beneath that parent. Actor fan-out and joins remain visible in both
+modes. Only one compound node expands at a time; layout is automatic and does
+not store coordinates.
+
+Variants B and C keep their existing expansion behavior.
+
 ## Development
 
 ```bash

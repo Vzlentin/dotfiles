@@ -21,16 +21,20 @@ Behavior:
     merged, and the final owner GO Decision resolved.
 
     Campaign-level Decisions and Work Items are compound nodes; Enter expands
-    exactly one of them inline to reveal its Actor Graph (Wayfinder disciplines
-    for Decisions and logical /go stages for Work Items). Plans are attached
-    artifacts, never graph nodes. The real graph has seven planning Decisions,
-    twelve serial Work Items, and one final owner GO Decision. Plans, Attempts,
-    costs, logs, and metrics are deliberately absent. Three layout variants
-    share the same data and state, each with its own layout algorithm and
-    reading direction:
+    exactly one of them to reveal its Actor Graph (Wayfinder disciplines for
+    Decisions and logical /go stages for Work Items). In Variant A, active,
+    takeable, and pending parents splice the Actor Graph into the Campaign
+    route, while done and failed parents keep the Campaign rail compact and
+    show historical Actor detail below it. Plans are attached artifacts, never
+    graph nodes. The real graph has seven planning Decisions, twelve serial
+    Work Items, and one final owner GO Decision. Plans, Attempts, costs, logs,
+    and metrics are deliberately absent. Three layout variants share the same
+    data and state, each with its own layout algorithm and reading direction:
 
-      A -- Metro/Rails:   wide left-to-right dependency railway; chains share
-                          rails, fan-out/joins are vertical track buses.
+      A -- Metro/Rails:   wide left-to-right dependency railway; current
+                          Actor topology splices inline, historical detail
+                          unfolds below a compact rail; chains share rails,
+                          fan-out/joins are vertical track buses.
       B -- Layered Field: top-to-bottom topological strata; edges are
                           vertical/diagonal links between layers.
       C -- Graph Log:     narrow top-to-bottom 'git log --graph' style with
@@ -403,8 +407,9 @@ def expanded_node(camp: Campaign, expand_id):
 # --------------------------------------------------------------------------
 # Variant A -- Metro/Rails: left-to-right railway.
 # Columns = topological depth; lanes = rails; fan-out/joins are vertical
-# buses in the gutters. Expansion keeps the Campaign railway unchanged and
-# unfolds the selected Actor Graph on its own rails beneath the railway.
+# buses in the gutters. Terminal expansion keeps the Campaign railway compact
+# and unfolds historical Actor detail beneath it; nonterminal expansion splices
+# the executable Actor Graph into the Campaign route.
 # --------------------------------------------------------------------------
 def layout_metro(camp: Campaign, expand_id):
     nodes, edges = camp.nodes, camp.edges
@@ -413,6 +418,9 @@ def layout_metro(camp: Campaign, expand_id):
     order = [n.id for n in topo_order(nodes, edges)]
     succ, pred = adjacency(nodes, edges)
     exp = expanded_node(camp, expand_id)
+
+    if exp and exp.state not in ("done", "failed"):
+        return layout_metro_inline(camp, expand_id)
 
     def assign_lanes(graph_nodes, colof, predof, succof):
         """Lay one graph on independent rails without storing coordinates."""
@@ -564,6 +572,160 @@ def layout_metro(camp: Campaign, expand_id):
         draw_node(cvx, items, a, "actor",
                   actor_row[actor_lane[a.id]], actor_x[actor_col[a.id]])
 
+    items.sort(key=lambda it: (it.r, it.c))
+    return cvx, items
+
+
+def layout_metro_inline(camp: Campaign, expand_id):
+    """Restore the executable inline splice for a nonterminal parent."""
+    nodes, edges = camp.nodes, camp.edges
+    by_id = {n.id: n for n in nodes}
+    dep = depths(nodes, edges)
+    order = [n.id for n in topo_order(nodes, edges)]
+    succ, pred = adjacency(nodes, edges)
+    exp = expanded_node(camp, expand_id)
+
+    adep, shift, desc = {}, 0, set()
+    if exp:
+        adep = depths(exp.actors, exp.aedges)
+        shift = max(adep.values()) + 1
+        desc = descendants(edges, exp.id)
+
+    col, lane = {}, {}
+    for nid in order:
+        col[nid] = dep[nid] + (shift if nid in desc else 0)
+    acol, alane = {}, {}
+    if exp:
+        for a in exp.actors:
+            acol[a.id] = dep[exp.id] + 1 + adep[a.id]
+
+    occ = set()
+
+    def nearest(pref, c):
+        for d in (0, -1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6):
+            if (c, pref + d) not in occ:
+                return pref + d
+        raise RuntimeError("lane space exhausted")
+
+    def assign_group(group, colof, laneof, base_pref):
+        k = len(group)
+        if k == 1:
+            n = group[0]
+            ps = [p for p in pred.get(n.id, []) if p in laneof]
+            if len(ps) == 1 and len(succ.get(ps[0], [])) == 1:
+                pref = laneof[ps[0]]
+            elif ps:
+                pref = round(sum(laneof[p] for p in ps) / len(ps))
+            else:
+                pref = base_pref
+            laneof[n.id] = nearest(pref, colof[n.id])
+            occ.add((colof[n.id], laneof[n.id]))
+        else:
+            prefs = []
+            for n in group:
+                ps = [p for p in pred.get(n.id, []) if p in laneof]
+                prefs.append(sum(laneof[p] for p in ps) / len(ps)
+                             if ps else base_pref)
+            base = round(sum(prefs) / len(prefs))
+            for j, n in enumerate(group):
+                laneof[n.id] = nearest(base + 2 * j - (k - 1), colof[n.id])
+                occ.add((colof[n.id], laneof[n.id]))
+
+    bycol = {}
+    for nid in order:
+        bycol.setdefault(col[nid], []).append(by_id[nid])
+    for c in sorted(bycol):
+        assign_group(bycol[c], col, lane, 0)
+    if exp:
+        apred = {}
+        for u, v in exp.aedges:
+            apred.setdefault(v, []).append(u)
+        abycol = {}
+        for a in exp.actors:
+            abycol.setdefault(acol[a.id], []).append(a)
+        for c in sorted(abycol):
+            k = len(abycol[c])
+            if k == 1:
+                a = abycol[c][0]
+                ps = apred.get(a.id, [])
+                if ps and len(ps) == 1:
+                    pref = alane.get(ps[0], lane[exp.id])
+                elif ps:
+                    pref = round(sum(alane[p] for p in ps) / len(ps))
+                else:
+                    pref = lane[exp.id]
+                alane[a.id] = nearest(pref, c)
+                occ.add((c, alane[a.id]))
+            else:
+                base = lane[exp.id]
+                ps0 = apred.get(abycol[c][0].id, [])
+                if ps0:
+                    base = round(sum(alane.get(p, lane[exp.id])
+                                     for p in ps0) / len(ps0))
+                for j, a in enumerate(abycol[c]):
+                    alane[a.id] = nearest(base + 2 * j - (k - 1), c)
+                    occ.add((c, alane[a.id]))
+
+    # Column x positions from label widths.
+    def lab_len(nid):
+        n = by_id.get(nid)
+        if n is None and exp:
+            n = next((a for a in exp.actors if a.id == nid), None)
+        ln = len(node_label(n))
+        if n.needs_operator:
+            ln += 2
+        return ln
+
+    colw = {}
+    for nid, c in list(col.items()) + list(acol.items()):
+        colw[c] = max(colw.get(c, 0), lab_len(nid))
+    gap = 3
+    xs, x = {}, 0
+    for c in sorted(colw):
+        xs[c] = x
+        x += colw[c] + gap
+    lanes_sorted = sorted(set(lane.values()) | set(alane.values()))
+    rowof = {ln: i * 2 for i, ln in enumerate(lanes_sorted)}
+
+    cvx = Canvas()
+    items = []
+
+    def draw_edge(u, v):
+        uc, vc = col.get(u, acol.get(u)), col.get(v, acol.get(v))
+        ul, vl = lane.get(u, alane.get(u)), lane.get(v, alane.get(v))
+        r1, r2 = rowof[ul], rowof[vl]
+        x1 = xs[uc] + lab_len(u)
+        x2 = xs[vc]
+        gx = max(x2 - 2, x1 + 1)
+        cvx.hline(r1, x1 + 1, gx)
+        cvx.vline(gx, r1, r2)
+        if x2 - 1 > gx:
+            cvx.hline(r2, gx, x2 - 1)
+
+    for u, v in edges:
+        if exp and u == exp.id:
+            continue                      # replaced by actor-graph route
+        draw_edge(u, v)
+    if exp:
+        asucc = {}
+        for u, v in exp.aedges:
+            asucc.setdefault(u, []).append(v)
+        for a in exp.actors:
+            if adep[a.id] == 0:
+                draw_edge(exp.id, a.id)
+            if a.id not in asucc:
+                for s in succ[exp.id]:
+                    draw_edge(a.id, s)
+        for u, v in exp.aedges:
+            draw_edge(u, v)
+
+    for nid in order:
+        draw_node(cvx, items, by_id[nid], "campaign", rowof[lane[nid]],
+                  xs[col[nid]])
+    if exp:
+        for a in exp.actors:
+            draw_node(cvx, items, a, "actor", rowof[alane[a.id]],
+                      xs[acol[a.id]])
     items.sort(key=lambda it: (it.r, it.c))
     return cvx, items
 
