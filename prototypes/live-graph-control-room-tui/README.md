@@ -73,8 +73,9 @@ at a time, so expansion never produces a mega-graph.
 
 - **A — Metro/Rails:** a wide left-to-right dependency railway. Columns are
   topological depth, lanes are rails; independent chains share a rail, and
-  fan-out/joins are vertical track buses in the gutters. Expansion stretches
-  the node into its Actor Graph in place.
+  fan-out/joins are vertical track buses in the gutters. Expansion keeps the
+  Campaign rail compact at the same positions and unfolds the Actor Graph on
+  nested rails beneath the expanded parent.
 - **B — Layered Field:** a top-to-bottom topological strata field. Layers are
   horizontal bands; edges drop vertically between bands with one connector
   row. Expansion inserts the Actor Graph as extra sub-layers centered under
