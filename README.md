@@ -11,7 +11,8 @@ A small, XDG-oriented Zsh configuration managed with symlinks.
 | `~/.zprofile.local` | Machine-specific environment and secrets, not tracked |
 | `~/.zshrc.local` | Machine-specific interactive settings, not tracked |
 | `~/.config/git/config` | Global Git identity and GitHub credential helper |
-| `~/.config/vim/vimrc` | Redirects Vim's generated history into XDG state |
+| `~/.config/vim/vimrc` | Configures Vim and redirects its generated history into XDG state |
+| `~/.config/nvim/init.vim` | Provides a small, plugin-free Neovim configuration |
 
 Zsh's startup files remain directly under `$HOME`; this configuration does not
 set `ZDOTDIR` or install a `.zshenv`. Both startup files provide XDG base-directory
