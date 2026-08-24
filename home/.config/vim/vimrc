@@ -1,0 +1,9 @@
+set mouse=
+set ttymouse=
+set spell
+syntax on
+
+" Keep Vim's persistent history out of $HOME.
+if exists('$XDG_STATE_HOME') && !empty($XDG_STATE_HOME)
+    execute 'set viminfofile=' . fnameescape($XDG_STATE_HOME . '/vim/viminfo')
+endif

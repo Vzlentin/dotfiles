@@ -1,0 +1,25 @@
+add_newline = false
+
+format = "($directory$git_branch$git_status$python\n)$character"
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+style = "bold blue"
+read_only = " 󰌾"
+
+[git_branch]
+symbol = " "
+style = "bold purple"
+
+[git_status]
+style = "bold yellow"
+
+[python]
+symbol = "𝜆 "
+format = "[$symbol($virtualenv)]($style)"
+style = "bold dimmed white"
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
