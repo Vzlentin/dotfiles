@@ -1,6 +1,6 @@
 set mouse=
 set ttymouse=
-set spell
+set nospell
 syntax on
 
 " Keep Vim's persistent history out of $HOME.

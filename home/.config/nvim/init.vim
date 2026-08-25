@@ -9,9 +9,7 @@ set tabstop=4
 set softtabstop=4
 set shiftwidth=4
 set textwidth=0
-set breakindent
-set linebreak
-set spell
+set nospell
 
 " Search and completion
 set ignorecase
@@ -49,5 +47,8 @@ nnoremap <silent> <Esc> <Cmd>nohlsearch<CR>
 
 augroup dotfiles
     autocmd!
-    autocmd FileType * setlocal textwidth=0
+    autocmd FileType * setlocal textwidth=0 nospell
+    autocmd FileType markdown setlocal wrap linebreak breakindent
+    autocmd FileType markdown nnoremap <buffer><expr> j v:count == 0 ? 'gj' : 'j'
+    autocmd FileType markdown nnoremap <buffer><expr> k v:count == 0 ? 'gk' : 'k'
 augroup END
