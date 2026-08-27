@@ -4,7 +4,6 @@
 
 # Pi credentials and generated runtime state
 home/.pi/agent/auth.json
-home/.pi/agent/backups/
 home/.pi/agent/bin/
 home/.pi/agent/cache/
 home/.pi/agent/git/

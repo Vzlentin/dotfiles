@@ -5,7 +5,6 @@ SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
 "$SCRIPT_DIR/bootstrap.sh"
 
 SOURCE_DIR="$SCRIPT_DIR/home"
-BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d%H%M%S)"
 CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
 CACHE_HOME=${XDG_CACHE_HOME:-"$HOME/.cache"}
 DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
@@ -40,24 +39,9 @@ link_file() {
         return
     fi
 
-    if [ -L "$target_path" ]; then
-        case $(readlink "$target_path") in
-            "$SOURCE_DIR"/*)
-                rm "$target_path"
-                echo "relink $relative_path"
-                ;;
-            *)
-                backup_path="$BACKUP_DIR/$relative_path"
-                mkdir -p "$(dirname "$backup_path")"
-                mv "$target_path" "$backup_path"
-                echo "backup $relative_path -> $backup_path"
-                ;;
-        esac
-    elif [ -e "$target_path" ]; then
-        backup_path="$BACKUP_DIR/$relative_path"
-        mkdir -p "$(dirname "$backup_path")"
-        mv "$target_path" "$backup_path"
-        echo "backup $relative_path -> $backup_path"
+    if [ -L "$target_path" ] || [ -e "$target_path" ]; then
+        rm -rf "$target_path"
+        echo "replace $relative_path"
     fi
 
     mkdir -p "$(dirname "$target_path")"
