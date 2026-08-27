@@ -14,7 +14,7 @@ set nospell
 " Search and completion
 set ignorecase
 set smartcase
-set completeopt=menuone,noselect,popup
+set completeopt=menuone,noselect
 set inccommand=split
 
 " Windows and context
@@ -31,7 +31,13 @@ set confirm
 
 " Terminal and display
 set mouse=a
-set clipboard=unnamedplus
+if executable('pbcopy')
+    set clipboard=unnamedplus
+elseif !empty($DISPLAY) && (executable('xclip') || executable('xsel'))
+    set clipboard=unnamedplus
+elseif !empty($WAYLAND_DISPLAY) && executable('wl-copy')
+    set clipboard=unnamedplus
+endif
 set termguicolors
 set list
 set listchars=tab:»\ ,trail:·,nbsp:␣

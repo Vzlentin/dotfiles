@@ -1,0 +1,39 @@
+{
+  "providers": {
+    "mlx-vlm": {
+      "baseUrl": "http://127.0.0.1:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "local",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": true,
+        "maxTokensField": "max_tokens",
+        "thinkingFormat": "qwen"
+      },
+      "models": [
+        {
+          "id": "mlx-community/Qwen3.8-27B-8bit",
+          "name": "Qwen3.8 27B 8-bit (MLX Local)",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "minimal": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "xhigh",
+            "xhigh": null,
+            "max": null
+          },
+          "input": ["text", "image"],
+          "contextWindow": 16384,
+          "maxTokens": 4096,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      ]
+    }
+  }
+}

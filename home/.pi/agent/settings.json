@@ -1,0 +1,16 @@
+{
+  "lastChangelogVersion": "0.84.3",
+  "theme": "dark",
+  "externalEditor": "vim",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultThinkingLevel": "high",
+  "packages": [
+    "npm:@ogulcancelik/pi-minimal-footer",
+    "npm:@ogulcancelik/pi-session-recall",
+    "npm:@ogulcancelik/pi-codex-subagents",
+    "npm:@ogulcancelik/pi-codex-compaction",
+    "../../Dev/autoresearch"
+  ],
+  "tuiMode": "fullscreen"
+}

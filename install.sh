@@ -2,6 +2,8 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
+"$SCRIPT_DIR/bootstrap.sh"
+
 SOURCE_DIR="$SCRIPT_DIR/home"
 BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d%H%M%S)"
 CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
@@ -63,9 +65,21 @@ link_file() {
     echo "link $relative_path"
 }
 
-find "$SOURCE_DIR" -type f | while IFS= read -r source_path; do
+find "$SOURCE_DIR" \( -type f -o -type l \) | while IFS= read -r source_path; do
     link_file "$source_path"
 done
+
+# Install dependencies beside linked agent-skill sources so Node's module
+# resolution follows the links back to a complete package.
+if [ -d "$SOURCE_DIR/.agents" ]; then
+    find "$SOURCE_DIR/.agents" -name package-lock.json -type f | while IFS= read -r lockfile; do
+        package_dir=$(dirname "$lockfile")
+        if [ -f "$package_dir/package.json" ]; then
+            echo "install dependencies ${package_dir#"$SOURCE_DIR/"}"
+            npm ci --prefix "$package_dir"
+        fi
+    done
+fi
 
 if [ ! -f "$HOME/.zprofile.local" ]; then
     echo ""

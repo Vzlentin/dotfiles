@@ -21,8 +21,10 @@ setopt HIST_IGNORE_SPACE
 setopt HIST_REDUCE_BLANKS
 
 # Completion and key bindings
+ZSH_COMPDUMP="${ZSH_COMPDUMP:-$XDG_CACHE_HOME/zsh/.zcompdump}"
+mkdir -p "${ZSH_COMPDUMP:h}"
 autoload -Uz compinit
-compinit -d "$XDG_CACHE_HOME/zsh/zcompdump"
+compinit -d "$ZSH_COMPDUMP"
 bindkey -e
 
 # Portable colored output
@@ -54,3 +56,8 @@ fi
 
 # Machine-specific aliases, functions, and interactive settings belong here.
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+
+# Keep one persistent tmux session for interactive SSH connections.
+if [[ -z "$TMUX" && -n "$SSH_TTY" ]] && (( $+commands[tmux] )); then
+    tmux new-session -A -s main
+fi

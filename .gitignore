@@ -1,3 +1,20 @@
 .DS_Store
 *.swp
 *~
+
+# Pi credentials and generated runtime state
+home/.pi/agent/auth.json
+home/.pi/agent/backups/
+home/.pi/agent/bin/
+home/.pi/agent/cache/
+home/.pi/agent/git/
+home/.pi/agent/models-store.json
+home/.pi/agent/run-history.jsonl
+home/.pi/agent/sessions/
+home/.pi/agent/trust.json
+home/.pi/agent/pi-codex-subagents/runs/
+home/.pi/history/
+
+# Recreate JavaScript dependencies from lockfiles
+home/.pi/agent/npm/node_modules/
+home/.agents/**/node_modules/
