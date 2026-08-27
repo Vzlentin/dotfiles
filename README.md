@@ -63,9 +63,8 @@ sessions, histories, caches, package checkouts, and generated dependencies are
 intentionally excluded. JavaScript dependencies remain untracked and are
 recreated from the tracked lockfiles by the installer.
 The `.config`, `.cache`, `.local/share`, and `.local/state` prefixes respect
-custom XDG base-directory environment variables. Existing files move to
-`~/.dotfiles-backup/<timestamp>/`. You can run the installer again safely; it
-skips links that are already correct.
+custom XDG base-directory environment variables. Existing files are replaced.
+You can run the installer again safely; it skips links that are already correct.
 
 ## Defaults and machine overrides
 
