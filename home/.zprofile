@@ -16,7 +16,8 @@ fi
 
 export EDITOR="nvim"
 export VISUAL="$EDITOR"
-export VAULT="$HOME/vault/Val"
+export VAULT="${VAULT:-$HOME/vault}"
+export BUN_INSTALL="${BUN_INSTALL:-$XDG_DATA_HOME/bun}"
 
 # Keep tools that do not follow the XDG Base Directory specification out of
 # $HOME. Each variable is the tool's supported location override.
@@ -38,6 +39,7 @@ export CHECKPOINT_DISABLE=1
 # Use a unique path array so repeated shell startup does not duplicate entries.
 typeset -U path PATH
 path=(
+    "$BUN_INSTALL/bin"
     "$HOME/.rd/bin"
     "$HOME/.druk/bin"
     "/opt/homebrew/share/google-cloud-sdk/bin"

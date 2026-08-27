@@ -1,0 +1,10 @@
+{
+  "name": "pi-extensions",
+  "private": true,
+  "dependencies": {
+    "@ogulcancelik/pi-codex-compaction": "^0.1.4",
+    "@ogulcancelik/pi-codex-subagents": "^0.3.4",
+    "@ogulcancelik/pi-minimal-footer": "^0.1.11",
+    "@ogulcancelik/pi-session-recall": "^1.0.6"
+  }
+}
