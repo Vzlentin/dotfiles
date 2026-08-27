@@ -10,7 +10,8 @@
     "npm:@ogulcancelik/pi-session-recall",
     "npm:@ogulcancelik/pi-codex-subagents",
     "npm:@ogulcancelik/pi-codex-compaction",
-    "../../Dev/autoresearch"
+    "../../Dev/autoresearch",
+    "npm:@howaboua/pi-skill-harness-and-agent-engineering"
   ],
   "tuiMode": "fullscreen"
 }
