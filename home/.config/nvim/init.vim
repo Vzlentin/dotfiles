@@ -2,7 +2,6 @@
 
 " Editing
 set number
-set relativenumber
 set cursorline
 set expandtab
 set tabstop=4

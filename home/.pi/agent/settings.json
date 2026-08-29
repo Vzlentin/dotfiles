@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.84.3",
+  "lastChangelogVersion": "0.84.4",
   "theme": "dark",
   "externalEditor": "vim",
   "defaultProvider": "openai-codex",
@@ -11,7 +11,9 @@
     "npm:@ogulcancelik/pi-codex-subagents",
     "npm:@ogulcancelik/pi-codex-compaction",
     "../../Dev/autoresearch",
-    "npm:@howaboua/pi-skill-harness-and-agent-engineering"
+    "npm:@howaboua/pi-skill-harness-and-agent-engineering",
+    "npm:@howaboua/pi-skill-foundations",
+    "../../Dev/pi-ipython-rlm"
   ],
   "tuiMode": "fullscreen"
 }
