@@ -54,6 +54,17 @@ if (( $+commands[starship] )); then
     eval "$(starship init zsh)"
 fi
 
+# Deja: predictive inline autosuggestions. Keep Tab for native completion by
+# moving its alternatives picker to Ctrl+N. Accept a ghost with Right arrow.
+if (( $+commands[deja] )); then
+    export DEJA_CYCLE_KEY='^N'
+    if [[ -r "$XDG_DATA_HOME/deja/init.zsh" ]]; then
+        source "$XDG_DATA_HOME/deja/init.zsh"
+    else
+        eval "$(deja init zsh)"
+    fi
+fi
+
 # Machine-specific aliases, functions, and interactive settings belong here.
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
 
