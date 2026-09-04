@@ -1,0 +1,50 @@
+onboarding = false
+
+[keys]
+# Freed so the custom "open last ping" command below can own prefix+o.
+open_notification_target = ""
+
+# Global back-and-forth (pairs with prefix+o). h/j/k/l cover in-tab cycling.
+last_pane = "prefix+tab"
+cycle_pane_next = ""
+
+# Sweep through agents in sidebar order. ctrl+alt chords are untouched by Ghostty/macOS.
+previous_agent = "ctrl+alt+h"
+next_agent = "ctrl+alt+l"
+
+# Walk workspaces the same way.
+previous_workspace = "ctrl+alt+k"
+next_workspace = "ctrl+alt+j"
+
+# Direct workspace jumps.
+switch_workspace = "prefix+shift+1..9"
+
+# prefix+shift+t is taken by the "move pane to new tab" command below.
+rename_tab = "prefix+comma"
+
+[[keys.command]]
+key = "prefix+t"
+type = "popup"
+description = "scratch shell"
+command = "exec \"${SHELL:-sh}\""
+width = "80%"
+height = "80%"
+
+[[keys.command]]
+key = "prefix+o"
+type = "shell"
+description = "open last ping"
+command = '''
+target=$("$HERDR_BIN_PATH" agent list | jq -r '
+  .result.agents as $all
+  | ($all | map(select(.agent_status == "done" or .agent_status == "blocked"))) as $pings
+  | (if ($pings | length) > 0 then $pings else $all end)
+  | max_by(.state_change_seq).pane_id')
+[ -n "$target" ] && "$HERDR_BIN_PATH" agent focus "$target"
+'''
+
+[[keys.command]]
+key = "prefix+shift+t"
+type = "shell"
+command = "herdr pane move $HERDR_ACTIVE_PANE_ID --new-tab --focus"
+
