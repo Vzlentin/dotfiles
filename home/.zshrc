@@ -110,21 +110,21 @@ if (( $+commands[deja] )); then
         eval "$(deja init zsh)"
     fi
 
-    # Tab accepts the ghost while typing a command or subcommand:
-    #   - word 1: any ghost (fuzzy included, e.g. gco -> git commit ...)
-    #   - word 2: a prefix ghost (git s -> git status), unless the word looks
-    #     like a path/option/variable (~ . / - $)
-    # From word 3 on (branches, files, values...), after a trailing space, or
-    # with no ghost, Tab is native zsh completion.
+    # Tab accepts the ghost when it continues what is being typed:
+    #   - empty prompt: the predicted next command
+    #   - prefix ghost (grey text continues the current word): accept
+    #   - fuzzy ghost (" > cmd"): accept only while on the first word
+    # Native zsh completion when there is no ghost, after a trailing space
+    # (`git checkout <Tab>` lists branches even if a ghost is showing), or for
+    # a fuzzy ghost past the first word.
     _deja_or_complete() {
         local word="${LBUFFER##*[[:space:]]}"
-        local -i nwords=${(w)#LBUFFER}
-        if (( $#POSTDISPLAY && CURSOR == $#BUFFER )) && [[ -n "$word" ]]; then
-            if (( nwords == 1 )); then
+        if (( $#POSTDISPLAY && CURSOR == $#BUFFER )); then
+            if [[ -z "$BUFFER" ]]; then
                 zle deja-accept; return
-            fi
-            if (( nwords == 2 )) && [[ "$_DEJA_SUGGESTION_MODE" == prefix \
-                  && "$word" != [~./\$-]* && "$word" != */* ]]; then
+            elif [[ -n "$word" && "$_DEJA_SUGGESTION_MODE" == prefix ]]; then
+                zle deja-accept; return
+            elif [[ -n "$word" && "$LBUFFER" != *[[:space:]]* ]]; then
                 zle deja-accept; return
             fi
         fi
