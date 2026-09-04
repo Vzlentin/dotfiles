@@ -66,6 +66,65 @@ The `.config`, `.cache`, `.local/share`, and `.local/state` prefixes respect
 custom XDG base-directory environment variables. Existing files are replaced.
 You can run the installer again safely; it skips links that are already correct.
 
+## Interactive shell
+
+`~/.zshrc` is plain Zsh with no framework or plugin manager. It enables shared,
+timestamped history that keeps only the latest copy of a repeated command,
+`AUTO_CD`, `AUTO_PUSHD`, `EXTENDED_GLOB`, a case-insensitive arrow-key
+completion menu, and emacs key bindings with a few additions:
+
+| Key | Action |
+| --- | --- |
+| `Up` / `Down` | Walk history filtered by what is already typed |
+| `Home` / `End` / `Delete` | Line start, line end, delete forward |
+| `Alt+←` / `Alt+→` | Move by word; `/ = . -` end a word, so `Ctrl+W` removes one path segment |
+| `Shift+Tab` | Move backwards in a completion menu |
+
+`NO_CLOBBER`, `CORRECT`, and `edit-command-line` are present but commented out.
+
+### Deja
+
+[Deja](https://github.com/Giammarco-Ferranti/deja) provides inline ghost-text
+suggestions from history. It is optional: the block in `~/.zshrc` only runs when
+the `deja` binary is on `PATH`. To enable it:
+
+```sh
+brew install Giammarco-Ferranti/deja/deja
+deja import --file "$XDG_STATE_HOME/zsh/history"
+```
+
+`--file` is required because `HISTFILE` is not exported. A local daemon starts
+on first use; `deja ping` should answer `pong`.
+
+Deja binds `Tab` to its alternatives picker by default, which breaks native
+completion. This configuration moves the picker to `Ctrl+N` and installs its
+own `Tab` widget, `_deja_or_complete`, so a single key serves both:
+
+| State of the line | `Tab` does |
+| --- | --- |
+| Empty prompt showing a predicted command | Accept it |
+| Grey text continues the current word (`cd Dev/` → `perso/dotfiles`) | Accept it |
+| Fuzzy ghost (`gco ⊳ git commit …`) while on the first word | Accept it |
+| Fuzzy ghost past the first word | Native completion |
+| Trailing space (`git checkout ␣`), even with a ghost | Native completion |
+| No ghost | Native completion |
+
+The trailing-space row is the escape hatch: press `Tab` before starting a word
+to get the completion menu instead of Deja's guess.
+
+| Key | Action |
+| --- | --- |
+| `→` | Accept the whole ghost, anywhere on the line |
+| `Ctrl+→` | Accept one word of the ghost |
+| `Ctrl+N` | Cycle alternative suggestions |
+| `Ctrl+X` | Mute suggestions for this shell session |
+| `Shift+←` / `Shift+→` | Cycle the fuzzy-matching preset |
+| `Shift+↑` | Toggle suggestions on an empty prompt |
+
+`Ctrl+X` is a prefix in Zsh's emacs keymap, so Deja's binding delays chords such
+as `Ctrl+X Ctrl+E` by `KEYTIMEOUT`. Set `DEJA_TOGGLE_KEY` above the Deja block
+to move it if those chords are wanted.
+
 ## Defaults and machine overrides
 
 Defaults written with `${NAME:-value}` preserve values that are already set.
