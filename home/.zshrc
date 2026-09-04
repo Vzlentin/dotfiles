@@ -54,8 +54,9 @@ if (( $+commands[starship] )); then
     eval "$(starship init zsh)"
 fi
 
-# Deja: predictive inline autosuggestions. Keep Tab for native completion by
-# moving its alternatives picker to Ctrl+N. Accept a ghost with Right arrow.
+# Deja: predictive inline autosuggestions. Right arrow accepts the ghost,
+# Ctrl+N cycles alternatives (moved off Tab, which deja would otherwise
+# swallow whenever a ghost is showing).
 if (( $+commands[deja] )); then
     export DEJA_CYCLE_KEY='^N'
     if [[ -r "$XDG_DATA_HOME/deja/init.zsh" ]]; then
@@ -63,6 +64,29 @@ if (( $+commands[deja] )); then
     else
         eval "$(deja init zsh)"
     fi
+
+    # Tab accepts the ghost while typing a command or subcommand:
+    #   - word 1: any ghost (fuzzy included, e.g. gco -> git commit ...)
+    #   - word 2: a prefix ghost (git s -> git status), unless the word looks
+    #     like a path/option/variable (~ . / - $)
+    # From word 3 on (branches, files, values...), after a trailing space, or
+    # with no ghost, Tab is native zsh completion.
+    _deja_or_complete() {
+        local word="${LBUFFER##*[[:space:]]}"
+        local -i nwords=${(w)#LBUFFER}
+        if (( $#POSTDISPLAY && CURSOR == $#BUFFER )) && [[ -n "$word" ]]; then
+            if (( nwords == 1 )); then
+                zle deja-accept; return
+            fi
+            if (( nwords == 2 )) && [[ "$_DEJA_SUGGESTION_MODE" == prefix \
+                  && "$word" != [~./\$-]* && "$word" != */* ]]; then
+                zle deja-accept; return
+            fi
+        fi
+        zle expand-or-complete
+    }
+    zle -N _deja_or_complete
+    bindkey '^I' _deja_or_complete
 fi
 
 # Machine-specific aliases, functions, and interactive settings belong here.
