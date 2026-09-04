@@ -2,9 +2,9 @@
   "name": "pi-extensions",
   "private": true,
   "dependencies": {
-    "@ogulcancelik/pi-codex-compaction": "^0.1.4",
-    "@ogulcancelik/pi-codex-subagents": "^0.3.4",
+    "@ogulcancelik/pi-codex-compaction": "^0.1.5",
     "@ogulcancelik/pi-minimal-footer": "^0.1.11",
-    "@ogulcancelik/pi-session-recall": "^1.0.6"
+    "@ogulcancelik/pi-session-recall": "^1.0.7",
+    "@rahularya01/pi-cursor": "^1.4.30"
   }
 }

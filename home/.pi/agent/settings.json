@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.84.3",
+  "lastChangelogVersion": "0.85.0",
   "theme": "dark",
   "externalEditor": "vim",
   "defaultProvider": "openai-codex",
@@ -8,9 +8,8 @@
   "packages": [
     "npm:@ogulcancelik/pi-minimal-footer",
     "npm:@ogulcancelik/pi-session-recall",
-    "npm:@ogulcancelik/pi-codex-subagents",
     "npm:@ogulcancelik/pi-codex-compaction",
-    "../../Dev/autoresearch"
+    "npm:@rahularya01/pi-cursor"
   ],
   "tuiMode": "fullscreen"
 }
