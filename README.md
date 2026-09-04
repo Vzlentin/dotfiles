@@ -1,6 +1,6 @@
 # Dotfiles
 
-A small, XDG-oriented Zsh configuration managed with symlinks.
+Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration managed with symlinks.
 
 ## Layout
 
@@ -10,7 +10,8 @@ A small, XDG-oriented Zsh configuration managed with symlinks.
 | `~/.zshrc` | Interactive history, completion, aliases, and tool integrations |
 | `~/.zprofile.local` | Machine-specific environment and secrets, not tracked |
 | `~/.zshrc.local` | Machine-specific interactive settings, not tracked |
-| `~/.tmux.conf` | Remote sessions, copy mode, status, and TPM plugins |
+| `~/.config/ghostty/config` | Makes macOS Option send Alt key sequences for shell and TUI word editing |
+| `~/.config/starship.toml` | Starship prompt layout and styling |
 | `~/.gitconfig` | Compatibility link that prevents a legacy Git config from overriding XDG configuration |
 | `~/.config/git/config` | Global Git identity and portable GitHub credential helper |
 | `~/.vimrc` | Compatibility link for Vim builds that do not load XDG configuration |
@@ -60,11 +61,69 @@ official installers for missing Starship and Bun installations, and assumes
 After bootstrapping, the installer links each file or symbolic link under
 `home/` to its corresponding home path. Pi credentials, trust decisions,
 sessions, histories, caches, package checkouts, and generated dependencies are
-intentionally excluded. JavaScript dependencies remain untracked and are
-recreated from the tracked lockfiles by the installer.
+intentionally excluded. Generated JavaScript dependencies remain untracked.
 The `.config`, `.cache`, `.local/share`, and `.local/state` prefixes respect
 custom XDG base-directory environment variables. Existing files are replaced.
 You can run the installer again safely; it skips links that are already correct.
+
+## Coding agents
+
+This repository configures [Pi](https://pi.dev/) and provides shared
+[Agent Skills](https://agentskills.io/) for Pi and other compatible coding
+agents.
+
+### Pi
+
+The tracked files under `home/.pi/agent/` become the global Pi configuration at
+`~/.pi/agent/`:
+
+| Path | Purpose |
+| --- | --- |
+| `settings.json` | Selects the default model, high thinking level, dark fullscreen UI, Vim editor, and Pi packages |
+| `models.json` | Registers a local MLX OpenAI-compatible model endpoint |
+| `keybindings.json` | Holds global Pi key overrides |
+| `AGENTS.md` | Gives every agent the global Herdr subagent policy |
+| `extensions/` | Adds local commands, completion, skill discovery, and Herdr integration |
+| `npm/package.json` and lockfile | Pin the npm packages declared in `settings.json` |
+| `pi-codex-subagents/SYSTEM.md` | Gives spawned Codex subagents a small, scoped system prompt |
+
+The custom extensions provide these behaviors:
+
+- `/clear` starts a new session.
+- `$NAME` and `$NAME/path` autocomplete environment variables and paths in the
+  Pi editor.
+- Trusted `.agents/skills/` directories are discovered from the current
+  directory up to the filesystem root. The nearest skill wins on a name
+  collision.
+- Herdr receives Pi session and working-state updates when Pi runs in a Herdr
+  pane.
+- `Ctrl+Shift+G` opens the current prompt in Vim in a temporary Herdr side pane,
+  then copies the edited text back into Pi.
+- `/vault` uses a routing model to suggest an Obsidian note under `$VAULT`, lets
+  the user confirm or edit the path, and appends the last assistant reply.
+
+Pi also loads the npm and local packages listed in `settings.json`. The local
+`pi-ipython-rlm` and `pi-autoresearch` package paths expect checkouts under
+`~/Dev/perso/`. Package checkouts, generated dependencies, credentials, trust
+decisions, sessions, and history are machine-local and excluded from Git.
+
+### Shared skills
+
+`home/.agents/skills/` is the shared skill source. It includes workflows for
+architecture and domain modeling, GitHub and review work, GCP, Obsidian, web
+research, visual explanations, handoffs, and strict code-quality review.
+`home/.agents/.skill-lock.json` records upstream skill sources. Selected entries
+under `home/.pi/agent/skills/` are symbolic links into the shared directory, so
+the skill instructions are not copied.
+
+Pi discovers global skills from both `~/.agents/skills/` and
+`~/.pi/agent/skills/`. It loads only each skill's name and description at
+startup, then reads the full `SKILL.md` when a task needs it. Use
+`/skill:<name>` to load a skill explicitly.
+
+The Zsh aliases for `codex` and `claude` disable their approval or permission
+checks. Use those aliases only in an environment where unrestricted agent
+access is acceptable.
 
 ## Interactive shell
 
