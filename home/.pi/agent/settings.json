@@ -9,8 +9,9 @@
     "npm:@ogulcancelik/pi-minimal-footer",
     "npm:@ogulcancelik/pi-session-recall",
     "npm:@ogulcancelik/pi-codex-compaction",
-    "npm:@rahularya01/pi-cursor",
-    "../../Dev/perso/pi-ipython-rlm"
+    "npm:@rahularya01/pi-cursor@1.4.30",
+    "../../Dev/perso/pi-ipython-rlm",
+    "../../Dev/perso/pi-autoresearch"
   ],
   "tuiMode": "fullscreen"
 }
