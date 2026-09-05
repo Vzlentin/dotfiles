@@ -3,6 +3,7 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
 "$SCRIPT_DIR/bootstrap.sh"
+export PATH="$HOME/.local/bin:$PATH"
 
 SOURCE_DIR="$SCRIPT_DIR/home"
 CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
@@ -64,7 +65,19 @@ if [ -d "$SOURCE_DIR/.agents" ]; then
     done
 fi
 
-"$SCRIPT_DIR/install-campaign.sh"
+# Install campaign beside dotfiles; leave existing source checkouts untouched.
+node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 19)) { console.error("campaign requires Node 22.19 or newer; upgrade Node first."); process.exit(1); }'
+campaign_repo="$SCRIPT_DIR/../pi-dspy-gepa-workflows"
+if [ ! -e "$campaign_repo" ]; then
+    git clone https://github.com/Vzlentin/pi-dspy-gepa-workflows.git "$campaign_repo"
+fi
+(
+    cd "$campaign_repo"
+    npm ci
+    uv sync --frozen
+    npm_config_prefix="$HOME/.local" npm link
+)
+"$HOME/.local/bin/campaign" --help
 
 if [ ! -f "$HOME/.zprofile.local" ]; then
     echo ""
