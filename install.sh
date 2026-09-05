@@ -17,7 +17,6 @@ for directory in \
     "$DATA_HOME" \
     "$STATE_HOME/node" \
     "$STATE_HOME/python" \
-    "$STATE_HOME/vim" \
     "$STATE_HOME/zsh"
 do
     mkdir -p "$directory"

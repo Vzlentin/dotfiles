@@ -15,8 +15,6 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/starship.toml` | Starship prompt layout and styling |
 | `~/.gitconfig` | Compatibility link that prevents a legacy Git config from overriding XDG configuration |
 | `~/.config/git/config` | Global Git identity and portable GitHub credential helper |
-| `~/.vimrc` | Compatibility link for Vim builds that do not load XDG configuration |
-| `~/.config/vim/vimrc` | Configures Vim and redirects its generated history into XDG state |
 | `~/.config/nvim/init.vim` | Provides a small Neovim configuration (colorscheme and treesitter via `vim.pack`) |
 | `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
 | `~/.agents/` | Shared agent skills and their lockfiles |
@@ -80,7 +78,7 @@ The tracked files under `home/.pi/agent/` become the global Pi configuration at
 
 | Path | Purpose |
 | --- | --- |
-| `settings.json` | Selects the default model, high thinking level, dark fullscreen UI, Vim editor, and Pi packages |
+| `settings.json` | Selects the default model, high thinking level, dark fullscreen UI, Neovim editor, and Pi packages |
 | `models.json` | Registers a local MLX OpenAI-compatible model endpoint |
 | `keybindings.json` | Holds global Pi key overrides |
 | `AGENTS.md` | Gives every agent the global Herdr subagent policy |
@@ -98,7 +96,7 @@ The custom extensions provide these behaviors:
   collision.
 - Herdr receives Pi session and working-state updates when Pi runs in a Herdr
   pane.
-- `Ctrl+Shift+G` opens the current prompt in Vim in a temporary Herdr side pane,
+- `Ctrl+Shift+G` opens the current prompt in Neovim in a temporary Herdr side pane,
   then copies the edited text back into Pi.
 - `/vault` uses a routing model to suggest an Obsidian note under `$VAULT`, lets
   the user confirm or edit the path, and appends the last assistant reply.

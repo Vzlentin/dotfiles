@@ -59,7 +59,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerShortcut("ctrl+shift+g", {
-    description: "Edit prompt in Vim in a vertical Herdr split",
+    description: "Edit prompt in Neovim in a vertical Herdr split",
     handler: async (ctx) => {
       if (editing) {
         ctx.ui.notify("Side Edit is already open", "warning");
@@ -98,14 +98,14 @@ export default function (pi: ExtensionAPI) {
         const marker = `__PI_SIDE_EDIT_DONE_${randomUUID().replaceAll("-", "")}__`;
         const markerMiddle = Math.floor(marker.length / 2);
         const command = [
-          `vim -- ${shellQuote(promptPath)}`,
+          `nvim -- ${shellQuote(promptPath)}`,
           "__pi_vim_status=$?",
           `printf '%s' \"$__pi_vim_status\" > ${shellQuote(statusPath)}`,
           `printf '\\n%s%s\\n' ${shellQuote(marker.slice(0, markerMiddle))} ${shellQuote(marker.slice(markerMiddle))}`,
         ].join("; ");
 
         const run = await pi.exec("herdr", ["pane", "run", paneId, command]);
-        requireSuccess(run, "Could not start Vim");
+        requireSuccess(run, "Could not start Neovim");
 
         const wait = await pi.exec("herdr", [
           "pane",
@@ -117,20 +117,20 @@ export default function (pi: ExtensionAPI) {
           "recent-unwrapped",
         ]);
         if (isPaneNotFound(wait)) return;
-        requireSuccess(wait, "Vim did not finish editing");
+        requireSuccess(wait, "Neovim did not finish editing");
         if (!runtimeActive) return;
 
         const status = (await readFile(statusPath, "utf8")).trim();
         if (!runtimeActive) return;
         if (status !== "0") {
-          ctx.ui.notify(`Vim exited with status ${status}; prompt was not changed`, "warning");
+          ctx.ui.notify(`Neovim exited with status ${status}; prompt was not changed`, "warning");
           return;
         }
 
         const editedPrompt = (await readFile(promptPath, "utf8")).replace(/\n$/, "");
         if (!runtimeActive) return;
         ctx.ui.setEditorText(editedPrompt);
-        ctx.ui.notify("Prompt updated from Vim", "info");
+        ctx.ui.notify("Prompt updated from Neovim", "info");
       } catch (error) {
         if (runtimeActive) {
           const message = error instanceof Error ? error.message : String(error);
