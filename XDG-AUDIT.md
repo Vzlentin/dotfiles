@@ -21,8 +21,6 @@ install roots and OS-owned paths should not be forced into XDG directories.
 | `~/.npmrc` | `$XDG_CONFIG_HOME/npm/npmrc` | `NPM_CONFIG_USERCONFIG` |
 | `~/.node_repl_history` | `$XDG_STATE_HOME/node/repl_history` | `NODE_REPL_HISTORY` |
 | `~/.python_history` | `$XDG_STATE_HOME/python/history` | `PYTHON_HISTORY` |
-| `~/.vimrc` | `$XDG_CONFIG_HOME/vim/vimrc` | Installer-managed compatibility link for Vim builds without native XDG lookup |
-| `~/.viminfo` | `$XDG_STATE_HOME/vim/viminfo` | XDG Vim config sets the `viminfofile` option |
 | `~/.terraform.d` checkpoint files | disabled | `CHECKPOINT_DISABLE=1`; the directory held generated checkpoint cache only |
 
 macOS Terminal's private Zsh session persistence is disabled to avoid
