@@ -37,6 +37,7 @@ install_macos_tools() {
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
     command -v npm >/dev/null 2>&1 || set -- "$@" node
     command -v tree-sitter >/dev/null 2>&1 || set -- "$@" tree-sitter
+    command -v uv >/dev/null 2>&1 || set -- "$@" uv
     command -v zsh >/dev/null 2>&1 || set -- "$@" zsh
 
     chrome_missing=0
@@ -88,6 +89,7 @@ esac
 BUN_INSTALL=${BUN_INSTALL:-"${XDG_DATA_HOME:-$HOME/.local/share}/bun"}
 starship_missing=0
 bun_missing=0
+uv_missing=0
 
 if ! command -v starship >/dev/null 2>&1 && \
     [ ! -x "$HOME/.local/bin/starship" ]; then
@@ -98,7 +100,12 @@ if ! command -v bun >/dev/null 2>&1 && \
     bun_missing=1
 fi
 
-if [ "$starship_missing" -eq 1 ] || [ "$bun_missing" -eq 1 ]; then
+if ! command -v uv >/dev/null 2>&1 && \
+    [ ! -x "$HOME/.local/bin/uv" ]; then
+    uv_missing=1
+fi
+
+if [ "$starship_missing" -eq 1 ] || [ "$bun_missing" -eq 1 ] || [ "$uv_missing" -eq 1 ]; then
     if ! command -v curl >/dev/null 2>&1; then
         printf 'curl is required but was not found.\n' >&2
         exit 1
@@ -118,6 +125,11 @@ if [ "$bun_missing" -eq 1 ]; then
     export BUN_INSTALL
     curl -fsSL https://bun.com/install -o "$TEMP_DIR/install-bun.sh"
     SHELL=/bin/sh bash "$TEMP_DIR/install-bun.sh"
+fi
+
+if [ "$uv_missing" -eq 1 ]; then
+    curl -fsSL https://astral.sh/uv/install.sh -o "$TEMP_DIR/install-uv.sh"
+    UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh "$TEMP_DIR/install-uv.sh"
 fi
 
 printf 'Tools are ready.\n'
