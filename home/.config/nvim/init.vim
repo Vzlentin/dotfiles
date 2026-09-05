@@ -31,13 +31,12 @@ set confirm
 " Terminal and display
 set mouse=a
 set clipboard=unnamedplus
-set termguicolors
 set list
 set listchars=tab:»\ ,trail:·,nbsp:␣
 
+" Colors come from the terminal (Ghostty theme): no termguicolors, default colorscheme.
 " Plugins (built-in vim.pack). Parsers: :TSInstall <lang>, needs tree-sitter CLI.
-lua vim.pack.add({ 'https://github.com/folke/tokyonight.nvim', 'https://github.com/nvim-treesitter/nvim-treesitter' })
-colorscheme tokyonight-night
+lua vim.pack.add({ 'https://github.com/nvim-treesitter/nvim-treesitter' })
 
 " Clear search highlighting with Escape in normal mode.
 nnoremap <silent> <Esc> <Cmd>nohlsearch<CR>

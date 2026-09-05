@@ -1,3 +1,7 @@
 # Send Option as Alt (ESC prefix) so the shell sees Option+Backspace as
 # backward-kill-word and Option+Left/Right as word motion.
 macos-option-as-alt = true
+
+# Single source of truth for colors. Herdr (theme = terminal) and Neovim
+# (no termguicolors) follow this palette.
+theme = Melange Dark

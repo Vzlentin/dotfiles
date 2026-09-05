@@ -15,7 +15,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/starship.toml` | Starship prompt layout and styling |
 | `~/.gitconfig` | Compatibility link that prevents a legacy Git config from overriding XDG configuration |
 | `~/.config/git/config` | Global Git identity and portable GitHub credential helper |
-| `~/.config/nvim/init.vim` | Provides a small Neovim configuration (colorscheme and treesitter via `vim.pack`) |
+| `~/.config/nvim/init.vim` | Provides a small Neovim configuration that follows the terminal palette (treesitter via `vim.pack`) |
 | `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
 | `~/.agents/` | Shared agent skills and their lockfiles |
 | `bootstrap.sh` | Installs macOS or Debian tools, Starship, and Bun |
