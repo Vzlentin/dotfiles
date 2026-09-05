@@ -12,6 +12,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.zshrc.local` | Machine-specific interactive settings, not tracked |
 | `~/.config/ghostty/config` | Makes macOS Option send Alt key sequences for shell and TUI word editing |
 | `~/.config/herdr/config.toml` | Defines Herdr navigation keys and custom popup, notification, and pane commands |
+| `~/.config/herdr-mirror/hosts.toml` | Mirrors `404records`; closing local mirrors leaves remote panes running |
 | `~/.config/starship.toml` | Starship prompt layout and styling |
 | `~/.gitconfig` | Compatibility link that prevents a legacy Git config from overriding XDG configuration |
 | `~/.config/git/config` | Global Git identity and portable GitHub credential helper |

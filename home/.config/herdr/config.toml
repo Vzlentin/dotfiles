@@ -51,3 +51,6 @@ command = "herdr pane move $HERDR_ACTIVE_PANE_ID --new-tab --focus"
 
 [theme]
 name = "terminal"
+
+[update]
+channel = "preview"
