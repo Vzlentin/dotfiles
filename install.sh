@@ -64,6 +64,8 @@ if [ -d "$SOURCE_DIR/.agents" ]; then
     done
 fi
 
+"$SCRIPT_DIR/install-campaign.sh"
+
 if [ ! -f "$HOME/.zprofile.local" ]; then
     echo ""
     echo "Tip: use $HOME/.zprofile.local for machine-specific environment and secrets."

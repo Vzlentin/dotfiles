@@ -19,7 +19,8 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/nvim/init.vim` | Provides a small Neovim configuration that follows the terminal palette (treesitter via `vim.pack`) |
 | `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
 | `~/.agents/` | Shared agent skills and their lockfiles |
-| `bootstrap.sh` | Installs macOS or Debian tools, Starship, and Bun |
+| `bootstrap.sh` | Installs macOS or Debian tools, Starship, Bun, and uv |
+| `install-campaign.sh` | Installs the standalone `campaign` CLI from a sibling checkout |
 
 Zsh's startup files remain directly under `$HOME`; this configuration does not
 set `ZDOTDIR` or install a `.zshenv`. Both startup files provide XDG base-directory
@@ -66,6 +67,39 @@ intentionally excluded. Generated JavaScript dependencies remain untracked.
 The `.config`, `.cache`, `.local/share`, and `.local/state` prefixes respect
 custom XDG base-directory environment variables. Existing files are replaced.
 You can run the installer again safely; it skips links that are already correct.
+
+## Campaign CLI
+
+`./install.sh` also runs `./install-campaign.sh`. It clones
+`Vzlentin/pi-dspy-gepa-workflows` beside this dotfiles checkout if absent,
+installs its locked Node and Python dependencies, and links `campaign` into
+`~/.local/bin` (already on the configured PATH). No Linux-specific home paths
+or generated dependencies are synced. Requires Node 22.19 or newer; upgrade
+an older existing Node installation before running the installer.
+
+On the Mac, install just the CLI without relinking other dotfiles:
+
+```sh
+cd ~/Dev/perso/dotfiles
+git pull --ff-only
+./bootstrap.sh
+./install-campaign.sh
+campaign start --repo "$HOME/Dev/perso/calibr3" --base main --goal ./campaign.md
+```
+
+`--goal` accepts plain text or a UTF-8 file. Use your Mac's repository path;
+replace any Linux-specific paths inside the brief too. Installation does not
+start a campaign or copy credentials or campaign state.
+
+Existing campaign checkouts are not pulled, reset, or overwritten. To update:
+
+```sh
+git -C ../pi-dspy-gepa-workflows pull --ff-only
+./install-campaign.sh
+```
+
+Run the installer smoke test without network access or package installation:
+`sh test/install-campaign.sh`.
 
 ## Coding agents
 
