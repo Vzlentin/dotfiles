@@ -16,13 +16,17 @@ install_debian_tools() {
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
     command -v npm >/dev/null 2>&1 || set -- "$@" npm
-    command -v tree-sitter >/dev/null 2>&1 || set -- "$@" tree-sitter-cli
     command -v unzip >/dev/null 2>&1 || set -- "$@" unzip
     command -v zsh >/dev/null 2>&1 || set -- "$@" zsh
 
     if [ "$#" -gt 0 ]; then
         run_as_root apt-get update
         run_as_root apt-get install -y "$@"
+    fi
+
+    if ! command -v tree-sitter >/dev/null 2>&1 && \
+        [ ! -x "$HOME/.local/bin/tree-sitter" ]; then
+        npm install --global --prefix "$HOME/.local" tree-sitter-cli
     fi
 }
 
