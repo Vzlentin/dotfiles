@@ -4,4 +4,9 @@ macos-option-as-alt = true
 
 # Single source of truth for colors. Herdr (theme = terminal) and Neovim
 # (no termguicolors) follow this palette.
-theme = Melange Dark
+theme = Desert
+palette = 1=#ea6962
+palette = 9=#ea6962
+palette = 2=#a9b665
+palette = 10=#a9b665
+cursor-color = #d4be98
