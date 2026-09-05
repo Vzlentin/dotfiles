@@ -52,5 +52,9 @@ command = "herdr pane move $HERDR_ACTIVE_PANE_ID --new-tab --focus"
 [theme]
 name = "terminal"
 
+[theme.custom]
+# Finished agents use Pi's dark-theme footer accent.
+teal = "#8abeb7"
+
 [update]
 channel = "preview"
