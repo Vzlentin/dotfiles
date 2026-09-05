@@ -17,7 +17,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/git/config` | Global Git identity and portable GitHub credential helper |
 | `~/.vimrc` | Compatibility link for Vim builds that do not load XDG configuration |
 | `~/.config/vim/vimrc` | Configures Vim and redirects its generated history into XDG state |
-| `~/.config/nvim/init.vim` | Provides a small, plugin-free Neovim configuration |
+| `~/.config/nvim/init.vim` | Provides a small Neovim configuration (colorscheme and treesitter via `vim.pack`) |
 | `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
 | `~/.agents/` | Shared agent skills and their lockfiles |
 | `bootstrap.sh` | Installs macOS or Debian tools, Starship, and Bun |
