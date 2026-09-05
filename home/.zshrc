@@ -79,6 +79,24 @@ case "$OSTYPE" in
 esac
 alias grep='grep --color=auto'
 
+# Listing
+alias ll='ls -l'
+alias la='ls -la'
+
+# Navigation
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# Git
+alias g='git'
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit -m'
+alias gd='git diff'
+alias gl='git log --oneline --graph --decorate'
+alias gp='git push'
+alias gco='git checkout'
+
 # Commands
 alias python='python3'
 alias vim='nvim'
