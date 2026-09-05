@@ -9,12 +9,12 @@ last_pane = "prefix+tab"
 cycle_pane_next = ""
 
 # Sweep through agents in sidebar order. ctrl+alt chords are untouched by Ghostty/macOS.
-previous_agent = "ctrl+alt+h"
-next_agent = "ctrl+alt+l"
+previous_agent = ["ctrl+alt+h", "ctrl+alt+left"]
+next_agent = ["ctrl+alt+l", "ctrl+alt+right"]
 
 # Walk workspaces the same way.
-previous_workspace = "ctrl+alt+k"
-next_workspace = "ctrl+alt+j"
+previous_workspace = ["ctrl+alt+k", "ctrl+alt+up"]
+next_workspace = ["ctrl+alt+j", "ctrl+alt+down"]
 
 # Direct workspace jumps.
 switch_workspace = "prefix+shift+1..9"
