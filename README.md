@@ -20,7 +20,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
 | `~/.agents/` | Shared agent skills and their lockfiles |
 | `bootstrap.sh` | Installs macOS or Debian tools, Starship, Bun, and uv |
-| `install-campaign.sh` | Installs the standalone `campaign` CLI from a sibling checkout |
+| `install.sh` | Links dotfiles, installs dependencies, and installs the `campaign` CLI |
 
 Zsh's startup files remain directly under `$HOME`; this configuration does not
 set `ZDOTDIR` or install a `.zshenv`. Both startup files provide XDG base-directory
@@ -70,20 +70,19 @@ You can run the installer again safely; it skips links that are already correct.
 
 ## Campaign CLI
 
-`./install.sh` also runs `./install-campaign.sh`. It clones
+`./install.sh` also installs `campaign`. It clones
 `Vzlentin/pi-dspy-gepa-workflows` beside this dotfiles checkout if absent,
 installs its locked Node and Python dependencies, and links `campaign` into
 `~/.local/bin` (already on the configured PATH). No Linux-specific home paths
 or generated dependencies are synced. Requires Node 22.19 or newer; upgrade
 an older existing Node installation before running the installer.
 
-On the Mac, install just the CLI without relinking other dotfiles:
+On the Mac, use the existing installer:
 
 ```sh
 cd ~/Dev/perso/dotfiles
 git pull --ff-only
-./bootstrap.sh
-./install-campaign.sh
+./install.sh
 campaign start --repo "$HOME/Dev/perso/calibr3" --base main --goal ./campaign.md
 ```
 
@@ -95,7 +94,7 @@ Existing campaign checkouts are not pulled, reset, or overwritten. To update:
 
 ```sh
 git -C ../pi-dspy-gepa-workflows pull --ff-only
-./install-campaign.sh
+./install.sh
 ```
 
 Run the installer smoke test without network access or package installation:
