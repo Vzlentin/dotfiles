@@ -2,7 +2,6 @@
 
 " Editing
 set number
-set relativenumber
 set cursorline
 set expandtab
 set tabstop=4
@@ -31,29 +30,30 @@ set confirm
 
 " Terminal and display
 set mouse=a
-if executable('pbcopy')
-    set clipboard=unnamedplus
-elseif !empty($DISPLAY) && (executable('xclip') || executable('xsel'))
-    set clipboard=unnamedplus
-elseif !empty($WAYLAND_DISPLAY) && executable('wl-copy')
-    set clipboard=unnamedplus
-endif
+set clipboard=unnamedplus
 set termguicolors
 set list
 set listchars=tab:»\ ,trail:·,nbsp:␣
-syntax on
 
-highlight Normal guibg=none
-highlight NonText guibg=none
-highlight Normal ctermbg=none
-highlight NonText ctermbg=none
+" Plugins (built-in vim.pack). Parsers: :TSInstall <lang>, needs tree-sitter CLI.
+lua vim.pack.add({ 'https://github.com/folke/tokyonight.nvim', 'https://github.com/nvim-treesitter/nvim-treesitter' })
+colorscheme tokyonight-night
 
 " Clear search highlighting with Escape in normal mode.
 nnoremap <silent> <Esc> <Cmd>nohlsearch<CR>
 
+" File tree (netrw) on the left: <Space>b, or Cmd+B like VS Code.
+let mapleader = ' '
+let g:netrw_banner = 0
+let g:netrw_liststyle = 3
+let g:netrw_winsize = 25
+nnoremap <leader>b <Cmd>Lexplore<CR>
+nnoremap <D-b> <Cmd>Lexplore<CR>
+
 augroup dotfiles
     autocmd!
-    autocmd FileType * setlocal textwidth=0 nospell
+    autocmd FileType * lua pcall(vim.treesitter.start)
+    autocmd FileType netrw nmap <buffer> <nowait> <Space> <CR>
     autocmd FileType markdown setlocal wrap linebreak breakindent
     autocmd FileType markdown nnoremap <buffer><expr> j v:count == 0 ? 'gj' : 'j'
     autocmd FileType markdown nnoremap <buffer><expr> k v:count == 0 ? 'gk' : 'k'

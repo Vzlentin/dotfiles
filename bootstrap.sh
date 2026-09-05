@@ -16,6 +16,7 @@ install_debian_tools() {
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
     command -v npm >/dev/null 2>&1 || set -- "$@" npm
+    command -v tree-sitter >/dev/null 2>&1 || set -- "$@" tree-sitter-cli
     command -v unzip >/dev/null 2>&1 || set -- "$@" unzip
     command -v vim >/dev/null 2>&1 || set -- "$@" vim
     command -v zsh >/dev/null 2>&1 || set -- "$@" zsh
@@ -32,6 +33,7 @@ install_macos_tools() {
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
     command -v npm >/dev/null 2>&1 || set -- "$@" node
+    command -v tree-sitter >/dev/null 2>&1 || set -- "$@" tree-sitter
     command -v vim >/dev/null 2>&1 || set -- "$@" vim
     command -v zsh >/dev/null 2>&1 || set -- "$@" zsh
 
