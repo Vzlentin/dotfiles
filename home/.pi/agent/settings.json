@@ -5,13 +5,14 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-6-astra",
   "defaultThinkingLevel": "high",
+  "npmCommand": ["npm", "--include=dev"],
   "packages": [
     "npm:@ogulcancelik/pi-minimal-footer",
     "npm:@ogulcancelik/pi-session-recall",
     "npm:@ogulcancelik/pi-codex-compaction",
     "npm:@rahularya01/pi-cursor@1.4.30",
-    "../../Dev/perso/pi-ipython-rlm",
-    "../../Dev/perso/pi-autoresearch"
+    "https://github.com/Vzlentin/pi-ipython-rlm",
+    "https://github.com/Vzlentin/pi-autoresearch"
   ],
   "tuiMode": "fullscreen"
 }

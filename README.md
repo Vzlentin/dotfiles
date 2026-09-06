@@ -136,10 +136,13 @@ The custom extensions provide these behaviors:
 - `/vault` uses a routing model to suggest an Obsidian note under `$VAULT`, lets
   the user confirm or edit the path, and appends the last assistant reply.
 
-Pi also loads the npm and local packages listed in `settings.json`. The local
-`pi-ipython-rlm` and `pi-autoresearch` package paths expect checkouts under
-`~/Dev/perso/`. Package checkouts, generated dependencies, credentials, trust
-decisions, sessions, and history are machine-local and excluded from Git.
+Pi loads the npm and GitHub packages listed in `settings.json`, managing its
+own checkouts independently of development repository paths. Run
+`pi update --extensions` to update them. The configured npm command includes
+development dependencies because `pi-ipython-rlm` and `pi-autoresearch`
+currently need them at runtime; remove that override when their packaging is
+fixed. Package checkouts, generated dependencies, credentials, trust decisions,
+sessions, and history are machine-local and excluded from Git.
 
 ### Shared skills
 
