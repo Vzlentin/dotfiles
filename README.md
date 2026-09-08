@@ -50,6 +50,20 @@ Install the required tools and link the files:
 ./install.sh
 ```
 
+For a server that cannot access npm, use:
+
+```sh
+./install.sh --minimal
+```
+
+This installs basic system tools through apt (Homebrew on macOS) and links the
+dotfiles. It skips Node/npm, browser downloads, shared-skill dependencies,
+`campaign`, and the Tree-sitter, Starship, Bun, and uv installers. Existing tools,
+including a Cargo-installed Tree-sitter, are left alone. It does not uninstall
+anything or change certificate settings. Agent configuration is still linked,
+but its dependencies are not provisioned. This mode still needs access to apt
+or Homebrew when basic tools are missing.
+
 The installer first runs `bootstrap.sh`. The bootstrap supports macOS and
 Debian or Ubuntu and skips tools that are already available. On macOS, it uses Homebrew
 for missing command-line tools and Google Chrome. On Debian, it uses

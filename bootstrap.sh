@@ -5,6 +5,13 @@ export PATH="$HOME/.local/bin:$PATH"
 export npm_config_progress=false npm_config_foreground_scripts=true
 export npm_config_loglevel=info npm_config_audit=false npm_config_fund=false
 
+minimal=0
+case "$*" in
+    '') ;;
+    --minimal) minimal=1 ;;
+    *) printf 'Usage: %s [--minimal]\n' "$0" >&2; exit 2 ;;
+esac
+
 run_as_root() {
     if [ "$(id -u)" -eq 0 ]; then
         "$@"
@@ -15,7 +22,7 @@ run_as_root() {
 
 install_debian_tools() {
     set --
-    if [ "$ID" = debian ]; then
+    if [ "$ID" = debian ] && [ "$minimal" -eq 0 ]; then
         command -v chromium >/dev/null 2>&1 || set -- "$@" chromium
     fi
     command -v curl >/dev/null 2>&1 || set -- "$@" curl
@@ -28,7 +35,7 @@ install_debian_tools() {
     command -v git >/dev/null 2>&1 || set -- "$@" git
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
-    if [ "$ID" = debian ]; then
+    if [ "$ID" = debian ] && [ "$minimal" -eq 0 ]; then
         command -v npm >/dev/null 2>&1 || set -- "$@" npm
     fi
     command -v unzip >/dev/null 2>&1 || set -- "$@" unzip
@@ -37,6 +44,11 @@ install_debian_tools() {
     if [ "$#" -gt 0 ]; then
         run_as_root apt-get update
         run_as_root apt-get install -y "$@"
+    fi
+
+    # Minimal mode uses only distro packages and leaves existing tools alone.
+    if [ "$minimal" -eq 1 ]; then
+        return
     fi
 
     if [ "$ID" = ubuntu ]; then
@@ -127,13 +139,15 @@ install_macos_tools() {
     command -v git >/dev/null 2>&1 || set -- "$@" git
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
-    command -v npm >/dev/null 2>&1 || set -- "$@" node
-    command -v tree-sitter >/dev/null 2>&1 || set -- "$@" tree-sitter
-    command -v uv >/dev/null 2>&1 || set -- "$@" uv
+    if [ "$minimal" -eq 0 ]; then
+        command -v npm >/dev/null 2>&1 || set -- "$@" node
+        command -v tree-sitter >/dev/null 2>&1 || set -- "$@" tree-sitter
+        command -v uv >/dev/null 2>&1 || set -- "$@" uv
+    fi
     command -v zsh >/dev/null 2>&1 || set -- "$@" zsh
 
     chrome_missing=0
-    if [ ! -d '/Applications/Google Chrome.app' ] && \
+    if [ "$minimal" -eq 0 ] && [ ! -d '/Applications/Google Chrome.app' ] && \
         [ ! -d "$HOME/Applications/Google Chrome.app" ]; then
         chrome_missing=1
     fi
@@ -182,6 +196,11 @@ case "$(uname -s)" in
         exit 1
         ;;
 esac
+
+if [ "$minimal" -eq 1 ]; then
+    printf '\n==> Minimal tools ready; skipping runtime, browser, and skill downloads\n'
+    exit 0
+fi
 
 # Install each skill once, without scanning generated dependencies or checkouts.
 script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)

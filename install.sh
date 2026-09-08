@@ -4,7 +4,7 @@ export npm_config_progress=false npm_config_foreground_scripts=true
 export npm_config_loglevel=info npm_config_audit=false npm_config_fund=false
 
 SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
-"$SCRIPT_DIR/bootstrap.sh"
+"$SCRIPT_DIR/bootstrap.sh" "$@"
 export PATH="$HOME/.local/bin:$PATH"
 
 SOURCE_DIR="$SCRIPT_DIR/home"
@@ -56,6 +56,11 @@ find "$SOURCE_DIR" \( -name node_modules -o -name .git \) -prune -o \
     \( -type f -o -type l \) -print | while IFS= read -r source_path; do
     link_file "$source_path"
 done
+
+if [ "${1:-}" = --minimal ]; then
+    printf '\n==> Minimal installation complete; skipping campaign\n'
+    exit 0
+fi
 
 # Install campaign beside dotfiles; leave existing source checkouts untouched.
 node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 19)) { console.error("campaign requires Node 22.19 or newer; upgrade Node first."); process.exit(1); }'
