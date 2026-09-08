@@ -45,9 +45,28 @@ install_debian_tools() {
 
     if ! command -v tree-sitter >/dev/null 2>&1 && \
         [ ! -x "$HOME/.local/bin/tree-sitter" ]; then
-        printf '\n==> Installing Tree-sitter CLI\n'
-        npm install --global --prefix "$HOME/.local" tree-sitter-cli
+        install_tree_sitter
     fi
+}
+
+install_tree_sitter() {
+    case "$(uname -m)" in
+        x86_64) tree_sitter_arch=x64 ;;
+        aarch64|arm64) tree_sitter_arch=arm64 ;;
+        *) printf 'Unsupported Tree-sitter architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
+    esac
+    printf '\n==> Downloading Tree-sitter CLI from GitHub\n'
+    TEMP_DIR=$(mktemp -d)
+    trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
+    curl --fail --location --show-error --retry 3 --connect-timeout 15 --max-time 300 \
+        "https://github.com/tree-sitter/tree-sitter/releases/latest/download/tree-sitter-linux-$tree_sitter_arch.gz" \
+        -o "$TEMP_DIR/tree-sitter.gz"
+    gzip -dc "$TEMP_DIR/tree-sitter.gz" > "$TEMP_DIR/tree-sitter"
+    chmod 755 "$TEMP_DIR/tree-sitter"
+    "$TEMP_DIR/tree-sitter" --version
+    mkdir -p "$HOME/.local/bin"
+    mv -f "$TEMP_DIR/tree-sitter" "$HOME/.local/bin/tree-sitter"
+    rm -rf "$TEMP_DIR"
 }
 
 install_ubuntu_tools() {

@@ -54,7 +54,9 @@ The installer first runs `bootstrap.sh`. The bootstrap supports macOS and
 Debian or Ubuntu and skips tools that are already available. On macOS, it uses Homebrew
 for missing command-line tools and Google Chrome. On Debian, it uses
 `sudo apt-get` for missing command-line tools and Chromium, except for the
-Tree-sitter CLI, which it installs with npm under `~/.local`. Homebrew must
+Tree-sitter CLI. On Debian and Ubuntu, it downloads the latest official
+Tree-sitter Linux release from GitHub with `curl`, decompresses it with `gzip`,
+and installs it into `~/.local/bin` (x64 and arm64). Homebrew must
 already be installed on macOS if a package is missing. The bootstrap uses the
 official installers for missing Starship, Bun, and uv installations. It installs
 `curl` on Linux; on macOS, `curl` must already be available. You can also run
