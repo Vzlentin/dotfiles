@@ -1,4 +1,0 @@
-close_remote_on_local_close = false
-
-[hosts."404records"]
-target = "404records"
