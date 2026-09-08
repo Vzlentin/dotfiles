@@ -58,7 +58,21 @@ Tree-sitter CLI, which it installs with npm under `~/.local`. Homebrew must
 already be installed on macOS if a package is missing. The bootstrap uses the
 official installers for missing Starship, Bun, and uv installations. It installs
 `curl` on Linux; on macOS, `curl` must already be available. You can also run
-`bootstrap.sh` by itself to provision tools without linking the dotfiles.
+`bootstrap.sh` by itself to provision tools and shared-skill dependencies without
+linking the dotfiles. Shared-skill dependencies are installed once per run, beside
+their source files. Both scripts exclude `node_modules` and `.git` from file scans.
+
+The installer prints each step before it starts. npm prints request and lifecycle
+script output instead of a spinner, and uv prints verbose dependency output.
+To keep a log on Ubuntu while preserving the installer's exit status:
+
+```sh
+bash -o pipefail -c './install.sh 2>&1 | tee "$HOME/dotfiles-install.log"'
+```
+
+Do not run two installations at the same time. Stop an earlier run with Ctrl+C
+and wait for it to exit before restarting. A rerun still uses `npm ci` to restore
+locked dependencies; it does not skip verification based on an existing directory.
 
 On Ubuntu, the bootstrap uses apt for command-line tools and Playwright's
 Chromium Headless Shell for browser automation. It does not install desktop

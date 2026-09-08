@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 export PATH="$HOME/.local/bin:$PATH"
+# Show downloads and lifecycle scripts instead of an unexplained npm spinner.
+export npm_config_progress=false npm_config_foreground_scripts=true
+export npm_config_loglevel=info npm_config_audit=false npm_config_fund=false
 
 run_as_root() {
     if [ "$(id -u)" -eq 0 ]; then
@@ -38,11 +41,11 @@ install_debian_tools() {
 
     if [ "$ID" = ubuntu ]; then
         install_ubuntu_tools
-        install_headless_browser
     fi
 
     if ! command -v tree-sitter >/dev/null 2>&1 && \
         [ ! -x "$HOME/.local/bin/tree-sitter" ]; then
+        printf '\n==> Installing Tree-sitter CLI\n'
         npm install --global --prefix "$HOME/.local" tree-sitter-cli
     fi
 }
@@ -58,6 +61,7 @@ install_ubuntu_tools() {
         arm64) node_arch=arm64 ;;
         *) printf 'Unsupported Node architecture.\n' >&2; exit 1 ;;
     esac
+    printf '\n==> Downloading Node 22\n'
     TEMP_DIR=$(mktemp -d)
     trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
     node_url=https://nodejs.org/dist/latest-v22.x
@@ -83,7 +87,7 @@ install_headless_browser() {
     # Use the skill's locked Playwright version, without desktop Chrome or Snap.
     script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
     browser_package="$script_dir/home/.agents/skills/web-search"
-    npm ci --prefix "$browser_package"
+    printf '\n==> Installing Chromium Headless Shell and system libraries\n'
     playwright_version=$(node -p "require(process.argv[1]).version" \
         "$browser_package/node_modules/playwright/package.json")
     PLAYWRIGHT_BROWSERS_PATH="${XDG_DATA_HOME:-$HOME/.local/share}/chromium-headless/$playwright_version"
@@ -132,6 +136,8 @@ install_macos_tools() {
     fi
 }
 
+printf '\n==> Installing system tools\n'
+needs_headless_browser=0
 case "$(uname -s)" in
     Darwin)
         install_macos_tools
@@ -148,12 +154,31 @@ case "$(uname -s)" in
             exit 1
         fi
         install_debian_tools
+        if [ "$ID" = ubuntu ]; then
+            needs_headless_browser=1
+        fi
         ;;
     *)
         printf 'Unsupported operating system: %s\n' "$(uname -s)" >&2
         exit 1
         ;;
 esac
+
+# Install each skill once, without scanning generated dependencies or checkouts.
+script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
+if [ -d "$script_dir/home/.agents" ]; then
+    find "$script_dir/home/.agents" \( -name node_modules -o -name .git \) -prune -o \
+        -name package-lock.json -type f -print | while IFS= read -r lockfile; do
+        package_dir=$(dirname "$lockfile")
+        if [ -f "$package_dir/package.json" ]; then
+            printf '\n==> Installing dependencies: %s\n' "$package_dir"
+            npm ci --prefix "$package_dir"
+        fi
+    done
+fi
+if [ "$needs_headless_browser" -eq 1 ]; then
+    install_headless_browser
+fi
 
 BUN_INSTALL=${BUN_INSTALL:-"${XDG_DATA_HOME:-$HOME/.local/share}/bun"}
 starship_missing=0
@@ -185,18 +210,21 @@ if [ "$starship_missing" -eq 1 ] || [ "$bun_missing" -eq 1 ] || [ "$uv_missing" 
 fi
 
 if [ "$starship_missing" -eq 1 ]; then
+    printf '\n==> Installing Starship\n'
     mkdir -p "$HOME/.local/bin"
     curl -fsSL https://starship.rs/install.sh -o "$TEMP_DIR/install-starship.sh"
     sh "$TEMP_DIR/install-starship.sh" --yes --bin-dir "$HOME/.local/bin"
 fi
 
 if [ "$bun_missing" -eq 1 ]; then
+    printf '\n==> Installing Bun\n'
     export BUN_INSTALL
     curl -fsSL https://bun.com/install -o "$TEMP_DIR/install-bun.sh"
     SHELL=/bin/sh bash "$TEMP_DIR/install-bun.sh"
 fi
 
 if [ "$uv_missing" -eq 1 ]; then
+    printf '\n==> Installing uv\n'
     curl -fsSL https://astral.sh/uv/install.sh -o "$TEMP_DIR/install-uv.sh"
     UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh "$TEMP_DIR/install-uv.sh"
 fi

@@ -1,5 +1,7 @@
 #!/bin/sh
 set -eu
+export npm_config_progress=false npm_config_foreground_scripts=true
+export npm_config_loglevel=info npm_config_audit=false npm_config_fund=false
 
 SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
 "$SCRIPT_DIR/bootstrap.sh"
@@ -49,35 +51,31 @@ link_file() {
     echo "link $relative_path"
 }
 
-find "$SOURCE_DIR" \( -type f -o -type l \) | while IFS= read -r source_path; do
+printf '\n==> Linking dotfiles (excluding node_modules and .git)\n'
+find "$SOURCE_DIR" \( -name node_modules -o -name .git \) -prune -o \
+    \( -type f -o -type l \) -print | while IFS= read -r source_path; do
     link_file "$source_path"
 done
-
-# Install dependencies beside linked agent-skill sources so Node's module
-# resolution follows the links back to a complete package.
-if [ -d "$SOURCE_DIR/.agents" ]; then
-    find "$SOURCE_DIR/.agents" -name package-lock.json -type f | while IFS= read -r lockfile; do
-        package_dir=$(dirname "$lockfile")
-        if [ -f "$package_dir/package.json" ]; then
-            echo "install dependencies ${package_dir#"$SOURCE_DIR/"}"
-            npm ci --prefix "$package_dir"
-        fi
-    done
-fi
 
 # Install campaign beside dotfiles; leave existing source checkouts untouched.
 node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 19)) { console.error("campaign requires Node 22.19 or newer; upgrade Node first."); process.exit(1); }'
 campaign_repo="$SCRIPT_DIR/../pi-dspy-gepa-workflows"
 if [ ! -e "$campaign_repo" ]; then
+    printf '\n==> Cloning campaign\n'
     git clone https://github.com/Vzlentin/pi-dspy-gepa-workflows.git "$campaign_repo"
 fi
 (
     cd "$campaign_repo"
+    printf '\n==> Installing campaign Node dependencies\n'
     npm ci
-    uv sync --frozen
+    printf '\n==> Installing campaign Python dependencies\n'
+    uv sync --frozen --verbose
+    printf '\n==> Linking campaign CLI\n'
     npm_config_prefix="$HOME/.local" npm link
 )
+printf '\n==> Checking campaign CLI\n'
 "$HOME/.local/bin/campaign" --help
+printf '\n==> Installation complete\n'
 
 if [ ! -f "$HOME/.zprofile.local" ]; then
     echo ""

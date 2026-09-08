@@ -40,7 +40,7 @@ SH
 cat > "$ROOT/bin/uv" <<'SH'
 #!/bin/sh
 set -eu
-[ "$*" = 'sync --frozen' ]
+[ "$*" = 'sync --frozen --verbose' ]
 printf 'sync\n' >> "$TEST_LOG"
 exit "${TEST_UV_EXIT:-0}"
 SH
