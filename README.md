@@ -19,7 +19,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/nvim/init.vim` | Provides a small Neovim configuration that follows the terminal palette (treesitter via `vim.pack`) |
 | `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
 | `~/.agents/` | Shared agent skills and their lockfiles |
-| `bootstrap.sh` | Installs macOS or Debian tools, Starship, Bun, and uv |
+| `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Starship, Bun, and uv |
 | `install.sh` | Links dotfiles, installs dependencies, and installs the `campaign` CLI |
 
 Zsh's startup files remain directly under `$HOME`; this configuration does not
@@ -51,14 +51,22 @@ Install the required tools and link the files:
 ```
 
 The installer first runs `bootstrap.sh`. The bootstrap supports macOS and
-Debian and skips tools that are already available. On macOS, it uses Homebrew
+Debian or Ubuntu and skips tools that are already available. On macOS, it uses Homebrew
 for missing command-line tools and Google Chrome. On Debian, it uses
 `sudo apt-get` for missing command-line tools and Chromium, except for the
 Tree-sitter CLI, which it installs with npm under `~/.local`. Homebrew must
 already be installed on macOS if a package is missing. The bootstrap uses the
-official installers for missing Starship and Bun installations, and assumes
-`curl` is available when either installer is needed. You can also run
+official installers for missing Starship, Bun, and uv installations. It installs
+`curl` on Linux; on macOS, `curl` must already be available. You can also run
 `bootstrap.sh` by itself to provision tools without linking the dotfiles.
+
+On Ubuntu, the bootstrap uses apt for command-line tools and Google's native
+Chrome `.deb` package for the browser. It does not install Snap or Ubuntu's
+Chromium transition package. Automatic Chrome installation requires amd64.
+If Node or npm is missing, or Node is older than 22.19, it installs the latest
+Node 22 release from nodejs.org under `$XDG_DATA_HOME/node` (default
+`~/.local/share/node`), verifies its published SHA-256 checksum, and links
+`node`, `npm`, and `npx` into `~/.local/bin`. System Node packages are not removed.
 
 After bootstrapping, the installer links each file or symbolic link under
 `home/` to its corresponding home path. Pi credentials, trust decisions,
@@ -75,7 +83,8 @@ You can run the installer again safely; it skips links that are already correct.
 installs its locked Node and Python dependencies, and links `campaign` into
 `~/.local/bin` (already on the configured PATH). No Linux-specific home paths
 or generated dependencies are synced. Requires Node 22.19 or newer; upgrade
-an older existing Node installation before running the installer.
+an older existing Node installation before running the installer on macOS or
+Debian. Ubuntu bootstrapping handles this requirement automatically.
 
 On the Mac, use the existing installer:
 
