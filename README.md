@@ -60,13 +60,59 @@ official installers for missing Starship, Bun, and uv installations. It installs
 `curl` on Linux; on macOS, `curl` must already be available. You can also run
 `bootstrap.sh` by itself to provision tools without linking the dotfiles.
 
-On Ubuntu, the bootstrap uses apt for command-line tools and Google's native
-Chrome `.deb` package for the browser. It does not install Snap or Ubuntu's
-Chromium transition package. Automatic Chrome installation requires amd64.
+On Ubuntu, the bootstrap uses apt for command-line tools and Playwright's
+Chromium Headless Shell for browser automation. It does not install desktop
+Chrome, Snap, or Ubuntu's Chromium transition package. It installs the web-search
+skill's locked npm dependencies, then runs Playwright with
+`install --with-deps --only-shell chromium`. This downloads the headless browser
+and installs its system libraries through apt (sudo is required for non-root
+users). Browser files go under `$XDG_DATA_HOME/chromium-headless/<playwright-version>`
+(default `~/.local/share/chromium-headless/`), with a link at
+`~/.local/bin/chromium-headless-shell` that the web-search skill detects.
 If Node or npm is missing, or Node is older than 22.19, it installs the latest
 Node 22 release from nodejs.org under `$XDG_DATA_HOME/node` (default
 `~/.local/share/node`), verifies its published SHA-256 checksum, and links
 `node`, `npm`, and `npx` into `~/.local/bin`. System Node packages are not removed.
+
+### Remove Chrome from an earlier Ubuntu installation
+
+Preview removal first, then remove Chrome and its unused automatic dependencies:
+
+```sh
+sudo apt-get --simulate purge --auto-remove google-chrome-stable
+# Check the package list before running this:
+sudo apt-get purge --auto-remove google-chrome-stable
+```
+
+Do not proceed if the preview includes packages you still need. Apt can include
+unused dependencies from other installations, not just Chrome. Shared libraries
+that other packages require remain installed. Do not remove shared libraries by
+name or purge all packages listed in the installer output.
+
+Chrome can leave its apt repository and signing key behind. Check these known
+paths and remove them only if they belong exclusively to Chrome:
+
+```sh
+ls -l /etc/apt/sources.list.d/google-chrome* /etc/apt/trusted.gpg.d/google-chrome* 2>/dev/null
+# If present and exclusive to Chrome:
+sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
+  /etc/apt/sources.list.d/google-chrome.sources \
+  /etc/apt/trusted.gpg.d/google-chrome.gpg
+sudo apt-get update
+```
+
+Optional: delete the current user's Chrome profile and cache. This permanently
+removes Chrome cookies, saved sessions, and other profile data:
+
+```sh
+rm -rf -- "${XDG_CONFIG_HOME:-$HOME/.config}/google-chrome" \
+  "${XDG_CACHE_HOME:-$HOME/.cache}/google-chrome"
+```
+
+Run the updated `./install.sh` after cleanup to install the headless replacement.
+This cleanup does not remove the other dotfile tools or `campaign`.
+
+### Linked files
 
 After bootstrapping, the installer links each file or symbolic link under
 `home/` to its corresponding home path. Pi credentials, trust decisions,

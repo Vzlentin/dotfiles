@@ -17,8 +17,9 @@ const MACOS_BROWSER_PATHS = [
 ];
 
 // Browser binary names searched on PATH across platforms.
-// Prefer Chrome first: on some setups Google Search is less likely to challenge headless Chrome than headless Brave.
+// Prefer the provisioned headless shell, then Chrome before Brave.
 const PATH_BROWSER_NAMES = [
+  "chromium-headless-shell",
   "google-chrome",
   "google-chrome-stable",
   "chrome",

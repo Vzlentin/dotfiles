@@ -38,6 +38,7 @@ install_debian_tools() {
 
     if [ "$ID" = ubuntu ]; then
         install_ubuntu_tools
+        install_headless_browser
     fi
 
     if ! command -v tree-sitter >/dev/null 2>&1 && \
@@ -47,22 +48,6 @@ install_debian_tools() {
 }
 
 install_ubuntu_tools() {
-    # Ubuntu's Chromium package installs Snap. Use Google's native package.
-    if ! command -v google-chrome >/dev/null 2>&1; then
-        if [ "$(dpkg --print-architecture)" != amd64 ]; then
-            printf 'Google Chrome requires Ubuntu amd64; no Snap browser will be installed.\n' >&2
-            exit 1
-        fi
-        TEMP_DIR=$(mktemp -d)
-        trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
-        curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-            -o "$TEMP_DIR/google-chrome.deb"
-        # apt's download user must be able to read the local package.
-        chmod 755 "$TEMP_DIR"
-        run_as_root apt-get install -y "$TEMP_DIR/google-chrome.deb"
-        rm -rf "$TEMP_DIR"
-    fi
-
     if command -v npm >/dev/null 2>&1 && command -v node >/dev/null 2>&1 && \
         node -e 'const [m, n] = process.versions.node.split(".").map(Number); process.exit(m > 22 || (m === 22 && n >= 19) ? 0 : 1)'; then
         return
@@ -92,6 +77,26 @@ install_ubuntu_tools() {
     done
     export PATH="$HOME/.local/bin:$PATH"
     rm -rf "$TEMP_DIR"
+}
+
+install_headless_browser() {
+    # Use the skill's locked Playwright version, without desktop Chrome or Snap.
+    script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
+    browser_package="$script_dir/home/.agents/skills/web-search"
+    npm ci --prefix "$browser_package"
+    playwright_version=$(node -p "require(process.argv[1]).version" \
+        "$browser_package/node_modules/playwright/package.json")
+    PLAYWRIGHT_BROWSERS_PATH="${XDG_DATA_HOME:-$HOME/.local/share}/chromium-headless/$playwright_version"
+    export PLAYWRIGHT_BROWSERS_PATH
+    node "$browser_package/node_modules/playwright/cli.js" install --with-deps --only-shell chromium
+    browser_bin=$(find "$PLAYWRIGHT_BROWSERS_PATH" -type f \
+        \( -name headless_shell -o -name chrome-headless-shell \) -print -quit)
+    if [ -z "$browser_bin" ] || [ ! -x "$browser_bin" ]; then
+        printf 'Cannot find the installed Chromium Headless Shell.\n' >&2
+        exit 1
+    fi
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$browser_bin" "$HOME/.local/bin/chromium-headless-shell"
 }
 
 install_macos_tools() {
