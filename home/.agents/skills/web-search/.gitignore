@@ -6,8 +6,8 @@ Thumbs.db
 # Debug dumps
 /tmp/web-search-*
 
-# Lock files (let users generate their own)
-package-lock.json
+# npm's lockfile is tracked for reproducible installer runs.
+# Other package-manager lockfiles remain local.
 bun.lock
 yarn.lock
 pnpm-lock.yaml
