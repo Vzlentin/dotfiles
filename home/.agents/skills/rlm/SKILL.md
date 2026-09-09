@@ -1,6 +1,6 @@
 ---
 name: rlm
-description: Run RLM-assisted investigations and context-heavy analysis with native persistent IPython, focused child questions, evidence tracking, and recovery. Use for /rlm, requested RLM work, or mining saved RLM traces.
+description: Run RLM-assisted investigations and context-heavy analysis with native persistent IPython, focused child questions, evidence tracking, and recovery. Use for /skill:rlm in Pi, requested RLM work, or mining saved RLM traces.
 license: MIT
 metadata:
   version: 0.2.0
@@ -15,6 +15,8 @@ metadata:
 Carry out the supplied task using a persistent IPython workspace and focused child questions where useful. Use the task supplied with the skill invocation; without arguments, continue the established task. If neither exists, ask what to work on. Preserve the user's scope, restrictions and existing authorization. Invoking this skill does not itself request a new research campaign, benchmark or prompt rewrite.
 
 ## Choose useful work
+
+Ordinary persistent Python work does not require this skill or child calls. Use this skill for context-heavy analysis, evidence tracking, and focused child orchestration when useful.
 
 - Use Python for parsing, scheduling, joins, coverage and persistence. Do a known lookup, edit or command inline. Run project code and tests through the project's own runtime; do not install project dependencies into the orchestration kernel.
 - For exhaustive work, track and complete the requested inputs. Batch independent semantic reads when useful; exhaustiveness concerns coverage, not a mandatory schedule.
@@ -41,7 +43,7 @@ Return bounded, source-grounded findings and targeted diagnostics; inspect large
 
 ## Read only the relevant reference
 
-- **Pi invocation, loading or runtime trouble:** [Pi runtime](references/pi-runtime.md). Pi also supports `/skill:rlm`.
+- **Pi invocation, loading or runtime trouble:** [Pi runtime](references/pi-runtime.md). Pi uses `/skill:rlm`; `/rlm` requires a separately configured alias.
 - **Hermes options, child admission or runtime trouble:** [Hermes IPython](references/ipython-tool.md). Hermes starts with `max_child_calls=0`; use a bounded positive allowance when the task calls for semantic children. Existing task authorization carries forward.
 - **Saved-trace analysis:** [Trace mining](references/trace-mining.md). Parse saved data without executing historical runners, keep derivatives separate, and preserve held-out boundaries. A mining-only task does not authorize fresh research calls.
 
