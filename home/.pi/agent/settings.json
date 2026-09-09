@@ -3,9 +3,12 @@
   "theme": "dark",
   "externalEditor": "nvim",
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-6-astra",
-  "defaultThinkingLevel": "high",
-  "npmCommand": ["npm", "--include=dev"],
+  "defaultModel": "gpt-5.6-sol",
+  "defaultThinkingLevel": "medium",
+  "npmCommand": [
+    "npm",
+    "--include=dev"
+  ],
   "packages": [
     "npm:@ogulcancelik/pi-minimal-footer",
     "npm:@ogulcancelik/pi-session-recall",
@@ -14,5 +17,8 @@
     "https://github.com/Vzlentin/pi-ipython-rlm",
     "https://github.com/Vzlentin/pi-autoresearch"
   ],
-  "tuiMode": "fullscreen"
+  "tuiMode": "fullscreen",
+  "modelThinkingLevels": {
+    "openai-codex/gpt-5.6-sol": "xhigh"
+  }
 }
