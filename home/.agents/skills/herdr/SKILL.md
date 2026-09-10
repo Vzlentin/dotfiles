@@ -127,6 +127,12 @@ herdr agent prompt reviewer "Review the current diff and report only actionable 
 
 `agent prompt` atomically submits text and encoded Enter while honoring the pane's live bracketed-paste mode. For normal agent work, `--wait` is enough: it waits for the first settled `idle`, `done`, or `blocked` state. Do not repeat those defaults with `--until`.
 
+Keep responsibility for collecting work sent to another agent. Unless the user explicitly wants an unattended launch or direct handoff, wait for completion and read the reply before closing the task. For work that must outlive the current turn, attach a bounded terminal completion watcher with notifications rather than merely reporting `working`. A finished Herdr badge alone does not bring the reply into the parent conversation. If the user reports a missed reply, collect and assess it immediately.
+
+For a design-only Pi session, inspect `pi --help` and pass its supported read-only allowlist through the native arguments, for example `-- --name "Experiment design" --tools read,grep,find,ls`. This permits source inspection without enabling code edits or shell execution.
+
+When starting work without `agent prompt --wait`, read the exact agent back before reporting that work has started. The immediate prompt response can still show `idle` while terminal input is being processed. Confirm `working` or actual tool activity; do not resend a prompt merely because the first snapshot still shows its pasted text.
+
 A prompt sent from a non-working state must produce an observed lifecycle change within five seconds. Otherwise Herdr returns `agent_prompt_stalled` instead of waiting indefinitely. This wait tracks lifecycle state, not an individual turn; if the agent is already working, completion of the active turn may satisfy it.
 
 Use `--until` only for a state-specific workflow, such as waiting for an already-running agent to request input:
@@ -183,6 +189,8 @@ Use `--format ansi` when colors and terminal styling are evidence. Otherwise use
 `--lines` asks Herdr for more rows from the pane's available screen and host scrollback. If increasing it does not reveal more of a completed response, the pane is probably running the agent on the terminal's alternate screen. Rows that leave the alternate screen do not enter Herdr's host scrollback, so a larger line count cannot recover them.
 
 After that failed read, ask the agent to write its complete response as Markdown in a temporary directory and reply only with the file path, then read the file directly. Use this only as a fallback; do not request file output in the initial prompt.
+
+If the agent was intentionally started with read-only tools, keep that restriction. Instead, use its returned `agent_session` path and the application's session format to extract only visible assistant text. Pi JSONL stores it in assistant-message content blocks with `type == "text"`; do not dump thinking or signature blocks. Display readers can truncate long JSONL lines even when their page is not marked truncated, so parse the original file with stdlib Python if displayed lines are not valid JSON. Save the extracted answer under `/tmp` when a readable artifact is useful.
 
 ## Safety and coordination rules
 
