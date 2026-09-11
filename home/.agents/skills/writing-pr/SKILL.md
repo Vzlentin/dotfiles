@@ -1,5 +1,5 @@
 ---
-name: PR Writing
+name: writing-pr
 description: Use when writing or editing a pull request title or body.
 ---
 
