@@ -6,7 +6,8 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 
 | File | Responsibility |
 | --- | --- |
-| `~/.zprofile` | Login environment, XDG defaults, `PATH`, and tool-specific overrides |
+| `~/.zshenv` | Environment: XDG, `PATH`, `VAULT`, tool overrides |
+| `~/.zprofile` | Login-only Homebrew initialization and machine-local environment |
 | `~/.zshrc` | Interactive history, completion, aliases, and tool integrations |
 | `~/.zprofile.local` | Machine-specific environment and secrets, not tracked |
 | `~/.zshrc.local` | Machine-specific interactive settings, not tracked |
@@ -21,19 +22,17 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Starship, Bun, and uv |
 | `install.sh` | Links dotfiles, installs dependencies, and installs the `campaign` CLI |
 
-Zsh's startup files remain directly under `$HOME`; this configuration does not
-set `ZDOTDIR` or install a `.zshenv`. Both startup files provide XDG base-directory
-defaults so interactive non-login shells work even when `.zprofile` is not read.
-New history and completion files go to `$XDG_STATE_HOME/zsh/history` and
-`$XDG_CACHE_HOME/zsh/.zcompdump`, respectively. Existing Zsh history is not
-imported.
-
-Zsh loads the files as follows:
+Zsh startup files stay under `$HOME` (no `ZDOTDIR`). Shared environment defaults
+live in `.zshenv` so they apply to login, interactive, and script shells.
+Homebrew initialization and `.zprofile.local` stay login-only in `.zprofile`.
+History goes to `$XDG_STATE_HOME/zsh/history`; completion dump to
+`$XDG_CACHE_HOME/zsh/.zcompdump`.
 
 ```text
-Login shell:                  ~/.zprofile
-Interactive shell:            ~/.zshrc
-Interactive login shell:      both, in the order above
+Every zsh:               ~/.zshenv
+Login zsh:               ~/.zshenv → ~/.zprofile
+Interactive zsh:         ~/.zshenv → ~/.zshrc
+Interactive login zsh:   ~/.zshenv → ~/.zprofile → ~/.zshrc
 ```
 
 ## Install
@@ -315,10 +314,12 @@ For example, `VAULT` defaults to `~/vault`, but a machine can override it in
 export VAULT="$HOME/vault/Val"
 ```
 
-Use `~/.zprofile.local` for machine-specific environment and secrets. Use
-`~/.zshrc.local` for interactive aliases and functions. To override the
-completion cache location, set `ZSH_COMPDUMP` in the inherited environment or
-in `~/.zprofile.local` before Zsh loads `~/.zshrc`.
+Use `~/.zprofile.local` for machine-specific environment and secrets. It loads
+only in login shells; child shells inherit exported values. A standalone
+non-login shell receives the `.zshenv` defaults and its inherited environment,
+not `.zprofile.local`. Use `~/.zshrc.local` for interactive aliases and functions.
+To override the completion cache location, set `ZSH_COMPDUMP` in the inherited
+environment or in `~/.zprofile.local` before Zsh loads `~/.zshrc`.
 
 ## Add a dotfile
 

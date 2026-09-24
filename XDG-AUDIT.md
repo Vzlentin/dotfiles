@@ -35,7 +35,7 @@ store their configuration/data/cache below `.config`, `.local`, and `.cache`.
 
 | Path | Reason |
 | --- | --- |
-| `~/.zprofile`, `~/.zshrc` | Zsh startup files are intentionally kept at their standard `$HOME` paths; no `.zshenv` or `ZDOTDIR` bootstrap is used. |
+| `~/.zshenv`, `~/.zprofile`, `~/.zshrc` | Zsh startup files stay at their standard `$HOME` paths without `ZDOTDIR`. Shared environment defaults load from `.zshenv`; Homebrew and machine-local login settings load from `.zprofile`; interactive setup lives in `.zshrc`. |
 | `~/.tmux.conf` | Existing tmux and TPM configuration uses this standard path for startup and reloads. |
 | `~/.agents` | Shared agent skills use this cross-tool convention; no stable override is available. |
 | `~/.cua-driver` | Package/install root, not configuration; no stable location override found. |
