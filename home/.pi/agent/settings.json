@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.86.1",
+  "lastChangelogVersion": "0.87.1",
   "theme": "dark",
   "externalEditor": "nvim",
   "defaultProvider": "openai-codex",
@@ -13,7 +13,7 @@
     "npm:@ogulcancelik/pi-minimal-footer",
     "npm:@ogulcancelik/pi-session-recall",
     "npm:@ogulcancelik/pi-codex-compaction",
-    "npm:@rahularya01/pi-cursor@1.4.38",
+    "https://github.com/Vzlentin/pi-cursor",
     "https://github.com/Vzlentin/pi-ipython-rlm",
     "https://github.com/Vzlentin/pi-autoresearch"
   ],
