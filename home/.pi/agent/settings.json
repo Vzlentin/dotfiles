@@ -14,7 +14,8 @@
     "npm:@ogulcancelik/pi-session-recall",
     "npm:@ogulcancelik/pi-codex-compaction",
     "https://github.com/Vzlentin/pi-cursor",
-    "https://github.com/Vzlentin/pi-ipython-rlm",
+    "https://github.com/Vzlentin/pi-ipython",
+    "https://github.com/Vzlentin/pi-rlm",
     "https://github.com/Vzlentin/pi-autoresearch"
   ],
   "tuiMode": "fullscreen",
