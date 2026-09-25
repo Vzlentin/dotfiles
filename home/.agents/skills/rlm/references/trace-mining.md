@@ -1,18 +1,9 @@
 # Read-only RLM trace mining
 
-## Durable evidence locations
-
-- Later instruction work is recorded in `~/.local/share/librlm/experiments/20260906-trace-lessons/` and `20260906-decision-pilot/`. These contain line-hashed lessons, reviewed parent decision anchors and bounded development comparisons. The original parent already requested a bounded evidence pass; fixed downstream worker instructions do not prove that every sweep was unnecessary. The prompt trials did not establish broad research improvement. Read these only when mining or evaluating instructions, not as task instructions for an unrelated investigation.
-
-- The 18 preserved Hermes Calibre derivative artifacts (including `assessment.md`), `handoff.md`, original `rlm-trace-mining-0uubfn7d.zip`, and `registry.json` live in `~/.local/share/librlm/traces/hermes-calibre-20260906-mined/`. Start with the registry, assessment, and handoff; the registry records derivative hashes, the archive hash, and the original cache at `/home/vzl/.hermes/cache/calibre-research-rlm-20260906`.
-- The Mac collection and its provenance live in `~/.local/share/librlm/traces/mac-20260906/`. Read `split-manifest.json` before selecting episodes; `assessment.md` records the collection findings. A remote checkout's current commit or current tool-description hash does not establish which instructions a historical session loaded.
-- Treat `/tmp/rlm-trace-mining-handoff.md`, `/tmp/rlm-trace-mining-0uubfn7d/`, and the original Mac paths recorded in manifests as historical provenance. Use the durable copies for ongoing work. Preserve original source paths and hashes in forensic records; do not rewrite or replay original research caches to make paths current.
-
 ## Split whole investigation families
 
 - Assign an entire connected investigation to one split, using `leakageGroup`. Keep related parent sessions, child calls, retries, checkpoint repairs, summaries, and copied excerpts together. Different jobs, machines, filenames, or timestamps do not prove independence; do not randomly split individual calls from the same family.
-- The Hermes registry assigns `hermes-calibre-investigation-20260906` to `trainingDevelopment`. Treat its linked jobs and mined derivatives as one family, not independent training and test examples.
-- The Mac manifest reserves the related `mac-vault-client-investigation-20260905` sessions as `heldOut` and quarantines a session that may contain derived excerpts. Neither `heldOut` nor `quarantine` content may enter GEPA optimization, reflection, prompt design, or candidate selection. `unassigned` episodes are also ineligible until an independence and leakage audit records their assignment.
+- Neither `heldOut` nor `quarantine` content may enter optimization, reflection, prompt design, or candidate selection. `unassigned` episodes are also ineligible until an independence and leakage audit records their assignment.
 - Freeze the candidate and evaluation criteria before opening held-out content for final evaluation. Record any exposure or discovered cross-family link and revise the split's contamination status before claiming generalization. Do not quietly relabel exposed examples as independent held-out evidence.
 
 ## Collect without replay
