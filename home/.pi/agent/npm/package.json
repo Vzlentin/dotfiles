@@ -4,7 +4,6 @@
   "dependencies": {
     "@ogulcancelik/pi-codex-compaction": "^0.1.5",
     "@ogulcancelik/pi-minimal-footer": "^0.1.12",
-    "@ogulcancelik/pi-session-recall": "^1.0.7",
-    "@rahularya01/pi-cursor": "^1.4.38"
+    "@ogulcancelik/pi-session-recall": "^1.0.7"
   }
 }
