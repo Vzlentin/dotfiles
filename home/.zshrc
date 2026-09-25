@@ -92,6 +92,7 @@ alias gco='git checkout'
 # Commands
 alias python='python3'
 alias vim='nvim'
+alias cat='bat'
 alias codex='codex --dangerously-bypass-approvals-and-sandbox'
 alias claude='claude --dangerously-skip-permissions'
 
