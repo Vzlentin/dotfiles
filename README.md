@@ -222,9 +222,8 @@ The custom extensions provide these behaviors:
 Pi loads the npm and GitHub packages listed in `settings.json`, managing its
 own checkouts independently of development repository paths. Run
 `pi update --extensions` to update them. The configured npm command includes
-development dependencies because `pi-ipython-rlm` and `pi-autoresearch`
-currently need them at runtime; remove that override when their packaging is
-fixed. Package checkouts, generated dependencies, credentials, trust decisions,
+development dependencies because `pi-autoresearch` currently needs them at
+runtime; remove that override when its packaging is fixed. Package checkouts, generated dependencies, credentials, trust decisions,
 sessions, and history are machine-local and excluded from Git.
 
 ### Shared skills
