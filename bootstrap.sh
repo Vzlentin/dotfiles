@@ -35,6 +35,7 @@ install_debian_tools() {
     command -v git >/dev/null 2>&1 || set -- "$@" git
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
+    command -v rg >/dev/null 2>&1 || set -- "$@" ripgrep
     if [ "$ID" = debian ] && [ "$minimal" -eq 0 ]; then
         command -v npm >/dev/null 2>&1 || set -- "$@" npm
     fi
@@ -139,6 +140,7 @@ install_macos_tools() {
     command -v git >/dev/null 2>&1 || set -- "$@" git
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
+    command -v rg >/dev/null 2>&1 || set -- "$@" ripgrep
     if [ "$minimal" -eq 0 ]; then
         command -v npm >/dev/null 2>&1 || set -- "$@" node
         command -v tree-sitter >/dev/null 2>&1 || set -- "$@" tree-sitter
@@ -265,6 +267,11 @@ if [ "$uv_missing" -eq 1 ]; then
     printf '\n==> Installing uv\n'
     curl -fsSL https://astral.sh/uv/install.sh -o "$TEMP_DIR/install-uv.sh"
     UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh "$TEMP_DIR/install-uv.sh"
+fi
+
+if ! command -v ruff >/dev/null 2>&1; then
+    printf '\n==> Installing Ruff\n'
+    UV_TOOL_BIN_DIR="$HOME/.local/bin" uv tool install ruff
 fi
 
 printf 'Tools are ready.\n'

@@ -16,10 +16,10 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/starship.toml` | Starship prompt layout and styling |
 | `~/.gitconfig` | Compatibility link that prevents a legacy Git config from overriding XDG configuration |
 | `~/.config/git/config` | Global Git identity, portable GitHub credential helper, and pull, push, fetch, merge, and diff defaults |
-| `~/.config/nvim/init.vim` | Provides a small Neovim configuration that follows the terminal palette (treesitter via `vim.pack`) |
+| `~/.config/nvim/` | Small Neovim configuration on lazy.nvim that follows the terminal palette; see [Neovim](#neovim) |
 | `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
 | `~/.agents/` | Shared agent skills and their lockfiles |
-| `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Starship, Bun, and uv |
+| `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Starship, Bun, uv, and Ruff |
 | `install.sh` | Links dotfiles, installs dependencies, and installs the `campaign` CLI |
 
 Zsh startup files stay under `$HOME` (no `ZDOTDIR`). Shared environment defaults
@@ -59,7 +59,7 @@ For a server that cannot access npm, use:
 
 This installs basic system tools through apt (Homebrew on macOS) and links the
 dotfiles. It skips Node/npm, browser downloads, shared-skill dependencies,
-`campaign`, and the Tree-sitter, Starship, Bun, and uv installers. Existing tools,
+`campaign`, and the Tree-sitter, Starship, Bun, uv, and Ruff installers. Existing tools,
 including a Cargo-installed Tree-sitter, are left alone. It does not uninstall
 anything or change certificate settings. Agent configuration is still linked,
 but its dependencies are not provisioned. This mode still needs access to apt
@@ -73,7 +73,8 @@ Tree-sitter CLI. On Debian and Ubuntu, it downloads the latest official
 Tree-sitter Linux release from GitHub with `curl`, decompresses it with `gzip`,
 and installs it into `~/.local/bin` (x64 and arm64). Homebrew must
 already be installed on macOS if a package is missing. The bootstrap uses the
-official installers for missing Starship, Bun, and uv installations. It installs
+official installers for missing Starship, Bun, and uv installations, then installs
+a missing Ruff with `uv tool install ruff` into `~/.local/bin`. It installs
 `curl` on Linux; on macOS, `curl` must already be available. You can also run
 `bootstrap.sh` by itself to provision tools and shared-skill dependencies without
 linking the dotfiles. Shared-skill dependencies are installed once per run, beside
@@ -311,6 +312,31 @@ to get the completion menu instead of Deja's guess.
 `Ctrl+X` is a prefix in Zsh's emacs keymap, so Deja's binding delays chords such
 as `Ctrl+X Ctrl+E` by `KEYTIMEOUT`. Set `DEJA_TOGGLE_KEY` above the Deja block
 to move it if those chords are wanted.
+
+## Neovim
+
+`init.lua` uses lazy.nvim with four plugins: nvim-treesitter, snacks.nvim (file
+tree and picker only), mini.icons, and gitsigns. `lazy-lock.json` pins their
+versions; lazy.nvim installs them on the first start.
+
+Colors come from the terminal theme. `termguicolors` is off, and
+`colors/terminal.lua` uses only palette indexes 0 to 15, so a Ghostty theme
+change also changes Neovim, like Herdr and Pi.
+
+In Python files, Neovim starts `ruff server` when `ruff` is on `PATH`. Ruff
+shows lint diagnostics and code actions (`gra`); it does not format on save.
+
+| Key | Action |
+| --- | --- |
+| `Space e` / `Cmd+B` | Toggle the file tree; in the tree, `H` toggles hidden files and `I` toggles Git-ignored files |
+| `Space Space` | Find files |
+| `Space /` | Search text in the project |
+| `Space ,` | Switch buffers |
+| `Space f` | Format the buffer with the language server (Ruff) |
+| `Tab` / `Shift+Tab` | Move in the completion menu |
+
+Neovim older than 0.12, such as the Debian and Ubuntu apt packages, loads only
+the basic options, colors, and Markdown settings.
 
 ## Defaults and machine overrides
 
