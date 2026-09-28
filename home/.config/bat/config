@@ -1,0 +1,3 @@
+# Mouse selection in Herdr copies whole terminal rows, so line numbers and
+# the grid would be pasted with the code. Use `bat -n` or `--style=full` to show them.
+--style=plain
