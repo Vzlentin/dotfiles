@@ -2,6 +2,12 @@
 # backward-kill-word and Option+Left/Right as word motion.
 macos-option-as-alt = true
 
+# Ghostty's default alt+arrow binds send a raw ESC b / ESC f, which Herdr drops
+# under the kitty keyboard protocol. Unbound, Ghostty sends ESC[1;3D / ESC[1;3C,
+# which .zshrc binds to backward-word / forward-word.
+keybind = alt+arrow_left=unbind
+keybind = alt+arrow_right=unbind
+
 # Single source of truth for colors. Herdr (theme = terminal) and Neovim
 # (no termguicolors) follow this palette.
 theme = Desert
