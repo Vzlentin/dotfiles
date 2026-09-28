@@ -22,23 +22,15 @@ run_as_root() {
 
 install_debian_tools() {
     set --
-    if [ "$ID" = debian ] && [ "$minimal" -eq 0 ]; then
-        command -v chromium >/dev/null 2>&1 || set -- "$@" chromium
-    fi
     command -v curl >/dev/null 2>&1 || set -- "$@" curl
     if [ "$(dpkg-query -W -f='${Status}' ca-certificates 2>/dev/null || true)" != 'install ok installed' ]; then
         set -- "$@" ca-certificates
     fi
-    if [ "$ID" = ubuntu ]; then
-        command -v xz >/dev/null 2>&1 || set -- "$@" xz-utils
-    fi
+    command -v xz >/dev/null 2>&1 || set -- "$@" xz-utils
     command -v git >/dev/null 2>&1 || set -- "$@" git
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
     command -v rg >/dev/null 2>&1 || set -- "$@" ripgrep
-    if [ "$ID" = debian ] && [ "$minimal" -eq 0 ]; then
-        command -v npm >/dev/null 2>&1 || set -- "$@" npm
-    fi
     command -v unzip >/dev/null 2>&1 || set -- "$@" unzip
     command -v zsh >/dev/null 2>&1 || set -- "$@" zsh
 
@@ -52,9 +44,7 @@ install_debian_tools() {
         return
     fi
 
-    if [ "$ID" = ubuntu ]; then
-        install_ubuntu_tools
-    fi
+    install_node
 
     if ! command -v tree-sitter >/dev/null 2>&1 && \
         [ ! -x "$HOME/.local/bin/tree-sitter" ]; then
@@ -82,7 +72,7 @@ install_tree_sitter() {
     rm -rf "$TEMP_DIR"
 }
 
-install_ubuntu_tools() {
+install_node() {
     if command -v npm >/dev/null 2>&1 && command -v node >/dev/null 2>&1 && \
         node -e 'const [m, n] = process.versions.node.split(".").map(Number); process.exit(m > 22 || (m === 22 && n >= 19) ? 0 : 1)'; then
         return
@@ -115,26 +105,6 @@ install_ubuntu_tools() {
     rm -rf "$TEMP_DIR"
 }
 
-install_headless_browser() {
-    # Use the skill's locked Playwright version, without desktop Chrome or Snap.
-    script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
-    browser_package="$script_dir/home/.agents/skills/web-search"
-    printf '\n==> Installing Chromium Headless Shell and system libraries\n'
-    playwright_version=$(node -p "require(process.argv[1]).version" \
-        "$browser_package/node_modules/playwright/package.json")
-    PLAYWRIGHT_BROWSERS_PATH="${XDG_DATA_HOME:-$HOME/.local/share}/chromium-headless/$playwright_version"
-    export PLAYWRIGHT_BROWSERS_PATH
-    node "$browser_package/node_modules/playwright/cli.js" install --with-deps --only-shell chromium
-    browser_bin=$(find "$PLAYWRIGHT_BROWSERS_PATH" -type f \
-        \( -name headless_shell -o -name chrome-headless-shell \) -print -quit)
-    if [ -z "$browser_bin" ] || [ ! -x "$browser_bin" ]; then
-        printf 'Cannot find the installed Chromium Headless Shell.\n' >&2
-        exit 1
-    fi
-    mkdir -p "$HOME/.local/bin"
-    ln -sf "$browser_bin" "$HOME/.local/bin/chromium-headless-shell"
-}
-
 install_macos_tools() {
     set --
     command -v git >/dev/null 2>&1 || set -- "$@" git
@@ -148,13 +118,7 @@ install_macos_tools() {
     fi
     command -v zsh >/dev/null 2>&1 || set -- "$@" zsh
 
-    chrome_missing=0
-    if [ "$minimal" -eq 0 ] && [ ! -d '/Applications/Google Chrome.app' ] && \
-        [ ! -d "$HOME/Applications/Google Chrome.app" ]; then
-        chrome_missing=1
-    fi
-
-    if [ "$#" -eq 0 ] && [ "$chrome_missing" -eq 0 ]; then
+    if [ "$#" -eq 0 ]; then
         return
     fi
 
@@ -163,16 +127,10 @@ install_macos_tools() {
         exit 1
     fi
 
-    if [ "$#" -gt 0 ]; then
-        brew install "$@"
-    fi
-    if [ "$chrome_missing" -eq 1 ]; then
-        brew install --cask google-chrome
-    fi
+    brew install "$@"
 }
 
 printf '\n==> Installing system tools\n'
-needs_headless_browser=0
 case "$(uname -s)" in
     Darwin)
         install_macos_tools
@@ -189,9 +147,6 @@ case "$(uname -s)" in
             exit 1
         fi
         install_debian_tools
-        if [ "$ID" = ubuntu ]; then
-            needs_headless_browser=1
-        fi
         ;;
     *)
         printf 'Unsupported operating system: %s\n' "$(uname -s)" >&2
@@ -200,7 +155,7 @@ case "$(uname -s)" in
 esac
 
 if [ "$minimal" -eq 1 ]; then
-    printf '\n==> Minimal tools ready; skipping runtime, browser, and skill downloads\n'
+    printf '\n==> Minimal tools ready; skipping runtime and skill downloads\n'
     exit 0
 fi
 
@@ -211,27 +166,23 @@ if [ -d "$script_dir/home/.agents" ]; then
         -name package-lock.json -type f -print | while IFS= read -r lockfile; do
         package_dir=$(dirname "$lockfile")
         if [ -f "$package_dir/package.json" ]; then
+            # npm writes this record last, so an interrupted install leaves none.
+            installed="$package_dir/node_modules/.package-lock.json"
+            if [ "$installed" -nt "$lockfile" ] && [ "$installed" -nt "$package_dir/package.json" ]; then
+                continue
+            fi
             printf '\n==> Installing dependencies: %s\n' "$package_dir"
             npm ci --prefix "$package_dir"
         fi
     done
 fi
-if [ "$needs_headless_browser" -eq 1 ]; then
-    install_headless_browser
-fi
 
-BUN_INSTALL=${BUN_INSTALL:-"${XDG_DATA_HOME:-$HOME/.local/share}/bun"}
 starship_missing=0
-bun_missing=0
 uv_missing=0
 
 if ! command -v starship >/dev/null 2>&1 && \
     [ ! -x "$HOME/.local/bin/starship" ]; then
     starship_missing=1
-fi
-if ! command -v bun >/dev/null 2>&1 && \
-    [ ! -x "$BUN_INSTALL/bin/bun" ]; then
-    bun_missing=1
 fi
 
 if ! command -v uv >/dev/null 2>&1 && \
@@ -239,7 +190,7 @@ if ! command -v uv >/dev/null 2>&1 && \
     uv_missing=1
 fi
 
-if [ "$starship_missing" -eq 1 ] || [ "$bun_missing" -eq 1 ] || [ "$uv_missing" -eq 1 ]; then
+if [ "$starship_missing" -eq 1 ] || [ "$uv_missing" -eq 1 ]; then
     if ! command -v curl >/dev/null 2>&1; then
         printf 'curl is required but was not found.\n' >&2
         exit 1
@@ -254,13 +205,6 @@ if [ "$starship_missing" -eq 1 ]; then
     mkdir -p "$HOME/.local/bin"
     curl -fsSL https://starship.rs/install.sh -o "$TEMP_DIR/install-starship.sh"
     sh "$TEMP_DIR/install-starship.sh" --yes --bin-dir "$HOME/.local/bin"
-fi
-
-if [ "$bun_missing" -eq 1 ]; then
-    printf '\n==> Installing Bun\n'
-    export BUN_INSTALL
-    curl -fsSL https://bun.com/install -o "$TEMP_DIR/install-bun.sh"
-    SHELL=/bin/sh bash "$TEMP_DIR/install-bun.sh"
 fi
 
 if [ "$uv_missing" -eq 1 ]; then

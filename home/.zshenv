@@ -9,7 +9,6 @@ export SHELL_SESSIONS_DISABLE=1
 export EDITOR="nvim"
 export VISUAL="$EDITOR"
 export VAULT="${VAULT:-$HOME/vault}"
-export BUN_INSTALL="${BUN_INSTALL:-$XDG_DATA_HOME/bun}"
 
 export AZURE_CONFIG_DIR="$XDG_CONFIG_HOME/azure"
 export DOCKER_CONFIG="$XDG_CONFIG_HOME/docker"
@@ -28,7 +27,6 @@ export CHECKPOINT_DISABLE=1
 
 typeset -U path PATH
 user_path=(
-    "$BUN_INSTALL/bin"
     "$HOME/.rd/bin"
     "$HOME/.druk/bin"
     "/opt/homebrew/share/google-cloud-sdk/bin"

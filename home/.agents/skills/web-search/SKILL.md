@@ -2,7 +2,7 @@
 name: web-search
 description: Search the internet with Google or DuckDuckGo, inspect results, and extract selected pages as readable Markdown. Use when answers require current web sources, JavaScript-rendered pages, or browser access that can handle bot protection. Prefer dedicated tools such as GitHub CLI for GitHub data and curl for direct files or simple URLs.
 license: MIT
-compatibility: Requires Node.js 20.19+, Bun for dependency installation, network access, and a local Chromium-family browser.
+compatibility: Requires Node.js 20.19+, npm for dependency installation, network access, and a local Chromium-family browser.
 ---
 
 # Web Search
@@ -13,7 +13,7 @@ The entry point is `{baseDir}/web-search.js`, where `{baseDir}` is the absolute 
 
 ## Setup
 
-If dependencies are missing, run `bun install` in the skill directory.
+If dependencies are missing, run `npm ci` in the skill directory.
 
 The CLI auto-detects Chromium-family browsers. Override detection with
 `WEB_SEARCH_BROWSER_BIN` or `--browser-bin <path>`.

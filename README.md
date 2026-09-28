@@ -14,12 +14,11 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/ghostty/config` | Makes macOS Option send Alt key sequences for shell and TUI word editing |
 | `~/.config/herdr/config.toml` | Defines Herdr navigation keys and custom popup, notification, and pane commands |
 | `~/.config/starship.toml` | Starship prompt layout and styling |
-| `~/.gitconfig` | Compatibility link that prevents a legacy Git config from overriding XDG configuration |
 | `~/.config/git/config` | Global Git identity, portable GitHub credential helper, and pull, push, fetch, merge, and diff defaults |
 | `~/.config/nvim/` | Small Neovim configuration on lazy.nvim that follows the terminal palette; see [Neovim](#neovim) |
-| `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
+| `~/.pi/agent/` | Portable Pi settings, extensions, and package manifests |
 | `~/.agents/` | Shared agent skills and their lockfiles |
-| `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Starship, Bun, uv, and Ruff |
+| `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Node, Starship, uv, and Ruff |
 | `install.sh` | Runs `bootstrap.sh`, then links dotfiles |
 
 Zsh startup files stay under `$HOME` (no `ZDOTDIR`). Shared environment defaults
@@ -58,105 +57,71 @@ For a server that cannot access npm, use:
 ```
 
 This installs basic system tools through apt (Homebrew on macOS) and links the
-dotfiles. It skips Node/npm, browser downloads, shared-skill dependencies,
-and the Tree-sitter, Starship, Bun, uv, and Ruff installers. Existing tools,
-including a Cargo-installed Tree-sitter, are left alone. It does not uninstall
-anything or change certificate settings. Agent configuration is still linked,
-but its dependencies are not provisioned. This mode still needs access to apt
-or Homebrew when basic tools are missing.
+dotfiles. It skips Node, shared-skill dependencies, and the
+Tree-sitter, Starship, uv, and Ruff installers. Existing tools, including a
+Cargo-installed Tree-sitter, are left alone. It does not uninstall anything or
+change certificate settings. Agent configuration is still linked, but its
+dependencies are not provisioned. This mode still needs access to apt or
+Homebrew when basic tools are missing.
 
 The installer first runs `bootstrap.sh`. The bootstrap supports macOS and
-Debian or Ubuntu and skips tools that are already available. On macOS, it uses Homebrew
-for missing command-line tools and Google Chrome. On Debian, it uses
-`sudo apt-get` for missing command-line tools and Chromium, except for the
-Tree-sitter CLI. On Debian and Ubuntu, it downloads the latest official
-Tree-sitter Linux release from GitHub with `curl`, decompresses it with `gzip`,
-and installs it into `~/.local/bin` (x64 and arm64). Homebrew must
-already be installed on macOS if a package is missing. The bootstrap uses the
-official installers for missing Starship, Bun, and uv installations, then installs
-a missing Ruff with `uv tool install ruff` into `~/.local/bin`. It installs
-`curl` on Linux; on macOS, `curl` must already be available. You can also run
-`bootstrap.sh` by itself to provision tools and shared-skill dependencies without
-linking the dotfiles. Shared-skill dependencies are installed once per run, beside
-their source files. Both scripts exclude `node_modules` and `.git` from file scans.
+Debian or Ubuntu and skips tools that are already available.
+
+On macOS, it uses Homebrew for missing command-line tools, including Node,
+Tree-sitter, and uv. Homebrew must already be installed if a package is
+missing, and `curl` must already be available.
+
+On Debian and Ubuntu, it uses `sudo apt-get` for missing command-line tools,
+including `curl`. It downloads the latest official Tree-sitter Linux release
+from GitHub into `~/.local/bin` (x64 and arm64). Pi needs Node 22.19 or newer,
+which the distribution packages may not provide. If Node or npm is missing, or
+Node is older than 22.19, it installs the latest Node 22 release from nodejs.org
+under `$XDG_DATA_HOME/node` (default `~/.local/share/node`), verifies its
+published SHA-256 checksum, and links `node`, `npm`, and `npx` into
+`~/.local/bin`. System Node packages are not removed.
+
+On every platform, the bootstrap uses the official installers for missing
+Starship and uv, then installs a missing Ruff with `uv tool install ruff` into
+`~/.local/bin`. You can also run `bootstrap.sh` by itself to provision tools and
+shared-skill dependencies without linking the dotfiles.
+
+Shared-skill dependencies are installed with `npm ci` beside their source files.
+A rerun skips a skill whose dependencies were installed after its `package.json`
+and lockfile last changed. An interrupted install is always redone, because npm
+records a finished install only at the end.
+
+The bootstrap does not install a browser. The web-search skill uses an existing
+Chrome, Brave, Edge, or Chromium from `PATH` or, on macOS, from
+`/Applications`. On a machine without one, install a browser yourself or point
+`WEB_SEARCH_BROWSER_BIN` at one. Ubuntu's `chromium` package installs the Snap,
+which cannot use the skill's profile under `~/.config`.
 
 The installer prints each step before it starts. npm prints request and lifecycle
-script output instead of a spinner.
-To keep a log on Ubuntu while preserving the installer's exit status:
+script output instead of a spinner. To keep a log while preserving the
+installer's exit status:
 
 ```sh
 bash -o pipefail -c './install.sh 2>&1 | tee "$HOME/dotfiles-install.log"'
 ```
 
 Do not run two installations at the same time. Stop an earlier run with Ctrl+C
-and wait for it to exit before restarting. A rerun still uses `npm ci` to restore
-locked dependencies; it does not skip verification based on an existing directory.
-
-On Ubuntu, the bootstrap uses apt for command-line tools and Playwright's
-Chromium Headless Shell for browser automation. It does not install desktop
-Chrome, Snap, or Ubuntu's Chromium transition package. It installs the web-search
-skill's locked npm dependencies, then runs Playwright with
-`install --with-deps --only-shell chromium`. This downloads the headless browser
-and installs its system libraries through apt (sudo is required for non-root
-users). Browser files go under `$XDG_DATA_HOME/chromium-headless/<playwright-version>`
-(default `~/.local/share/chromium-headless/`), with a link at
-`~/.local/bin/chromium-headless-shell` that the web-search skill detects.
-If Node or npm is missing, or Node is older than 22.19, it installs the latest
-Node 22 release from nodejs.org under `$XDG_DATA_HOME/node` (default
-`~/.local/share/node`), verifies its published SHA-256 checksum, and links
-`node`, `npm`, and `npx` into `~/.local/bin`. System Node packages are not removed.
-
-### Remove Chrome from an earlier Ubuntu installation
-
-Preview removal first, then remove Chrome and its unused automatic dependencies:
-
-```sh
-sudo apt-get --simulate purge --auto-remove google-chrome-stable
-# Check the package list before running this:
-sudo apt-get purge --auto-remove google-chrome-stable
-```
-
-Do not proceed if the preview includes packages you still need. Apt can include
-unused dependencies from other installations, not just Chrome. Shared libraries
-that other packages require remain installed. Do not remove shared libraries by
-name or purge all packages listed in the installer output.
-
-Chrome can leave its apt repository and signing key behind. Check these known
-paths and remove them only if they belong exclusively to Chrome:
-
-```sh
-ls -l /etc/apt/sources.list.d/google-chrome* /etc/apt/trusted.gpg.d/google-chrome* 2>/dev/null
-# If present and exclusive to Chrome:
-sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
-  /etc/apt/sources.list.d/google-chrome.sources \
-  /etc/apt/trusted.gpg.d/google-chrome.gpg
-sudo apt-get update
-```
-
-Optional: delete the current user's Chrome profile and cache. This permanently
-removes Chrome cookies, saved sessions, and other profile data:
-
-```sh
-rm -rf -- "${XDG_CONFIG_HOME:-$HOME/.config}/google-chrome" \
-  "${XDG_CACHE_HOME:-$HOME/.cache}/google-chrome"
-```
-
-Run the updated `./install.sh` after cleanup to install the headless replacement.
-This cleanup does not remove the other dotfile tools.
+and wait for it to exit before restarting.
 
 ### Linked files
 
-After bootstrapping, the installer links each file or symbolic link under
-`home/` to its corresponding home path. Pi credentials, trust decisions,
-sessions, histories, caches, package checkouts, and generated dependencies are
-intentionally excluded. Generated JavaScript dependencies remain untracked.
-The `.config`, `.cache`, `.local/share`, and `.local/state` prefixes respect
-custom XDG base-directory environment variables. Existing files are replaced.
-You can run the installer again safely; it skips links that are already correct.
-Before linking, it removes broken links into this checkout, left behind when a
-file under `home/` is deleted or renamed. It searches the top level of `$HOME`
-and each directory that `home/` links into, such as `~/.config` and `~/.pi`.
-It does not change other links, and it leaves directories in place.
+After bootstrapping, the installer links each file under `home/` that Git
+tracks, or that is new and not ignored, to its corresponding home path.
+Git-ignored files, such as `node_modules` and other package managers' lockfiles,
+are never linked. Because files are linked one by one, Pi writes credentials,
+sessions, and other runtime state into real directories under `~/.pi`, not into
+this checkout. The `.config`, `.cache`, `.local/share`, and `.local/state`
+prefixes respect custom XDG base-directory environment variables. Existing files
+are replaced. You can run the installer again safely; it prints only the links
+it creates, replaces, or removes. Before linking, it removes links into this
+checkout whose source was deleted, renamed, or is now ignored. It searches the
+top level of `$HOME` and each directory that `home/` links into, such as
+`~/.config` and `~/.pi`. It does not change other links, and it leaves
+directories in place.
 
 ## Coding agents
 
@@ -207,13 +172,12 @@ sessions, and history are machine-local and excluded from Git.
 
 `home/.agents/skills/` is the shared skill source. It includes workflows for
 architecture and domain modeling, GitHub and review work, GCP, Obsidian, web
-research, visual explanations, handoffs, and strict code-quality review.
-`home/.agents/.skill-lock.json` records upstream skill sources. Selected entries
-under `home/.pi/agent/skills/` are symbolic links into the shared directory, so
-the skill instructions are not copied.
+research, visual explanations, handoffs, strict code-quality review, and
+shipping a work item with [`workflows ship`](https://github.com/Vzlentin/workflows).
+`home/.agents/.skill-lock.json` records upstream skill sources.
 
-Pi discovers global skills from both `~/.agents/skills/` and
-`~/.pi/agent/skills/`. It loads only each skill's name and description at
+Pi discovers global skills from `~/.agents/skills/`. It loads only each skill's
+name and description at
 startup, then reads the full `SKILL.md` when a task needs it. Use
 `/skill:<name>` to load a skill explicitly.
 
@@ -328,6 +292,3 @@ Prefer an application's path under `.config/` when it supports XDG paths. Place
 the file under `home/` at its path relative to `$HOME`, then run `./install.sh`.
 For example, `home/.config/example/config.toml` becomes
 `~/.config/example/config.toml`.
-
-See [XDG-AUDIT.md](XDG-AUDIT.md) for the reviewed legacy paths, their supported
-overrides, and the few tool-managed paths intentionally left in `$HOME`.

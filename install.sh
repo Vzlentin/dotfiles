@@ -29,7 +29,16 @@ target_path_for() {
     esac
 }
 
-# Remove only links into this checkout whose source is gone; other links are not ours.
+# Tracked and new files; Git-ignored files such as node_modules are never linked.
+linkable_paths=$(git -C "$SCRIPT_DIR" -c core.quotePath=false \
+    ls-files --cached --others --exclude-standard -- home)
+
+is_linkable() {
+    { [ -e "$1" ] || [ -L "$1" ]; } &&
+        printf '%s\n' "$linkable_paths" | grep -Fqx -- "${1#"$SCRIPT_DIR/"}"
+}
+
+# Remove only links into this checkout whose source is gone or ignored; other links are not ours.
 remove_stale_links() {
     find "$@" \( -name node_modules -o -name .git \) -prune -o -type l -print |
         while IFS= read -r link_path; do
@@ -38,7 +47,7 @@ remove_stale_links() {
                 "$SOURCE_DIR"/*) ;;
                 *) continue ;;
             esac
-            if [ ! -e "$source_path" ] && [ ! -L "$source_path" ]; then
+            if ! is_linkable "$source_path"; then
                 rm -f "$link_path"
                 echo "remove ${link_path#"$HOME/"}"
             fi
@@ -75,10 +84,11 @@ for source_root in "$SOURCE_DIR"/.[!.]* "$SOURCE_DIR"/*; do
     fi
 done
 
-printf '\n==> Linking dotfiles (excluding node_modules and .git)\n'
-find "$SOURCE_DIR" \( -name node_modules -o -name .git \) -prune -o \
-    \( -type f -o -type l \) -print | while IFS= read -r source_path; do
-    link_file "$source_path"
+printf '\n==> Linking dotfiles\n'
+printf '%s\n' "$linkable_paths" | while IFS= read -r relative_path; do
+    if is_linkable "$SCRIPT_DIR/$relative_path"; then
+        link_file "$SCRIPT_DIR/$relative_path"
+    fi
 done
 
 printf '\n==> Installation complete\n'
