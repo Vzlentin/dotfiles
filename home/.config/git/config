@@ -7,3 +7,16 @@
 [user]
 	name = Valentin Dusserre
 	email = valentindusserre@gmail.com
+[init]
+	defaultBranch = main
+[pull]
+	ff = only
+[push]
+	autoSetupRemote = true
+[fetch]
+	prune = true
+[merge]
+	# zdiff3 needs Git 2.35; Ubuntu 22.04 ships 2.34, where checkout fails on it.
+	conflictStyle = diff3
+[diff]
+	algorithm = histogram

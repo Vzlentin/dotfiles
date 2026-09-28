@@ -25,16 +25,36 @@ do
     mkdir -p "$directory"
 done
 
+target_path_for() {
+    case $1 in
+        .config|.config/*)           printf '%s\n' "$CONFIG_HOME${1#.config}" ;;
+        .cache|.cache/*)             printf '%s\n' "$CACHE_HOME${1#.cache}" ;;
+        .local/share|.local/share/*) printf '%s\n' "$DATA_HOME${1#.local/share}" ;;
+        .local/state|.local/state/*) printf '%s\n' "$STATE_HOME${1#.local/state}" ;;
+        *)                           printf '%s\n' "$HOME/$1" ;;
+    esac
+}
+
+# Remove only links into this checkout whose source is gone; other links are not ours.
+remove_stale_links() {
+    find "$@" \( -name node_modules -o -name .git \) -prune -o -type l -print |
+        while IFS= read -r link_path; do
+            source_path=$(readlink "$link_path")
+            case $source_path in
+                "$SOURCE_DIR"/*) ;;
+                *) continue ;;
+            esac
+            if [ ! -e "$source_path" ] && [ ! -L "$source_path" ]; then
+                rm -f "$link_path"
+                echo "remove ${link_path#"$HOME/"}"
+            fi
+        done
+}
+
 link_file() {
     source_path=$1
     relative_path=${source_path#"$SOURCE_DIR/"}
-    case $relative_path in
-        .config/*)      target_path="$CONFIG_HOME/${relative_path#.config/}" ;;
-        .cache/*)       target_path="$CACHE_HOME/${relative_path#.cache/}" ;;
-        .local/share/*) target_path="$DATA_HOME/${relative_path#.local/share/}" ;;
-        .local/state/*) target_path="$STATE_HOME/${relative_path#.local/state/}" ;;
-        *)             target_path="$HOME/$relative_path" ;;
-    esac
+    target_path=$(target_path_for "$relative_path")
 
     if [ -L "$target_path" ] && [ "$(readlink "$target_path")" = "$source_path" ]; then
         echo "skip $relative_path"
@@ -50,6 +70,17 @@ link_file() {
     ln -s "$source_path" "$target_path"
     echo "link $relative_path"
 }
+
+printf '\n==> Removing stale dotfile links\n'
+remove_stale_links "$HOME" -maxdepth 1
+for source_root in "$SOURCE_DIR"/.[!.]* "$SOURCE_DIR"/*; do
+    if [ -d "$source_root" ] && [ ! -L "$source_root" ]; then
+        target_root=$(target_path_for "${source_root#"$SOURCE_DIR/"}")
+        if [ -d "$target_root" ]; then
+            remove_stale_links "$target_root"
+        fi
+    fi
+done
 
 printf '\n==> Linking dotfiles (excluding node_modules and .git)\n'
 find "$SOURCE_DIR" \( -name node_modules -o -name .git \) -prune -o \

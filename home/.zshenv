@@ -27,11 +27,11 @@ export CHECKPOINT_DISABLE=1
 [[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
 
 typeset -U path PATH
-path=(
+user_path=(
     "$BUN_INSTALL/bin"
     "$HOME/.rd/bin"
     "$HOME/.druk/bin"
     "/opt/homebrew/share/google-cloud-sdk/bin"
     "$HOME/.local/bin"
-    $path
 )
+path=($user_path $path)

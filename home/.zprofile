@@ -7,6 +7,10 @@ elif [[ -x /usr/local/bin/brew ]]; then
     eval "$(/usr/local/bin/brew shellenv)"
 fi
 
+# macOS path_helper in /etc/zprofile moves system directories before the
+# .zshenv entries.
+path=($user_path $path)
+
 # Machine-specific environment and secrets are loaded only by login shells.
 if [[ -f "$HOME/.zprofile.local" ]]; then
     source "$HOME/.zprofile.local"

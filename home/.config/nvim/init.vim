@@ -36,7 +36,10 @@ set listchars=tab:»\ ,trail:·,nbsp:␣
 
 " Colors come from the terminal (Ghostty theme): no termguicolors, default colorscheme.
 " Plugins (built-in vim.pack). Parsers: :TSInstall <lang>, needs tree-sitter CLI.
-lua vim.pack.add({ 'https://github.com/nvim-treesitter/nvim-treesitter' })
+" vim.pack needs Neovim 0.12; Debian and Ubuntu apt packages are older.
+if has('nvim-0.12')
+    lua vim.pack.add({ 'https://github.com/nvim-treesitter/nvim-treesitter' })
+endif
 
 " Clear search highlighting with Escape in normal mode.
 nnoremap <silent> <Esc> <Cmd>nohlsearch<CR>

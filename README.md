@@ -7,7 +7,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | File | Responsibility |
 | --- | --- |
 | `~/.zshenv` | Environment: XDG, `PATH`, `VAULT`, tool overrides |
-| `~/.zprofile` | Login-only Homebrew initialization and machine-local environment |
+| `~/.zprofile` | Login-only Homebrew initialization, `PATH` order repair, and machine-local environment |
 | `~/.zshrc` | Interactive history, completion, aliases, and tool integrations |
 | `~/.zprofile.local` | Machine-specific environment and secrets, not tracked |
 | `~/.zshrc.local` | Machine-specific interactive settings, not tracked |
@@ -15,7 +15,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/herdr/config.toml` | Defines Herdr navigation keys and custom popup, notification, and pane commands |
 | `~/.config/starship.toml` | Starship prompt layout and styling |
 | `~/.gitconfig` | Compatibility link that prevents a legacy Git config from overriding XDG configuration |
-| `~/.config/git/config` | Global Git identity and portable GitHub credential helper |
+| `~/.config/git/config` | Global Git identity, portable GitHub credential helper, and pull, push, fetch, merge, and diff defaults |
 | `~/.config/nvim/init.vim` | Provides a small Neovim configuration that follows the terminal palette (treesitter via `vim.pack`) |
 | `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
 | `~/.agents/` | Shared agent skills and their lockfiles |
@@ -25,6 +25,9 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 Zsh startup files stay under `$HOME` (no `ZDOTDIR`). Shared environment defaults
 live in `.zshenv` so they apply to login, interactive, and script shells.
 Homebrew initialization and `.zprofile.local` stay login-only in `.zprofile`.
+On macOS, `/etc/zprofile` runs `path_helper`, which moves system directories
+before the `.zshenv` entries. `.zprofile` then puts the `.zshenv` entries
+(`user_path`) first again, so login and non-login shells find the same tools.
 History goes to `$XDG_STATE_HOME/zsh/history`; completion dump to
 `$XDG_CACHE_HOME/zsh/.zcompdump`.
 
@@ -149,6 +152,10 @@ intentionally excluded. Generated JavaScript dependencies remain untracked.
 The `.config`, `.cache`, `.local/share`, and `.local/state` prefixes respect
 custom XDG base-directory environment variables. Existing files are replaced.
 You can run the installer again safely; it skips links that are already correct.
+Before linking, it removes broken links into this checkout, left behind when a
+file under `home/` is deleted or renamed. It searches the top level of `$HOME`
+and each directory that `home/` links into, such as `~/.config` and `~/.pi`.
+It does not change other links, and it leaves directories in place.
 
 ## Campaign CLI
 
@@ -196,10 +203,9 @@ The tracked files under `home/.pi/agent/` become the global Pi configuration at
 
 | Path | Purpose |
 | --- | --- |
-| `settings.json` | Selects the default model, high thinking level, dark fullscreen UI, Neovim editor, and Pi packages |
+| `settings.json` | Selects the default model, `xhigh` thinking level, dark fullscreen UI, Neovim editor, and Pi packages |
 | `models.json` | Registers a local MLX OpenAI-compatible model endpoint |
 | `keybindings.json` | Holds global Pi key overrides |
-| `AGENTS.md` | Gives every agent the global Herdr subagent policy |
 | `extensions/` | Adds local commands, completion, skill discovery, and Herdr integration |
 | `npm/package.json` and lockfile | Pin the npm packages declared in `settings.json` |
 | `pi-codex-subagents/SYSTEM.md` | Gives spawned Codex subagents a small, scoped system prompt |
@@ -207,6 +213,9 @@ The tracked files under `home/.pi/agent/` become the global Pi configuration at
 The custom extensions provide these behaviors:
 
 - `/clear` starts a new session.
+- `/goal` sets, edits, pauses, resumes, or clears a long-running task goal.
+  The agent can read and update it with the `get_goal`, `create_goal`, and
+  `update_goal` tools.
 - `$NAME` and `$NAME/path` autocomplete environment variables and paths in the
   Pi editor.
 - Trusted `.agents/skills/` directories are discovered from the current
