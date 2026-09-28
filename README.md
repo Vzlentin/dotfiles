@@ -20,7 +20,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.pi/agent/` | Portable Pi settings, extensions, package manifests, and shared-skill links |
 | `~/.agents/` | Shared agent skills and their lockfiles |
 | `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Starship, Bun, uv, and Ruff |
-| `install.sh` | Links dotfiles, installs dependencies, and installs the `campaign` CLI |
+| `install.sh` | Runs `bootstrap.sh`, then links dotfiles |
 
 Zsh startup files stay under `$HOME` (no `ZDOTDIR`). Shared environment defaults
 live in `.zshenv` so they apply to login, interactive, and script shells.
@@ -59,7 +59,7 @@ For a server that cannot access npm, use:
 
 This installs basic system tools through apt (Homebrew on macOS) and links the
 dotfiles. It skips Node/npm, browser downloads, shared-skill dependencies,
-`campaign`, and the Tree-sitter, Starship, Bun, uv, and Ruff installers. Existing tools,
+and the Tree-sitter, Starship, Bun, uv, and Ruff installers. Existing tools,
 including a Cargo-installed Tree-sitter, are left alone. It does not uninstall
 anything or change certificate settings. Agent configuration is still linked,
 but its dependencies are not provisioned. This mode still needs access to apt
@@ -81,7 +81,7 @@ linking the dotfiles. Shared-skill dependencies are installed once per run, besi
 their source files. Both scripts exclude `node_modules` and `.git` from file scans.
 
 The installer prints each step before it starts. npm prints request and lifecycle
-script output instead of a spinner, and uv prints verbose dependency output.
+script output instead of a spinner.
 To keep a log on Ubuntu while preserving the installer's exit status:
 
 ```sh
@@ -142,7 +142,7 @@ rm -rf -- "${XDG_CONFIG_HOME:-$HOME/.config}/google-chrome" \
 ```
 
 Run the updated `./install.sh` after cleanup to install the headless replacement.
-This cleanup does not remove the other dotfile tools or `campaign`.
+This cleanup does not remove the other dotfile tools.
 
 ### Linked files
 
@@ -157,39 +157,6 @@ Before linking, it removes broken links into this checkout, left behind when a
 file under `home/` is deleted or renamed. It searches the top level of `$HOME`
 and each directory that `home/` links into, such as `~/.config` and `~/.pi`.
 It does not change other links, and it leaves directories in place.
-
-## Campaign CLI
-
-`./install.sh` also installs `campaign`. It clones
-`Vzlentin/pi-dspy-gepa-workflows` beside this dotfiles checkout if absent,
-installs its locked Node and Python dependencies, and links `campaign` into
-`~/.local/bin` (already on the configured PATH). No Linux-specific home paths
-or generated dependencies are synced. Requires Node 22.19 or newer; upgrade
-an older existing Node installation before running the installer on macOS or
-Debian. Ubuntu bootstrapping handles this requirement automatically.
-
-On the Mac, use the existing installer:
-
-```sh
-cd ~/Dev/perso/dotfiles
-git pull --ff-only
-./install.sh
-campaign start --repo "$HOME/Dev/perso/calibr3" --base main --goal ./campaign.md
-```
-
-`--goal` accepts plain text or a UTF-8 file. Use your Mac's repository path;
-replace any Linux-specific paths inside the brief too. Installation does not
-start a campaign or copy credentials or campaign state.
-
-Existing campaign checkouts are not pulled, reset, or overwritten. To update:
-
-```sh
-git -C ../pi-dspy-gepa-workflows pull --ff-only
-./install.sh
-```
-
-Run the installer smoke test without network access or package installation:
-`sh test/install-campaign.sh`.
 
 ## Coding agents
 
