@@ -19,7 +19,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/nvim/` | Small Neovim configuration on lazy.nvim that follows the terminal palette; see [Neovim](#neovim) |
 | `~/.pi/agent/` | Portable Pi settings, extensions, and package manifests |
 | `~/.agents/` | Shared agent skills and their lockfiles |
-| `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Node, Starship, uv, and Ruff |
+| `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Node, Neovim, Starship, uv, and Ruff |
 | `install.sh` | Runs `bootstrap.sh`, then links dotfiles |
 
 Zsh startup files stay under `$HOME` (no `ZDOTDIR`). Shared environment defaults
@@ -59,7 +59,7 @@ For a server that cannot access npm, use:
 
 This installs basic system tools through apt (Homebrew on macOS) and links the
 dotfiles. It skips Node, shared-skill dependencies, and the
-Tree-sitter, Starship, uv, and Ruff installers. Existing tools, including a
+Neovim, Tree-sitter, Starship, uv, and Ruff installers. Existing tools, including a
 Cargo-installed Tree-sitter, are left alone. It does not uninstall anything or
 change certificate settings. Agent configuration is still linked, but its
 dependencies are not provisioned. This mode still needs access to apt or
@@ -80,6 +80,10 @@ Node is older than 22.19, it installs the latest Node 22 release from nodejs.org
 under `$XDG_DATA_HOME/node` (default `~/.local/share/node`), verifies its
 published SHA-256 checksum, and links `node`, `npm`, and `npx` into
 `~/.local/bin`. System Node packages are not removed.
+
+If `nvim` is missing, the bootstrap installs the latest official Neovim release
+from GitHub under `$XDG_DATA_HOME/neovim` (default `~/.local/share/neovim`) and
+links `nvim` into `~/.local/bin`. It does not change an existing `nvim`.
 
 On every platform, the bootstrap uses the official installers for missing
 Starship and uv, then installs a missing Ruff with `uv tool install ruff` into
@@ -265,9 +269,6 @@ shows lint diagnostics and code actions (`gra`); it does not format on save.
 | `Space ,` | Switch buffers |
 | `Space f` | Format the buffer with the language server (Ruff) |
 | `Tab` / `Shift+Tab` | Move in the completion menu |
-
-Neovim older than 0.12, such as the Debian and Ubuntu apt packages, loads only
-the basic options, colors, and Markdown settings.
 
 ## Defaults and machine overrides
 

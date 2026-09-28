@@ -29,7 +29,10 @@ install_debian_tools() {
     command -v xz >/dev/null 2>&1 || set -- "$@" xz-utils
     command -v git >/dev/null 2>&1 || set -- "$@" git
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
-    command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
+    # The full mode installs the latest Neovim release instead of the older apt package.
+    if [ "$minimal" -eq 1 ]; then
+        command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
+    fi
     command -v rg >/dev/null 2>&1 || set -- "$@" ripgrep
     command -v unzip >/dev/null 2>&1 || set -- "$@" unzip
     command -v zsh >/dev/null 2>&1 || set -- "$@" zsh
@@ -45,6 +48,11 @@ install_debian_tools() {
     fi
 
     install_node
+
+    if ! command -v nvim >/dev/null 2>&1 && \
+        [ ! -x "$HOME/.local/bin/nvim" ]; then
+        install_neovim
+    fi
 
     if ! command -v tree-sitter >/dev/null 2>&1 && \
         [ ! -x "$HOME/.local/bin/tree-sitter" ]; then
@@ -69,6 +77,30 @@ install_tree_sitter() {
     "$TEMP_DIR/tree-sitter" --version
     mkdir -p "$HOME/.local/bin"
     mv -f "$TEMP_DIR/tree-sitter" "$HOME/.local/bin/tree-sitter"
+    rm -rf "$TEMP_DIR"
+}
+
+install_neovim() {
+    case "$(uname -m)" in
+        x86_64) neovim_arch=x86_64 ;;
+        aarch64|arm64) neovim_arch=arm64 ;;
+        *) printf 'Unsupported Neovim architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
+    esac
+    printf '\n==> Downloading Neovim from GitHub\n'
+    TEMP_DIR=$(mktemp -d)
+    trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
+    curl --fail --location --show-error --retry 3 --connect-timeout 15 --max-time 300 \
+        "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-$neovim_arch.tar.gz" \
+        -o "$TEMP_DIR/nvim.tar.gz"
+    mkdir -p "$TEMP_DIR/neovim"
+    tar -xzf "$TEMP_DIR/nvim.tar.gz" -C "$TEMP_DIR/neovim" --strip-components=1
+    "$TEMP_DIR/neovim/bin/nvim" --version
+    # Not $XDG_DATA_HOME/nvim, which is Neovim's own data directory.
+    neovim_home="${XDG_DATA_HOME:-$HOME/.local/share}/neovim"
+    rm -rf "$neovim_home"
+    mkdir -p "$(dirname "$neovim_home")" "$HOME/.local/bin"
+    mv "$TEMP_DIR/neovim" "$neovim_home"
+    ln -sf "$neovim_home/bin/nvim" "$HOME/.local/bin/nvim"
     rm -rf "$TEMP_DIR"
 }
 
