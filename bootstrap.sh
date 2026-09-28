@@ -29,9 +29,12 @@ install_debian_tools() {
     command -v xz >/dev/null 2>&1 || set -- "$@" xz-utils
     command -v git >/dev/null 2>&1 || set -- "$@" git
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
-    # The full mode installs the latest Neovim release instead of the older apt package.
+    # The full mode installs the latest Neovim release instead of the older apt
+    # package. Tree-sitter needs a C compiler to build parsers.
     if [ "$minimal" -eq 1 ]; then
         command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
+    else
+        command -v cc >/dev/null 2>&1 || set -- "$@" gcc libc6-dev
     fi
     command -v rg >/dev/null 2>&1 || set -- "$@" ripgrep
     command -v unzip >/dev/null 2>&1 || set -- "$@" unzip
@@ -74,7 +77,20 @@ install_tree_sitter() {
         -o "$TEMP_DIR/tree-sitter.gz"
     gzip -dc "$TEMP_DIR/tree-sitter.gz" > "$TEMP_DIR/tree-sitter"
     chmod 755 "$TEMP_DIR/tree-sitter"
-    "$TEMP_DIR/tree-sitter" --version
+    # The release binary needs a newer glibc than some distributions have, such as Debian 12.
+    if ! "$TEMP_DIR/tree-sitter" --version; then
+        cargo_bin="${CARGO_HOME:-$HOME/.cargo}/bin"
+        if [ ! -x "$cargo_bin/cargo" ]; then
+            printf '\n==> Installing Rust\n'
+            curl -fsSL https://sh.rustup.rs -o "$TEMP_DIR/rustup-init.sh"
+            # ~/.zshenv links into this checkout and already loads ~/.cargo/env.
+            sh "$TEMP_DIR/rustup-init.sh" -y --profile minimal --no-modify-path
+        fi
+        printf '\n==> Building Tree-sitter CLI with Cargo\n'
+        "$cargo_bin/cargo" install --locked --root "$TEMP_DIR/cargo" tree-sitter-cli
+        mv -f "$TEMP_DIR/cargo/bin/tree-sitter" "$TEMP_DIR/tree-sitter"
+        "$TEMP_DIR/tree-sitter" --version
+    fi
     mkdir -p "$HOME/.local/bin"
     mv -f "$TEMP_DIR/tree-sitter" "$HOME/.local/bin/tree-sitter"
     rm -rf "$TEMP_DIR"

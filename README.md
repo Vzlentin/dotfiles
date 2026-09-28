@@ -73,8 +73,11 @@ Tree-sitter, and uv. Homebrew must already be installed if a package is
 missing, and `curl` must already be available.
 
 On Debian and Ubuntu, it uses `sudo apt-get` for missing command-line tools,
-including `curl`. It downloads the latest official Tree-sitter Linux release
-from GitHub into `~/.local/bin` (x64 and arm64). Pi needs Node 22.19 or newer,
+including `curl` and a C compiler. It downloads the latest official Tree-sitter
+Linux release from GitHub into `~/.local/bin` (x64 and arm64). If that binary
+cannot run, for example on Debian 12, it builds the latest Tree-sitter CLI with
+Cargo instead. When Cargo is missing, it first installs Rust with rustup into
+`~/.cargo`. Pi needs Node 22.19 or newer,
 which the distribution packages may not provide. If Node or npm is missing, or
 Node is older than 22.19, it installs the latest Node 22 release from nodejs.org
 under `$XDG_DATA_HOME/node` (default `~/.local/share/node`), verifies its
