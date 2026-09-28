@@ -15,4 +15,6 @@ palette = 1=#ea6962
 palette = 9=#ea6962
 palette = 2=#a9b665
 palette = 10=#a9b665
+# Warm gray for readable comments, hidden files, and borders.
+palette = 8=#a89984
 cursor-color = #d4be98
