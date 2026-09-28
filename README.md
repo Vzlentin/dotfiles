@@ -93,8 +93,7 @@ records a finished install only at the end.
 The bootstrap does not install a browser. The web-search skill uses an existing
 Chrome, Brave, Edge, or Chromium from `PATH` or, on macOS, from
 `/Applications`. On a machine without one, install a browser yourself or point
-`WEB_SEARCH_BROWSER_BIN` at one. Ubuntu's `chromium` package installs the Snap,
-which cannot use the skill's profile under `~/.config`.
+`WEB_SEARCH_BROWSER_BIN` at one.
 
 The installer prints each step before it starts. npm prints request and lifecycle
 script output instead of a spinner. To keep a log while preserving the
