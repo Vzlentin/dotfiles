@@ -19,6 +19,7 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 | `~/.config/nvim/` | Small Neovim configuration on lazy.nvim that follows the terminal palette; see [Neovim](#neovim) |
 | `~/.pi/agent/` | Portable Pi settings, extensions, and package manifests |
 | `~/.agents/` | Shared agent skills and their lockfiles |
+| `~/AGENTS.md` | Personal agent rules that Pi loads in every directory under `$HOME` |
 | `bootstrap.sh` | Installs macOS, Debian, or Ubuntu tools, Node, Neovim, Starship, uv, and Ruff |
 | `install.sh` | Runs `bootstrap.sh`, then links dotfiles |
 
@@ -179,8 +180,9 @@ sessions, and history are machine-local and excluded from Git.
 
 `home/.agents/skills/` is the shared skill source. It includes workflows for
 architecture and domain modeling, GitHub and review work, GCP, Obsidian, web
-research, visual explanations, handoffs, strict code-quality review, and
-shipping a work item with [`workflows ship`](https://github.com/Vzlentin/workflows).
+research, visual explanations, handoffs, strict code-quality review, the voice
+for text other people read, and shipping a work item with
+[`workflows ship`](https://github.com/Vzlentin/workflows).
 `home/.agents/.skill-lock.json` records upstream skill sources.
 
 Pi discovers global skills from `~/.agents/skills/`. It loads only each skill's

@@ -9,9 +9,11 @@ Review every in-scope human comment. Verify first, classify second, and render w
 
 This workflow is read-only by default. Do not edit code, post replies, resolve threads, approve reviews, or change PR/MR state unless the user explicitly asks for that separate action.
 
-## Required companion skill
+## Required companion skills
 
 Load and follow the available `show-me` skill before rendering the final report. Read [the output template](references/output-template.md) before writing the answer.
+
+Write every proposed response with the `outbound-writing` skill.
 
 For GitHub, also load `better-github-skill` and use its review-thread workflow. For GitLab, use `glab` and the discussions API.
 

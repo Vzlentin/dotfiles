@@ -3,6 +3,8 @@ name: writing-pr
 description: Use when writing or editing a pull request title or body.
 ---
 
+Load and follow the `outbound-writing` skill for voice. This skill adds the structure of a PR title and body.
+
 dont write essays, dont include that you ran tests. rather, write a concise body. focus on mermaid codeblock diagrams, code samples/snippets (this can be internals, or even sample usage). use bullet points for the text you do write. 'validation/i ran tests' is not needed. 
 for visual changes (either directly ot indirectly) show a table of before and after with uploaded images/videos. 
 for benchmarks, always show tables of before/after (baseline from target branch, candidate from the PR). 
