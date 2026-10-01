@@ -1,3 +1,5 @@
 {
-  "tui.altScreen.searchPrevious": "shift+enter"
+  "tui.altScreen.searchPrevious": "shift+enter",
+  "tui.altScreen.previousPrompt": "ctrl+j",
+  "tui.altScreen.nextPrompt": "ctrl+k"
 }
