@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.99.1",
+  "lastChangelogVersion": "0.99.2",
   "theme": "dark",
   "externalEditor": "nvim",
   "defaultProvider": "cursor",
@@ -19,5 +19,10 @@
     "https://github.com/Vzlentin/pi-autoresearch"
   ],
   "tuiMode": "fullscreen",
-  "defaultTools": ["+codemode"]
+  "defaultTools": [
+    "+codemode"
+  ],
+  "modelThinkingLevels": {
+    "cursor/claude-opus-5-5": "medium"
+  }
 }
