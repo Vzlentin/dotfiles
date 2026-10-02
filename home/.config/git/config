@@ -20,3 +20,12 @@
 	conflictStyle = diff3
 [diff]
 	algorithm = histogram
+	colorMoved = default
+[rerere]
+	enabled = true
+[rebase]
+	autoStash = true
+[commit]
+	verbose = true
+[branch]
+	sort = -committerdate
