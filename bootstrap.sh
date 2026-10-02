@@ -22,6 +22,7 @@ run_as_root() {
 
 install_debian_tools() {
     set --
+    { command -v bat || command -v batcat; } >/dev/null 2>&1 || set -- "$@" bat
     command -v curl >/dev/null 2>&1 || set -- "$@" curl
     if [ "$(dpkg-query -W -f='${Status}' ca-certificates 2>/dev/null || true)" != 'install ok installed' ]; then
         set -- "$@" ca-certificates
@@ -43,6 +44,12 @@ install_debian_tools() {
     if [ "$#" -gt 0 ]; then
         run_as_root apt-get update
         run_as_root apt-get install -y "$@"
+    fi
+
+    # Debian names the bat command batcat because another package owns bat.
+    if ! command -v bat >/dev/null 2>&1 && command -v batcat >/dev/null 2>&1; then
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$(command -v batcat)" "$HOME/.local/bin/bat"
     fi
 
     # Minimal mode uses only distro packages and leaves existing tools alone.
@@ -155,6 +162,7 @@ install_node() {
 
 install_macos_tools() {
     set --
+    command -v bat >/dev/null 2>&1 || set -- "$@" bat
     command -v git >/dev/null 2>&1 || set -- "$@" git
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
