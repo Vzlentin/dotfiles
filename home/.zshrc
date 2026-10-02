@@ -7,9 +7,7 @@ HISTSIZE=100000
 SAVEHIST=100000
 setopt SHARE_HISTORY          # write on each command, read from other shells
 setopt EXTENDED_HISTORY       # timestamp + duration per entry
-setopt HIST_EXPIRE_DUPS_FIRST
 setopt HIST_IGNORE_ALL_DUPS   # re-running a command drops its older copies
-setopt HIST_SAVE_NO_DUPS
 setopt HIST_IGNORE_SPACE      # leading space keeps a line out of history (and deja)
 setopt HIST_REDUCE_BLANKS
 setopt HIST_VERIFY            # `!!` expands onto the line instead of running
