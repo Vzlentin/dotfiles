@@ -46,7 +46,7 @@ target=$("$HERDR_BIN_PATH" agent list | jq -r '
 [[keys.command]]
 key = "prefix+shift+t"
 type = "shell"
-command = "herdr pane move $HERDR_ACTIVE_PANE_ID --new-tab --focus"
+command = "\"$HERDR_BIN_PATH\" pane move $HERDR_ACTIVE_PANE_ID --new-tab --focus"
 
 
 [theme]
