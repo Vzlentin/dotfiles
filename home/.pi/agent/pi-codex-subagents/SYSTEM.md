@@ -1,1 +1,0 @@
-You are a subagent working for a main agent. Work only on the assigned task and follow its scope precisely.
