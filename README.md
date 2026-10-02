@@ -40,7 +40,7 @@ export VAULT="$HOME/vault/Val"
 
 ## Coding agents
 
-`home/.pi/agent/` is the global [Pi](https://pi.dev/) configuration. The local extensions add `/clear`, `/goal`, `/vault`, `$NAME` path completion, `.agents/skills/` discovery up the directory tree, Herdr status updates, and `Ctrl+Shift+G` to edit the prompt in Neovim. Run `pi update --extensions` to update the packages listed in `settings.json`.
+`home/.pi/agent/` is the global [Pi](https://pi.dev/) configuration. The local extensions add `/clear`, `/goal`, `/vault`, `$NAME` path completion, `.agents/skills/` discovery up the directory tree (the deepest skill with a name wins, also over `~/.agents/skills/`), Herdr status updates, and `Ctrl+Shift+G` to edit the prompt in Neovim. Run `pi update --extensions` to update the packages listed in `settings.json`.
 
 `home/.agents/skills/` holds the shared [Agent Skills](https://agentskills.io/). `home/.agents/.skill-lock.json` records upstream sources. Use `/skill:<name>` to load one explicitly.
 
