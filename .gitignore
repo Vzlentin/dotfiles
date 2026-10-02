@@ -2,6 +2,9 @@
 *.swp
 *~
 
+# Client details
+home/.agents/skills/gcp/
+
 # Pi credentials
 home/.pi/agent/auth.json
 
