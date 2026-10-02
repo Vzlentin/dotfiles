@@ -27,9 +27,6 @@ export CHECKPOINT_DISABLE=1
 
 typeset -U path PATH
 user_path=(
-    "$HOME/.rd/bin"
-    "$HOME/.druk/bin"
-    "/opt/homebrew/share/google-cloud-sdk/bin"
     "$HOME/.local/bin"
 )
 path=($user_path $path)
