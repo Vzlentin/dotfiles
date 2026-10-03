@@ -574,9 +574,10 @@ export default function goalExtension(pi: ExtensionAPI) {
 	pi.on("before_agent_start", async (event) => {
 		const snapshot = currentGoalSnapshot();
 		if (!snapshot || snapshot.status !== "active") return;
-		return {
-			systemPrompt: `${event.systemPrompt}\n\n${activeGoalSystemPrompt(snapshot)}`,
-		};
+		event.systemPromptOptions.appendSystemPrompt = [
+			event.systemPromptOptions.appendSystemPrompt,
+			activeGoalSystemPrompt(snapshot),
+		].filter(Boolean).join("\n\n");
 	});
 
 	pi.on("agent_start", async (_event, _ctx) => {
