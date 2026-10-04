@@ -10,3 +10,5 @@ home/.pi/agent/auth.json
 
 # Recreate JavaScript dependencies from lockfiles
 node_modules/
+
+/home/.pi/agent/extensions/herdr-agent-state.ts
