@@ -360,6 +360,35 @@ test("completion, budget accounting, and automatic error stops keep their behavi
 	assert.equal(h.sent.filter(({ message }) => message.customType === "goal-continuation").length, 0);
 });
 
+test("assistant errors persist the stop status without automatic continuation", async (t) => {
+	for (const [errorMessage, status] of [
+		["quota exceeded", "usageLimited"],
+		["rate limit exceeded", "usageLimited"],
+		["usage limit exceeded", "usageLimited"],
+		["too many requests", "usageLimited"],
+		["HTTP 429", "usageLimited"],
+		["RaTe LiMiT exceeded", "usageLimited"],
+		["Context length limit exceeded", "blocked"],
+		["Request size limit exceeded", "blocked"],
+		["Unexpected usage value", "blocked"],
+		["Invalid sampling rate", "blocked"],
+		["Limit exceeded", "blocked"],
+		["Connection failed", "blocked"],
+		["HTTP 1429", "blocked"],
+		["HTTP 4290", "blocked"],
+	]) {
+		await t.test(errorMessage, async (t) => {
+			const h = await loadGoal(t);
+			await h.call("create_goal", { objective: "Finish the requested work." });
+			await h.start();
+			await h.end([{ role: "assistant", stopReason: "error", errorMessage }]);
+			assert.equal((await h.call("get_goal")).details.goal.status, status);
+			assert.equal(latestState(h).goal.status, status);
+			assert.equal(h.sent.filter(({ message }) => message.customType === "goal-continuation").length, 0);
+		});
+	}
+});
+
 test("audit turns do not change goal-creation accounting or budget stops", async (t) => {
 	const h = await loadGoal(t);
 	await h.start();

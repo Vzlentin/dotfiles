@@ -394,7 +394,7 @@ function wasLastAssistantAborted(messages: Array<{ role?: string; stopReason?: s
 
 function goalStopStatusForAssistantError(message: { errorMessage?: string } | undefined): GoalStatus {
 	const errorMessage = message?.errorMessage ?? "";
-	return /\b(usage|rate|quota|limit)\b/i.test(errorMessage) ? "usageLimited" : "blocked";
+	return /\b(quota|rate limit|usage limit|too many requests|429)\b/i.test(errorMessage) ? "usageLimited" : "blocked";
 }
 
 export default function goalExtension(pi: ExtensionAPI) {
