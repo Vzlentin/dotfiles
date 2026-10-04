@@ -17,6 +17,8 @@ If the check fails, say that you are not running inside Herdr and stop. Do not i
 
 When the check passes, the `herdr` binary in `PATH` talks to the current session. Use it to inspect neighboring work, create terminal layout, start agents and commands, read output, and wait for state changes.
 
+For agent and command walkthroughs, read [references/cli.md](references/cli.md).
+
 ## Learn the current CLI
 
 The installed binary is the authority for command syntax. Start with:
@@ -91,89 +93,39 @@ Creation responses expose the IDs to use next. `workspace create` returns `.resu
 
 Default to a sibling pane in the current tab and the current working directory. Do not create a workspace, tab, worktree, or different cwd unless the user explicitly requests that topology or location.
 
-Honor a direction requested by the user. Otherwise inspect the caller pane:
+Honor a direction requested by the user. Otherwise inspect the caller pane.
 
-```bash
-herdr pane layout --pane "$HERDR_PANE_ID"
-```
+Split a wide pane to the right and a narrow or tall pane down. Avoid repeated same-direction splits that create unusably narrow columns or short rows. Keep the user's focus in the calling pane and explicitly preserve the caller's working directory.
 
-Split a wide pane to the right and a narrow or tall pane down. Avoid repeated same-direction splits that create unusably narrow columns or short rows. Keep the user's focus in the calling pane and explicitly preserve the caller's working directory:
+An available shell pane must be at its interactive prompt, with the shell itself in the foreground and no foreground command, editor, or agent running. Start a supported agent in that pane with a useful unique name.
 
-```bash
-herdr pane split --current --direction right --cwd "$PWD" --no-focus
-```
+Use the kind requested by the user. Run `herdr agent` to inspect the installed kind list and options. Pass native agent arguments only after `--`.
 
-Replace `right` with `down` when appropriate. Read the new pane ID from `.result.pane.pane_id`.
-
-An available shell pane must be at its interactive prompt, with the shell itself in the foreground and no foreground command, editor, or agent running. Start a supported agent in that pane with a useful unique name:
-
-```bash
-herdr agent start reviewer --kind codex --pane <returned-pane-id>
-```
-
-Use the kind requested by the user. Run `herdr agent` to inspect the installed kind list and options. Pass native agent arguments only after `--`:
-
-```bash
-herdr agent start reviewer --kind codex --pane <returned-pane-id> -- <agent-args...>
-```
-
-`agent start` returns only after Herdr detects the expected agent in the same pane and considers it ready for interactive input. It defaults to a 30-second startup timeout.
-
-Submit work through the agent surface:
-
-```bash
-herdr agent prompt reviewer "Review the current diff and report only actionable findings." --wait --timeout 120000
-```
+Submit work through the agent surface.
 
 `agent prompt` atomically submits text and encoded Enter while honoring the pane's live bracketed-paste mode. For normal agent work, `--wait` is enough: it waits for the first settled `idle`, `done`, or `blocked` state. Do not repeat those defaults with `--until`.
 
 Keep responsibility for collecting work sent to another agent. Unless the user explicitly wants an unattended launch or direct handoff, wait for completion and read the reply before closing the task. For work that must outlive the current turn, attach a bounded terminal completion watcher with notifications rather than merely reporting `working`. A finished Herdr badge alone does not bring the reply into the parent conversation. If the user reports a missed reply, collect and assess it immediately.
 
-For a design-only Pi session, inspect `pi --help` and pass its supported read-only allowlist through the native arguments, for example `-- --name "Experiment design" --tools read,grep,find,ls`. This permits source inspection without enabling code edits or shell execution.
+For a design-only Pi session, inspect `pi --help` and pass its supported read-only allowlist through the native arguments. This permits source inspection without enabling code edits or shell execution.
 
 When starting work without `agent prompt --wait`, read the exact agent back before reporting that work has started. The immediate prompt response can still show `idle` while terminal input is being processed. Confirm `working` or actual tool activity; do not resend a prompt merely because the first snapshot still shows its pasted text.
 
 A prompt sent from a non-working state must produce an observed lifecycle change within five seconds. Otherwise Herdr returns `agent_prompt_stalled` instead of waiting indefinitely. This wait tracks lifecycle state, not an individual turn; if the agent is already working, completion of the active turn may satisfy it.
 
-Use `--until` only for a state-specific workflow, such as waiting for an already-running agent to request input:
-
-```bash
-herdr agent wait reviewer --until blocked --timeout 120000
-```
+Use `--until` only for a state-specific workflow, such as waiting for an already-running agent to request input.
 
 Without `--until`, standalone `agent wait` uses the same settled-state defaults as `agent prompt --wait`.
 
-Use logical keys for interactive agent UI controls:
+Use logical keys for interactive agent UI controls.
 
-```bash
-herdr agent send-keys reviewer esc
-herdr agent send-keys reviewer ctrl+c
-```
-
-Herdr validates all keys before writing any bytes. Read the result through the resolved agent:
-
-```bash
-herdr agent get reviewer
-herdr agent read reviewer --source recent-unwrapped --lines 120
-```
+Herdr validates all keys before writing any bytes. Read the result through the resolved agent.
 
 If a wait fails or returns `blocked`, inspect `agent get` and `agent read` before deciding what input to send. Use the pane surface only when raw terminal control is intentional.
 
 ## Run an ordinary command in another pane
 
-Create a sibling pane with the same geometry rule, preserve the caller's working directory, and keep user focus unchanged:
-
-```bash
-herdr pane split --current --direction right --cwd "$PWD" --no-focus
-```
-
-Read the new pane ID from `.result.pane.pane_id`, then run and inspect the command:
-
-```bash
-herdr pane run <returned-pane-id> "just test"
-herdr pane wait-output <returned-pane-id> --match "test result" --timeout 120000
-herdr pane read <returned-pane-id> --source recent-unwrapped --lines 120
-```
+Create a sibling pane with the same geometry rule, preserve the caller's working directory, and keep user focus unchanged.
 
 `pane run` atomically sends command text and Enter. `pane wait-output` searches the selected snapshot immediately, so output that already exists can match. Use `--match <text>` for a literal substring or `--regex <pattern>` for a Rust regular expression. Omitting `--timeout` allows an indefinite wait.
 
