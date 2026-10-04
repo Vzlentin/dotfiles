@@ -50,7 +50,7 @@ Tokens used: 125
 Token budget: 1000
 Tokens remaining: 875
 
-If the goal is achieved and no required work remains, call update_goal with status "complete". Do not mark it complete merely because you are stopping or the budget is nearly exhausted. If the goal is genuinely blocked, use update_goal with status "blocked" only after the same blocking condition has repeated for at least three consecutive goal turns and you cannot make meaningful progress without user input or an external-state change.`;
+If the goal is achieved and no required work remains, call update_goal with status "complete". Do not mark it complete merely because you are stopping or the budget is nearly exhausted. Report a blocker in each affected goal turn with update_goal({ blocker: "stable identity" }), using exactly the same trimmed text for the same condition. Reporting does not change status and is allowed before the blocking threshold. Use status "blocked" only after reporting the same blocker in three consecutive goal turns, including this turn, and only when you cannot make meaningful progress without user input or an external-state change. Count the original/user-triggered run and automatic continuations, not model requests or duplicate tool calls. A changed blocker or a turn without a report breaks the sequence. Supply either blocker or status, never both. Resuming a blocked goal starts a fresh audit.`;
 
 test("goals preserve structured prompts with competing skills", async (t) => {
 	t.mock.timers.enable({ apis: ["Date"], now: 1_000_000 });
