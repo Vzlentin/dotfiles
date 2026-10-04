@@ -274,4 +274,9 @@ if ! command -v ruff >/dev/null 2>&1; then
     UV_TOOL_BIN_DIR="$HOME/.local/bin" uv tool install ruff
 fi
 
+if ! command -v workflows >/dev/null 2>&1 && [ -f "$HOME/Dev/perso/workflows/pyproject.toml" ]; then
+    printf '\n==> Installing workflows\n'
+    UV_TOOL_BIN_DIR="$HOME/.local/bin" uv tool install --editable "$HOME/Dev/perso/workflows"
+fi
+
 printf 'Tools are ready.\n'
