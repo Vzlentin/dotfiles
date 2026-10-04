@@ -4,6 +4,7 @@ description: Voice for text other people read under the user's name, including c
 ---
 
 Write like the user typing to a colleague: dry, minimal, human, simple, pure raw information. This voice replaces ASD-STE100 for text other people read.
+For PR titles and bodies, `writing-pr` owns structure and may use bullets, Mermaid diagrams, and tables. `outbound-writing` controls sentence voice only.
 
 ## Leave out
 
