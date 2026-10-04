@@ -2,7 +2,7 @@
 name: ship
 description: Ship one work item, from an idea, a GitHub issue or a markdown file, onto a new branch with `workflows ship`, and report whether it shipped
 argument-hint: "[--base <ref>] [--rounds <n>] [--headless] <idea | #issue | item.md>"
-compatibility: Requires git, gh and uv. Runs workflows from https://github.com/Vzlentin/workflows.
+compatibility: Requires git, gh, uv and the librarian skill. Runs workflows from https://github.com/Vzlentin/workflows.
 disable-model-invocation: true
 ---
 Ship the work item in the arguments below with `workflows ship`. The engine's own sessions plan,
@@ -28,13 +28,13 @@ cannot find.
 
 ## 2. Run `workflows ship`
 
-The engine runs from a clone of [workflows](https://github.com/Vzlentin/workflows) on its latest
-`main`. Clone it, or bring it up to date, and stop and report if git fails:
+The engine runs from the shared checkout of [workflows](https://github.com/Vzlentin/workflows)
+on its latest `main`. Load the `librarian` skill and refresh the cached checkout. Stop and
+report if the checkout command fails:
 
 ```sh
-clone="${XDG_CACHE_HOME:-$HOME/.cache}/workflows"
-if [ -d "$clone" ]; then git -C "$clone" pull --ff-only
-else git clone https://github.com/Vzlentin/workflows "$clone"; fi
+clone="$(bash "$HOME/.agents/skills/librarian/checkout.sh" \
+    Vzlentin/workflows --force-update --path-only)" || exit
 ```
 
 The repository is the output of `git rev-parse --show-toplevel` in the current directory. Run, in

@@ -112,6 +112,16 @@
       "skillFolderHash": "65fb81dc7305743d318f831f32a85a4dc631d8dc",
       "installedAt": "2026-08-21T13:23:46.070Z",
       "updatedAt": "2026-08-21T13:23:46.070Z"
+    },
+    "librarian": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "ref": "main",
+      "skillPath": "skills/librarian/SKILL.md",
+      "skillFolderHash": "d9c9e4f484d7aed8b71f0e9dda7b0abddbdf6b13",
+      "installedAt": "2026-10-03T15:18:25.888Z",
+      "updatedAt": "2026-10-03T15:18:25.888Z"
     }
   },
   "dismissed": {

@@ -1,9 +1,9 @@
 {
-  "lastChangelogVersion": "1.0.0",
+  "lastChangelogVersion": "1.0.1",
   "theme": "dark",
   "externalEditor": "nvim",
-  "defaultProvider": "cursor",
-  "defaultModel": "claude-opus-5-5",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-6.1-sol",
   "defaultThinkingLevel": "xhigh",
   "npmCommand": [
     "npm",
