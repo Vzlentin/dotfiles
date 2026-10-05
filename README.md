@@ -11,7 +11,6 @@ cd ~/Dev/perso/dotfiles
 ```
 
 `install.sh` runs `bootstrap.sh`, which installs missing tools on macOS (Homebrew) or Debian and Ubuntu (apt), then links every non-ignored file under `home/` to the same path under `$HOME`. It is safe to rerun. Run `bootstrap.sh` alone to install tools without linking.
-The `gcp` skill is the only shared skill excluded from this repository and must be installed separately on a new machine.
 
 On a server without npm access, `./install.sh --minimal` installs only basic system tools and links the files. It skips Node, skill dependencies, Neovim, Tree-sitter, Starship, uv, and Ruff.
 
