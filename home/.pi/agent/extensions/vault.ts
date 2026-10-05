@@ -210,15 +210,21 @@ async function resolveDestination(vaultRoot: string, input: string): Promise<Des
   try {
     const canonicalPath = await realpath(proposedPath);
     const targetStats = await stat(canonicalPath);
-    const proposedStats = await lstat(proposedPath);
     if (!targetStats.isFile()) throw new Error("The note path is not a file");
-    if (proposedStats.isSymbolicLink() || !isInside(vaultRoot, canonicalPath)) {
-      throw new Error("The note path is not a direct file in VAULT");
+    if (!isInside(vaultRoot, canonicalPath)) {
+      throw new Error("The note path is not a file in VAULT");
     }
     return {
       notePath: relative(vaultRoot, canonicalPath).split(sep).join("/"),
       targetPath: canonicalPath,
     };
+  } catch (error: unknown) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+  }
+
+  try {
+    await lstat(proposedPath);
+    throw new Error("The note path exists but cannot be resolved");
   } catch (error: unknown) {
     if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
   }

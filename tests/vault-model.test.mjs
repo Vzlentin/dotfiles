@@ -1,7 +1,9 @@
 // Run from the repository root: node --test tests/vault-model.test.mjs
 
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -26,8 +28,10 @@ const manualContent = "# Manual\n";
 const recommendedContent = "# Recommended\n";
 
 async function loadVault(t, { override, sessionModel, unauthenticatedModel, initialContent = manualContent }) {
-	const vaultRoot = mkdtempSync(join(repositoryRoot, ".vault-model-test-"));
-	t.after(() => rmSync(vaultRoot, { recursive: true, force: true }));
+	const fixtureRoot = mkdtempSync(join(repositoryRoot, ".vault-model-test-"));
+	t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+	const vaultRoot = join(fixtureRoot, "vault");
+	mkdirSync(vaultRoot);
 	if (initialContent === null) writeFileSync(join(vaultRoot, "existing.md"), "# Existing\n");
 	else writeFileSync(join(vaultRoot, "manual.md"), initialContent);
 	writeFileSync(join(vaultRoot, "recommended.md"), recommendedContent);
@@ -63,6 +67,7 @@ async function loadVault(t, { override, sessionModel, unauthenticatedModel, init
 	runner.bindCore({}, { getModel: () => state.model });
 	const notifications = [];
 	const screens = [];
+	let selectedPath;
 	const theme = { fg: (_color, text) => text };
 	runner.setUIContext({
 		...runner.createContext().ui,
@@ -82,7 +87,7 @@ async function loadVault(t, { override, sessionModel, unauthenticatedModel, init
 			await routingReady;
 			const routed = component.render(160);
 			component.handleInput("\x15");
-			component.handleInput("manual.md");
+			component.handleInput(selectedPath);
 			const edited = component.render(160);
 			component.handleInput("\r");
 			screens.push({ pending, routed, edited });
@@ -90,14 +95,16 @@ async function loadVault(t, { override, sessionModel, unauthenticatedModel, init
 		},
 	}, "tui");
 	const ctx = runner.createCommandContext();
+	let commands = 0;
 	let saves = 0;
 	return {
-		state, getAll, hasConfiguredAuth, complete,
-		async command(expectedError) {
+		fixtureRoot, vaultRoot, state, getAll, hasConfiguredAuth, complete,
+		async command(expectedError, { notePath = "manual.md", destinationError } = {}) {
+			selectedPath = notePath;
 			const notificationCount = notifications.length;
 			await runner.getCommand("vault").handler("", ctx);
-			saves += 1;
-			assert.equal(screens.length, saves);
+			commands += 1;
+			assert.equal(screens.length, commands);
 			const screen = screens.at(-1);
 			assert.match(screen.pending[0], /finding a home/);
 			if (expectedError) {
@@ -106,8 +113,13 @@ async function loadVault(t, { override, sessionModel, unauthenticatedModel, init
 				assert.match(screen.routed[0], /save it here/);
 				assert.ok(screen.routed.join("\n").includes("recommended.md"));
 			}
-			assert.ok(screen.edited.join("\n").includes("manual.md"));
-			assert.deepEqual(notifications.slice(notificationCount), [{ message: "saved manual.md", type: "info" }]);
+			assert.ok(screen.edited.join("\n").includes(notePath));
+			if (destinationError) {
+				assert.deepEqual(notifications.slice(notificationCount), [{ message: destinationError, type: "error" }]);
+			} else {
+				saves += 1;
+				assert.deepEqual(notifications.slice(notificationCount), [{ message: "saved manual.md", type: "info" }]);
+			}
 			assert.equal(readFileSync(join(vaultRoot, "manual.md"), "utf8"), (initialContent ?? "") + `\n\n---\n\n${assistantText}`.repeat(saves));
 			assert.equal(readFileSync(join(vaultRoot, "recommended.md"), "utf8"), recommendedContent);
 		},
@@ -125,6 +137,87 @@ test("every save adds a separator and preserves existing content", { timeout: 10
 		await t.test(name, async (t) => {
 			const h = await loadVault(t, { sessionModel: modelA, initialContent });
 			await h.command();
+		});
+	}
+});
+
+test("an internal file link appends to its target with a symbolic-link VAULT root", { timeout: 10_000 }, async (t) => {
+	const h = await loadVault(t, { sessionModel: modelA });
+	const vaultLink = join(h.fixtureRoot, "vault-link");
+	symlinkSync(h.vaultRoot, vaultLink, "dir");
+	process.env.VAULT = vaultLink;
+	const noteLink = join(h.vaultRoot, "linked.md");
+	symlinkSync("manual.md", noteLink);
+
+	await h.command(undefined, { notePath: "linked.md" });
+	assert.ok(lstatSync(noteLink).isSymbolicLink());
+	assert.equal(readlinkSync(noteLink), "manual.md");
+	assert.ok(lstatSync(vaultLink).isSymbolicLink());
+	assert.equal(readlinkSync(vaultLink), h.vaultRoot);
+});
+
+test("a link to a directory is rejected", { timeout: 10_000 }, async (t) => {
+	const h = await loadVault(t, { sessionModel: modelA });
+	const directory = join(h.vaultRoot, "directory");
+	mkdirSync(directory);
+	symlinkSync(directory, join(h.vaultRoot, "linked.md"), "dir");
+
+	await h.command(undefined, {
+		notePath: "linked.md",
+		destinationError: "The note path is not a file",
+	});
+});
+
+test("an outside file link is rejected without changing its target", { timeout: 10_000 }, async (t) => {
+	const h = await loadVault(t, { sessionModel: modelA });
+	const outsidePath = join(h.fixtureRoot, "outside.md");
+	const outsideContent = "# Outside\nKeep this content.\n";
+	writeFileSync(outsidePath, outsideContent);
+	symlinkSync(outsidePath, join(h.vaultRoot, "linked.md"));
+
+	await h.command(undefined, {
+		notePath: "linked.md",
+		destinationError: "The note path is not a file in VAULT",
+	});
+	assert.equal(readFileSync(outsidePath, "utf8"), outsideContent);
+});
+
+test("an outside parent-directory link is rejected for existing and missing notes", { timeout: 10_000 }, async (t) => {
+	const h = await loadVault(t, { sessionModel: modelA });
+	const outsideDirectory = join(h.fixtureRoot, "outside");
+	mkdirSync(outsideDirectory);
+	symlinkSync(outsideDirectory, join(h.vaultRoot, "linked-parent"), "dir");
+	const outsidePath = join(outsideDirectory, "existing.md");
+	const outsideContent = "# Outside\nKeep this content.\n";
+	writeFileSync(outsidePath, outsideContent);
+
+	await h.command(undefined, {
+		notePath: "linked-parent/existing.md",
+		destinationError: "The note path is not a file in VAULT",
+	});
+	assert.equal(readFileSync(outsidePath, "utf8"), outsideContent);
+	await h.command(undefined, {
+		notePath: "linked-parent/missing.md",
+		destinationError: "The note parent path must be inside VAULT",
+	});
+	assert.equal(existsSync(join(outsideDirectory, "missing.md")), false);
+});
+
+test("dangling links are rejected without creating their targets", { timeout: 10_000 }, async (t) => {
+	for (const location of ["inside", "outside"]) {
+		await t.test(location, async (t) => {
+			const h = await loadVault(t, { sessionModel: modelA });
+			const targetPath = join(location === "inside" ? h.vaultRoot : h.fixtureRoot, "missing.md");
+			const noteLink = join(h.vaultRoot, "dangling.md");
+			symlinkSync(targetPath, noteLink);
+
+			await h.command(undefined, {
+				notePath: "dangling.md",
+				destinationError: "The note path exists but cannot be resolved",
+			});
+			assert.equal(existsSync(targetPath), false);
+			assert.ok(lstatSync(noteLink).isSymbolicLink());
+			assert.equal(readlinkSync(noteLink), targetPath);
 		});
 	}
 });
