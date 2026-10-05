@@ -21,14 +21,15 @@ const [{ loadExtensions }, { ExtensionRunner }, { SessionManager }] = await Prom
 const modelA = { provider: "offline", id: "session-a" };
 const modelB = { provider: "offline", id: "session-b" };
 const overrideModel = { provider: "offline-override", id: "router" };
-const assistantText = "Offline assistant reply.";
+const assistantText = "Offline assistant reply.\n\nSecond paragraph.\n- First item\n- Second item";
 const manualContent = "# Manual\n";
 const recommendedContent = "# Recommended\n";
 
-async function loadVault(t, { override, sessionModel, unauthenticatedModel }) {
+async function loadVault(t, { override, sessionModel, unauthenticatedModel, initialContent = manualContent }) {
 	const vaultRoot = mkdtempSync(join(repositoryRoot, ".vault-model-test-"));
 	t.after(() => rmSync(vaultRoot, { recursive: true, force: true }));
-	writeFileSync(join(vaultRoot, "manual.md"), manualContent);
+	if (initialContent === null) writeFileSync(join(vaultRoot, "existing.md"), "# Existing\n");
+	else writeFileSync(join(vaultRoot, "manual.md"), initialContent);
 	writeFileSync(join(vaultRoot, "recommended.md"), recommendedContent);
 	for (const [name, value] of [["VAULT", vaultRoot], ["PI_VAULT_MODEL", override]]) {
 		const previous = process.env[name];
@@ -107,11 +108,26 @@ async function loadVault(t, { override, sessionModel, unauthenticatedModel }) {
 			}
 			assert.ok(screen.edited.join("\n").includes("manual.md"));
 			assert.deepEqual(notifications.slice(notificationCount), [{ message: "saved manual.md", type: "info" }]);
-			assert.equal(readFileSync(join(vaultRoot, "manual.md"), "utf8"), manualContent + assistantText.repeat(saves));
+			assert.equal(readFileSync(join(vaultRoot, "manual.md"), "utf8"), (initialContent ?? "") + `\n\n---\n\n${assistantText}`.repeat(saves));
 			assert.equal(readFileSync(join(vaultRoot, "recommended.md"), "utf8"), recommendedContent);
 		},
 	};
 }
+
+test("every save adds a separator and preserves existing content", { timeout: 10_000 }, async (t) => {
+	for (const [name, initialContent] of [
+		["missing file", null],
+		["empty file", ""],
+		["populated file without a trailing newline", "# Manual\nExisting content."],
+		["populated file with one trailing newline", "# Manual\nExisting content.\n"],
+		["populated file with multiple trailing newlines", "# Manual\nExisting content.\n\n\n"],
+	]) {
+		await t.test(name, async (t) => {
+			const h = await loadVault(t, { sessionModel: modelA, initialContent });
+			await h.command();
+		});
+	}
+});
 
 test("unset, empty, and whitespace-only overrides use the session model", { timeout: 10_000 }, async (t) => {
 	for (const [name, override] of [["unset", undefined], ["empty", ""], ["whitespace", " \t\n "]]) {

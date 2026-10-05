@@ -385,7 +385,7 @@ export default function (pi: ExtensionAPI) {
 
         const destination = await resolveDestination(vaultRoot, editedPath);
         await withFileMutationQueue(destination.targetPath, async () => {
-          await appendFile(destination.targetPath, assistantText, "utf8");
+          await appendFile(destination.targetPath, `\n\n---\n\n${assistantText}`, "utf8");
         });
         ctx.ui.notify(`saved ${destination.notePath}`, "info");
       } catch (error: unknown) {
