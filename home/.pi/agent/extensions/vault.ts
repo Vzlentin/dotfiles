@@ -13,7 +13,7 @@ import {
   visibleWidth,
 } from "@earendil-works/pi-tui";
 
-const ROUTER_MODEL = process.env.PI_VAULT_MODEL?.trim() || "openai-codex/gpt-5.6-luna";
+const ROUTER_MODEL = process.env.PI_VAULT_MODEL?.trim();
 const SKIPPED_DIRECTORIES = new Set([
   ".git",
   ".obsidian",
@@ -120,12 +120,14 @@ async function inferNotePath(
   assistantText: string,
   signal: AbortSignal,
 ): Promise<string> {
-  const model = ctx.modelRegistry
-    .getAll()
-    .find((candidate) => `${candidate.provider}/${candidate.id}` === ROUTER_MODEL);
-  if (!model) throw new Error(`${ROUTER_MODEL} is not available`);
+  const model = ROUTER_MODEL
+    ? ctx.modelRegistry.getAll().find((candidate) => `${candidate.provider}/${candidate.id}` === ROUTER_MODEL)
+    : ctx.model;
+  if (!model) {
+    throw new Error(ROUTER_MODEL ? `${ROUTER_MODEL} is not available` : "No session model is selected");
+  }
   if (!ctx.modelRegistry.hasConfiguredAuth(model)) {
-    throw new Error(`No authentication is configured for ${ROUTER_MODEL}`);
+    throw new Error(`No authentication is configured for ${model.provider}/${model.id}`);
   }
 
   const routingInput = JSON.stringify({
