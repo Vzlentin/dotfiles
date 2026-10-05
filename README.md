@@ -5,8 +5,6 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 ## Install
 
 ```sh
-git clone <repository-url> ~/Dev/perso/dotfiles
-cd ~/Dev/perso/dotfiles
 ./install.sh
 ```
 
