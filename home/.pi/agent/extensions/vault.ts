@@ -13,7 +13,7 @@ import {
   visibleWidth,
 } from "@earendil-works/pi-tui";
 
-const ROUTER_MODEL = process.env.PI_VAULT_MODEL?.trim() || "openai-codex/gpt-5.6-luna";
+const ROUTER_MODEL = process.env.PI_VAULT_MODEL?.trim();
 const SKIPPED_DIRECTORIES = new Set([
   ".git",
   ".obsidian",
@@ -120,12 +120,14 @@ async function inferNotePath(
   assistantText: string,
   signal: AbortSignal,
 ): Promise<string> {
-  const model = ctx.modelRegistry
-    .getAll()
-    .find((candidate) => `${candidate.provider}/${candidate.id}` === ROUTER_MODEL);
-  if (!model) throw new Error(`${ROUTER_MODEL} is not available`);
+  const model = ROUTER_MODEL
+    ? ctx.modelRegistry.getAll().find((candidate) => `${candidate.provider}/${candidate.id}` === ROUTER_MODEL)
+    : ctx.model;
+  if (!model) {
+    throw new Error(ROUTER_MODEL ? `${ROUTER_MODEL} is not available` : "No session model is selected");
+  }
   if (!ctx.modelRegistry.hasConfiguredAuth(model)) {
-    throw new Error(`No authentication is configured for ${ROUTER_MODEL}`);
+    throw new Error(`No authentication is configured for ${model.provider}/${model.id}`);
   }
 
   const routingInput = JSON.stringify({
@@ -208,15 +210,21 @@ async function resolveDestination(vaultRoot: string, input: string): Promise<Des
   try {
     const canonicalPath = await realpath(proposedPath);
     const targetStats = await stat(canonicalPath);
-    const proposedStats = await lstat(proposedPath);
     if (!targetStats.isFile()) throw new Error("The note path is not a file");
-    if (proposedStats.isSymbolicLink() || !isInside(vaultRoot, canonicalPath)) {
-      throw new Error("The note path is not a direct file in VAULT");
+    if (!isInside(vaultRoot, canonicalPath)) {
+      throw new Error("The note path is not a file in VAULT");
     }
     return {
       notePath: relative(vaultRoot, canonicalPath).split(sep).join("/"),
       targetPath: canonicalPath,
     };
+  } catch (error: unknown) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+  }
+
+  try {
+    await lstat(proposedPath);
+    throw new Error("The note path exists but cannot be resolved");
   } catch (error: unknown) {
     if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
   }
@@ -383,7 +391,7 @@ export default function (pi: ExtensionAPI) {
 
         const destination = await resolveDestination(vaultRoot, editedPath);
         await withFileMutationQueue(destination.targetPath, async () => {
-          await appendFile(destination.targetPath, assistantText, "utf8");
+          await appendFile(destination.targetPath, `\n\n---\n\n${assistantText}`, "utf8");
         });
         ctx.ui.notify(`saved ${destination.notePath}`, "info");
       } catch (error: unknown) {
