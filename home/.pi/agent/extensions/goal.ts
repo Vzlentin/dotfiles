@@ -28,12 +28,17 @@ interface Goal {
 	timeUsedSeconds: number;
 	createdAt: number;
 	updatedAt: number;
+	blocker?: string;
+	blockerTurn?: number;
+	blockerTurns?: number;
 }
 
 interface PersistedGoalState {
 	version: 2;
-	action: "set" | "edit" | "status" | "clear" | "account";
+	action: "set" | "edit" | "status" | "clear" | "account" | "audit";
 	goal: Goal | null;
+	turn: number;
+	turnRunning: boolean;
 }
 
 const CreateGoalParams = Type.Object({
@@ -47,8 +52,13 @@ const CreateGoalParams = Type.Object({
 });
 
 const UpdateGoalParams = Type.Object({
-	status: StringEnum(["complete", "blocked"] as const),
-});
+	status: Type.Optional(StringEnum(["complete", "blocked"] as const, {
+		description: "Mark the goal complete or blocked. Omit when reporting a blocker.",
+	})),
+	blocker: Type.Optional(Type.String({
+		description: "Stable blocker identity. Report the same trimmed text in each affected goal turn without changing status. Omit when setting status.",
+	})),
+}, { additionalProperties: false });
 
 function nowSeconds(): number {
 	return Math.floor(Date.now() / 1000);
@@ -110,6 +120,10 @@ function normalizeNonNegativeInteger(value: unknown, fallback = 0): number {
 	return Math.max(0, Math.floor(value));
 }
 
+function isNonNegativeSafeInteger(value: unknown): value is number {
+	return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
 function normalizeGoal(value: unknown): Goal | null {
 	if (!value || typeof value !== "object") return null;
 	const raw = value as Partial<Goal> & Record<string, unknown>;
@@ -119,7 +133,7 @@ function normalizeGoal(value: unknown): Goal | null {
 		? Math.floor(raw.tokenBudget)
 		: undefined;
 	const ts = nowSeconds();
-	return {
+	const normalized: Goal = {
 		id: typeof raw.id === "string" && raw.id ? raw.id : randomUUID(),
 		objective,
 		status: normalizeStatus(raw.status),
@@ -129,6 +143,16 @@ function normalizeGoal(value: unknown): Goal | null {
 		createdAt: normalizeNonNegativeInteger(raw.createdAt, ts),
 		updatedAt: normalizeNonNegativeInteger(raw.updatedAt, ts),
 	};
+	if (
+		typeof raw.blocker === "string" && raw.blocker.trim() &&
+		isNonNegativeSafeInteger(raw.blockerTurn) &&
+		isNonNegativeSafeInteger(raw.blockerTurns) && raw.blockerTurns >= 1 && raw.blockerTurns <= 3
+	) {
+		normalized.blocker = raw.blocker.trim();
+		normalized.blockerTurn = raw.blockerTurn;
+		normalized.blockerTurns = raw.blockerTurns;
+	}
+	return normalized;
 }
 
 function statusLabel(status: GoalStatus): string {
@@ -306,14 +330,15 @@ Before deciding that the goal is achieved, treat completion as unproven and veri
 Do not rely on intent, partial progress, memory of earlier work, or a plausible final answer as proof of completion. Marking the goal complete is a claim that the full objective has been finished and can withstand requirement-by-requirement scrutiny. Only mark the goal achieved when current evidence proves every requirement has been satisfied and no required work remains. If the evidence is incomplete, weak, indirect, merely consistent with completion, or leaves any requirement missing, incomplete, or unverified, keep working instead of marking the goal complete. If the objective is achieved, call update_goal with status "complete" so usage accounting is preserved. Report the final elapsed time, and if the achieved goal has a token budget, report the final consumed token budget to the user after update_goal succeeds.
 
 Blocked audit:
+- Report a blocker in each affected goal turn with update_goal({ blocker: "stable identity" }). Use exactly the same trimmed text for the same condition. Reporting records evidence without changing status and is allowed before the blocking threshold.
 - Do not call update_goal with status "blocked" the first time a blocker appears.
-- Only use status "blocked" when the same blocking condition has repeated for at least three consecutive goal turns, counting the original/user-triggered turn and any automatic goal continuations.
+- Only use status "blocked" after reporting the same blocker in three consecutive goal turns, including this turn, counting the original/user-triggered turn and any automatic goal continuations. A goal turn is one agent_start/agent_end run, not a model request or tool call. Duplicate reports in one turn do not count again. A changed blocker or a turn without a report breaks the sequence. The status request does not supply missing evidence.
 - If the user resumes a goal that was previously marked "blocked", treat the resumed run as a fresh blocked audit. If the same blocking condition then repeats for at least three consecutive resumed goal turns, call update_goal with status "blocked" again.
 - Use status "blocked" only when you are truly at an impasse and cannot make meaningful progress without user input or an external-state change.
 - Once the blocked threshold is satisfied, do not keep reporting that you are still blocked while leaving the goal active; call update_goal with status "blocked".
 - Never use status "blocked" merely because the work is hard, slow, uncertain, incomplete, or would benefit from clarification.
 
-Do not call update_goal unless the goal is complete or the strict blocked audit above is satisfied. Do not mark a goal complete merely because the budget is nearly exhausted or because you are stopping work.`;
+Use update_goal to report a blocker during an active goal turn, or to set status only when the goal is complete or the strict blocked audit above is satisfied. Supply either blocker or status, never both. Do not mark a goal complete merely because the budget is nearly exhausted or because you are stopping work.`;
 }
 
 function activeGoalSystemPrompt(goal: Goal): string {
@@ -331,7 +356,7 @@ Tokens used: ${goal.tokensUsed}
 Token budget: ${goal.tokenBudget === undefined ? "none" : goal.tokenBudget}
 Tokens remaining: ${goal.tokenBudget === undefined ? "unbounded" : Math.max(0, goal.tokenBudget - goal.tokensUsed)}
 
-If the goal is achieved and no required work remains, call update_goal with status "complete". Do not mark it complete merely because you are stopping or the budget is nearly exhausted. If the goal is genuinely blocked, use update_goal with status "blocked" only after the same blocking condition has repeated for at least three consecutive goal turns and you cannot make meaningful progress without user input or an external-state change.`;
+If the goal is achieved and no required work remains, call update_goal with status "complete". Do not mark it complete merely because you are stopping or the budget is nearly exhausted. Report a blocker in each affected goal turn with update_goal({ blocker: "stable identity" }), using exactly the same trimmed text for the same condition. Reporting does not change status and is allowed before the blocking threshold. Use status "blocked" only after reporting the same blocker in three consecutive goal turns, including this turn, and only when you cannot make meaningful progress without user input or an external-state change. Count the original/user-triggered run and automatic continuations, not model requests or duplicate tool calls. A changed blocker or a turn without a report breaks the sequence. Supply either blocker or status, never both. Resuming a blocked goal starts a fresh audit.`;
 }
 
 function budgetLimitMessage(goal: Goal): string {
@@ -369,7 +394,7 @@ function wasLastAssistantAborted(messages: Array<{ role?: string; stopReason?: s
 
 function goalStopStatusForAssistantError(message: { errorMessage?: string } | undefined): GoalStatus {
 	const errorMessage = message?.errorMessage ?? "";
-	return /\b(usage|rate|quota|limit)\b/i.test(errorMessage) ? "usageLimited" : "blocked";
+	return /\b(quota|rate limit|usage limit|too many requests|429)\b/i.test(errorMessage) ? "usageLimited" : "blocked";
 }
 
 export default function goalExtension(pi: ExtensionAPI) {
@@ -377,6 +402,15 @@ export default function goalExtension(pi: ExtensionAPI) {
 	let activeSinceMs: number | null = null;
 	let activeGoalIdAtAgentStart: string | null = null;
 	let continuationQueued = false;
+	let turn = 0;
+	let turnRunning = false;
+
+	function resetBlockerAudit(): void {
+		if (!goal) return;
+		delete goal.blocker;
+		delete goal.blockerTurn;
+		delete goal.blockerTurns;
+	}
 
 	function currentGoalSnapshot(): Goal | null {
 		if (!goal) return null;
@@ -402,6 +436,8 @@ export default function goalExtension(pi: ExtensionAPI) {
 			version: 2,
 			action,
 			goal: goal ? cloneGoal(goal) : null,
+			turn,
+			turnRunning,
 		} satisfies PersistedGoalState);
 	}
 
@@ -480,6 +516,7 @@ export default function goalExtension(pi: ExtensionAPI) {
 			activeSinceMs = Date.now();
 			continuationQueued = false;
 		}
+		if (objective !== goal.objective) resetBlockerAudit();
 		goal.objective = objective;
 		goal.status = nextStatus;
 		goal.updatedAt = nowSeconds();
@@ -494,6 +531,7 @@ export default function goalExtension(pi: ExtensionAPI) {
 			accountElapsed();
 			activeSinceMs = null;
 		}
+		if (goal.status === "blocked") resetBlockerAudit();
 		if (status === "active" && goal.status !== "active") {
 			activeSinceMs = Date.now();
 			continuationQueued = false;
@@ -551,16 +589,30 @@ export default function goalExtension(pi: ExtensionAPI) {
 		}
 	}
 
-	function reconstructState(ctx: ExtensionContext): void {
+	function reconstructState(ctx: ExtensionContext, running = !ctx.isIdle()): void {
 		goal = null;
 		activeSinceMs = null;
 		activeGoalIdAtAgentStart = null;
 		continuationQueued = false;
+		turn = 0;
+		turnRunning = running;
 
 		for (const entry of ctx.sessionManager.getBranch()) {
 			if (entry.type !== "custom" || entry.customType !== STATE_TYPE) continue;
 			const data = entry.data as Partial<PersistedGoalState> | undefined;
 			goal = normalizeGoal(data?.goal);
+			if (isNonNegativeSafeInteger(data?.turn) && typeof data?.turnRunning === "boolean") {
+				turn = data.turn;
+				turnRunning = running && data.turnRunning;
+			} else {
+				turn = 0;
+				turnRunning = running;
+				resetBlockerAudit();
+			}
+		}
+		if (goal?.blockerTurn !== undefined &&
+			(goal.blockerTurn > turn || (goal.blockerTurns ?? 0) > goal.blockerTurn + 1)) {
+			resetBlockerAudit();
 		}
 		if (goal?.status === "active") {
 			activeSinceMs = Date.now();
@@ -569,7 +621,7 @@ export default function goalExtension(pi: ExtensionAPI) {
 	}
 
 	pi.on("session_start", async (_event, ctx) => reconstructState(ctx));
-	pi.on("session_tree", async (_event, ctx) => reconstructState(ctx));
+	pi.on("session_tree", async (_event, ctx) => reconstructState(ctx, false));
 
 	pi.on("before_agent_start", async (event) => {
 		const snapshot = currentGoalSnapshot();
@@ -583,10 +635,17 @@ export default function goalExtension(pi: ExtensionAPI) {
 	pi.on("agent_start", async (_event, _ctx) => {
 		continuationQueued = false;
 		activeGoalIdAtAgentStart = goal?.status === "active" ? goal.id : null;
+		turn += 1;
+		turnRunning = true;
+		persist("audit");
 	});
 
 	pi.on("agent_end", async (event, ctx) => {
-		if (!goal) return;
+		turnRunning = false;
+		if (!goal) {
+			persist("audit");
+			return;
+		}
 		let changed = false;
 		if (activeGoalIdAtAgentStart === goal.id) {
 			const tokens = assistantUsageTokens(event.messages as unknown[]);
@@ -603,7 +662,7 @@ export default function goalExtension(pi: ExtensionAPI) {
 			changed = true;
 			showGoalMessage(budgetLimitMessage(goal));
 		}
-		if (changed) persist("account");
+		persist(changed ? "account" : "audit");
 		updateStatus(ctx);
 		activeGoalIdAtAgentStart = null;
 
@@ -793,7 +852,7 @@ export default function goalExtension(pi: ExtensionAPI) {
 		promptGuidelines: [
 			"Use create_goal only when the user explicitly asks to create a long-running goal; do not infer goals from ordinary tasks.",
 			"Use update_goal with status complete only when the active goal is actually achieved and no required work remains.",
-			"Use update_goal with status blocked only when the strict blocked audit is satisfied.",
+			"Report a blocker with update_goal({ blocker: \"stable identity\" }) in each affected goal turn, even before the blocking threshold. Use status blocked only after the same blocker was reported in three consecutive goal turns, including the current turn, and the agent is at an impasse.",
 		],
 		parameters: CreateGoalParams,
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
@@ -817,20 +876,43 @@ export default function goalExtension(pi: ExtensionAPI) {
 		name: "update_goal",
 		label: "Update Goal",
 		description:
-			"Update the existing goal. Use this tool only to mark the goal achieved or genuinely blocked. Set status to complete only when the objective has actually been achieved and no required work remains. Set status to blocked only when the same blocking condition has repeated for at least three consecutive goal turns and the agent is at an impasse. Do not mark a goal complete merely because its budget is nearly exhausted or because you are stopping work.",
-		promptSnippet: "Mark the current goal complete or blocked after verifying the required conditions",
+			"Report a blocker during an active goal turn without changing status, or mark the existing goal achieved or genuinely blocked. Supply either blocker or status, never both. Set status to complete only when the objective has actually been achieved and no required work remains. Set status to blocked only after the same trimmed blocker identity was reported in three consecutive goal turns, including the current turn, and the agent is at an impasse. Duplicate reports in one turn do not count again. Do not mark a goal complete merely because its budget is nearly exhausted or because you are stopping work.",
+		promptSnippet: "Report goal blocker evidence or mark the goal complete or blocked after verification",
 		promptGuidelines: [
-			"Use update_goal only to mark the active goal complete or blocked after verifying the required conditions; never use it for pause, resume, budget-limit, or usage-limit changes.",
+			"Use update_goal with blocker to record evidence in each affected active goal turn, including before the blocking threshold. Supply exactly one of blocker or status. Use status complete or blocked only after verifying the required conditions; never use it for pause, resume, budget-limit, or usage-limit changes.",
 		],
 		parameters: UpdateGoalParams,
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-			if (params.status !== "complete" && params.status !== "blocked") {
-				throw new Error(
-					"update_goal can only mark the existing goal complete or blocked; pause, resume, budget-limited, and usage-limited status changes are controlled by the user or system",
-				);
+			if (params.blocker !== undefined) {
+				if (params.status !== undefined) throw new Error("supply either blocker or status, never both");
+				if (typeof params.blocker !== "string" || !params.blocker.trim()) {
+					throw new Error("blocker identity must not be empty after trimming");
+				}
+				if (!goal || goal.status !== "active" || !turnRunning) {
+					throw new Error("reporting a blocker requires an active goal and a running goal turn");
+				}
+				const blocker = params.blocker.trim();
+				if (goal.blocker !== blocker || goal.blockerTurn !== turn) {
+					goal.blockerTurns = goal.blocker === blocker && goal.blockerTurn === turn - 1
+						? Math.min(3, (goal.blockerTurns ?? 0) + 1)
+						: 1;
+				}
+				goal.blocker = blocker;
+				goal.blockerTurn = turn;
+				persist("audit");
+			} else {
+				if (params.status !== "complete" && params.status !== "blocked") {
+					throw new Error("supply either a blocker identity or status complete or blocked; other status changes are controlled by the user or system");
+				}
+				if (params.status === "blocked" && (
+					!goal || goal.status !== "active" || !turnRunning ||
+					goal.blockerTurn !== turn || (goal.blockerTurns ?? 0) < 3
+				)) {
+					throw new Error("blocking requires the same blocker reported in three consecutive goal turns, including the current turn");
+				}
+				setGoalStatus(params.status);
+				persist("status");
 			}
-			setGoalStatus(params.status);
-			persist("status");
 			updateStatus(ctx);
 			const response = goalResponse(currentGoalSnapshot(), ctx.sessionManager.getSessionId(), params.status === "complete");
 			return {

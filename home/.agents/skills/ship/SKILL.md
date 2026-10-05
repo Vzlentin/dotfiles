@@ -2,7 +2,7 @@
 name: ship
 description: Ship one work item, from an idea, a GitHub issue or a markdown file, onto a new branch with `workflows ship`, and report whether it shipped
 argument-hint: "[--base <ref>] [--rounds <n>] [--headless] <idea | #issue | item.md>"
-compatibility: Requires git, gh, uv and the librarian skill. Runs workflows from https://github.com/Vzlentin/workflows.
+compatibility: Requires git, gh and the `workflows` command (`uv tool install --editable ~/Dev/perso/workflows`).
 disable-model-invocation: true
 ---
 Ship the work item in the arguments below with `workflows ship`. The engine's own sessions plan,
@@ -28,20 +28,14 @@ cannot find.
 
 ## 2. Run `workflows ship`
 
-The engine runs from the shared checkout of [workflows](https://github.com/Vzlentin/workflows)
-on its latest `main`. Load the `librarian` skill and refresh the cached checkout. Stop and
-report if the checkout command fails:
-
-```sh
-clone="$(bash "$HOME/.agents/skills/librarian/checkout.sh" \
-    Vzlentin/workflows --force-update --path-only)" || exit
-```
+The engine is the `workflows` command, installed as an editable uv tool from the local checkout,
+so it runs local `main`. Stop and report if `command -v workflows` finds nothing.
 
 The repository is the output of `git rev-parse --show-toplevel` in the current directory. Run, in
 the foreground and without a timeout:
 
 ```sh
-uv run --project "$clone" workflows ship --repo <repository> [flags] <work item path>
+workflows ship --repo <repository> [flags] <work item path>
 ```
 
 It runs until the item ships or stops, which takes many minutes; inside Herdr every session opens
@@ -50,7 +44,8 @@ its own pane. Wait for it: do not background it, poll it or run it twice.
 ## 3. Report
 
 The first line of output is `run directory: <path>`, and the item's branch is `ship/<run>`, where
-`<run>` is the last part of that path. Lead with the outcome, read from the last line:
+`<run>` is the last part of that path. Lead with the outcome, read from the last `shipped`,
+`stopped` or `blocked` line:
 
 - **shipped**: `shipped <item> in <n> rounds, judge <score>, <sha>`, exit code 0. Give the branch,
   the rounds, the score and the judge's findings from `git log -1 --format=%B ship/<run>`. A
@@ -58,6 +53,9 @@ The first line of output is `run directory: <path>`, and the item's branch is `s
 - **stopped**: `stopped <item> after <n> rounds: <worktree>`, exit code 1. Give the branch, the
   worktree, and what the last review still wanted fixed, from the last `sessions/review-<n>`
   folder in the run directory.
+- **blocked**: `blocked <item> after <n> rounds: <worktree>`, then the implementer's reply, exit
+  code 1. A round changed nothing. Give the branch, the worktree and the implementer's reply,
+  which says why.
 - **failed**: anything else, such as a traceback. Quote the error.
 
 Then give the work item path and the run directory.
