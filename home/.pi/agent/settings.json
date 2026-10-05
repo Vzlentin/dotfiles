@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "1.0.2",
+  "lastChangelogVersion": "1.0.3",
   "theme": "dark",
   "externalEditor": "nvim",
   "defaultProvider": "openai-codex",
@@ -17,7 +17,8 @@
     "https://github.com/Vzlentin/pi-ipython",
     "https://github.com/Vzlentin/pi-rlm",
     "https://github.com/Vzlentin/pi-autoresearch",
-    "https://github.com/Vzlentin/pi-herdr-subagents"
+    "https://github.com/Vzlentin/pi-herdr-subagents",
+    "git:github.com/paoloanzn/pi-black"
   ],
   "tuiMode": "fullscreen",
   "defaultTools": [
