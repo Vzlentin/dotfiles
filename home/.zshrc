@@ -101,6 +101,21 @@ fi
 
 if (( $+commands[direnv] )); then
     eval "$(direnv hook zsh)"
+
+    # Work around direnv 2.38.1 (direnv/direnv#1633): its ZSH_EVAL_CONTEXT
+    # guard skips precmd, so new shells opened in a project do not load .envrc.
+    # precmd only runs at the prompt, so it does not need the guard. chpwd keeps it.
+    # Remove this block when direnv fixes #1633.
+    _direnv_precmd() {
+        [[ -o interactive && $ZSH_SUBSHELL -eq 0 ]] || return
+        local vars
+        vars="$("${commands[direnv]}" export zsh)"
+        trap -- '' SIGINT
+        eval "$vars"
+        trap - SIGINT
+    }
+    precmd_functions=(${precmd_functions:#_direnv_hook})
+    precmd_functions=(_direnv_precmd $precmd_functions)
 fi
 
 if (( $+commands[starship] )); then
