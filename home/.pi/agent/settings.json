@@ -1,9 +1,9 @@
 {
-  "lastChangelogVersion": "1.0.3",
+  "lastChangelogVersion": "1.0.4",
   "theme": "dark",
   "externalEditor": "nvim",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-6.1-sol",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-opus-5-5",
   "defaultThinkingLevel": "xhigh",
   "npmCommand": [
     "npm",
@@ -25,6 +25,9 @@
     "+codemode"
   ],
   "modelThinkingLevels": {
-    "cursor/claude-opus-5-5": "medium"
+    "cursor/claude-opus-5-5": "medium",
+    "anthropic/claude-opus-5-5": "medium",
+    "radius/claude-opus-5-5": "medium",
+    "cursor/claude-opus-5-5-1m": "medium"
   }
 }
