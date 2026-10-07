@@ -22,6 +22,9 @@ switch_workspace = "prefix+shift+1..9"
 # prefix+shift+t is taken by the "move pane to new tab" command below.
 rename_tab = "prefix+comma"
 
+# prefix+g is taken by the "lazygit split" command below.
+goto = "prefix+f"
+
 [[keys.command]]
 key = "prefix+t"
 type = "popup"
@@ -47,6 +50,15 @@ target=$("$HERDR_BIN_PATH" agent list | jq -r '
 key = "prefix+shift+t"
 type = "shell"
 command = "\"$HERDR_BIN_PATH\" pane move $HERDR_ACTIVE_PANE_ID --new-tab --focus"
+
+[[keys.command]]
+key = "prefix+g"
+type = "shell"
+description = "lazygit split"
+command = '''
+pane=$("$HERDR_BIN_PATH" pane split $HERDR_ACTIVE_PANE_ID --direction right --focus | jq -r '.result.pane.pane_id')
+[ -n "$pane" ] && "$HERDR_BIN_PATH" pane run "$pane" "exec lazygit"
+'''
 
 
 [theme]
