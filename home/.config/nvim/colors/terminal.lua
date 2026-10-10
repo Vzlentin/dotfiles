@@ -32,8 +32,31 @@ local groups = {
     Added = { ctermfg = 2 },
     Changed = { ctermfg = 3 },
     Removed = { ctermfg = 1 },
+
+    -- render-markdown.nvim: colored headings and gray code borders, no backgrounds.
+    -- The plugin replaces empty groups with its defaults, so these link to Normal.
+    RenderMarkdownH1 = { ctermfg = 4, bold = true },
+    RenderMarkdownH2 = { ctermfg = 5, bold = true },
+    RenderMarkdownH3 = { ctermfg = 6, bold = true },
+    RenderMarkdownH4 = { ctermfg = 2, bold = true },
+    RenderMarkdownH5 = { ctermfg = 3, bold = true },
+    RenderMarkdownH6 = { ctermfg = 1, bold = true },
+    RenderMarkdownH1Bg = { link = "Normal" },
+    RenderMarkdownH2Bg = { link = "Normal" },
+    RenderMarkdownH3Bg = { link = "Normal" },
+    RenderMarkdownH4Bg = { link = "Normal" },
+    RenderMarkdownH5Bg = { link = "Normal" },
+    RenderMarkdownH6Bg = { link = "Normal" },
+    RenderMarkdownCode = { link = "Normal" },
+    RenderMarkdownCodeInline = { link = "Normal" },
+    RenderMarkdownCodeBorder = { ctermbg = 8 },
+    RenderMarkdownCodeInfo = { ctermfg = 8 },
 }
 
 for name, spec in pairs(groups) do
     vim.api.nvim_set_hl(0, name, spec)
+end
+
+for level = 1, 6 do
+    vim.api.nvim_set_hl(0, "@markup.heading." .. level .. ".markdown", { link = "RenderMarkdownH" .. level })
 end

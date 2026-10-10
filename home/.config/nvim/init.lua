@@ -93,7 +93,7 @@ require("lazy").setup({
         cond = vim.fn.executable("tree-sitter") == 1,
         config = function()
             require("nvim-treesitter").install({
-                "bash", "json", "python", "toml", "typescript", "yaml",
+                "bash", "json", "markdown", "markdown_inline", "python", "toml", "typescript", "yaml",
             })
         end,
     },
@@ -118,6 +118,24 @@ require("lazy").setup({
     },
     { "nvim-mini/mini.icons", lazy = true, opts = {} },
     { "lewis6991/gitsigns.nvim", opts = {} },
+    {
+        "MeanderingProgrammer/render-markdown.nvim",
+        ft = "markdown",
+        opts = {
+            enabled = false,
+            sign = { enabled = false },
+            code = {
+                border = "thin",
+                language_border = "─",
+                above = "─",
+                below = "─",
+                left_pad = 2,
+            },
+        },
+        keys = {
+            { "<leader>m", "<Cmd>RenderMarkdown toggle<CR>", ft = "markdown", desc = "Render markdown" },
+        },
+    },
 }, {
     install = { colorscheme = { "terminal" } },
     rocks = { enabled = false },
