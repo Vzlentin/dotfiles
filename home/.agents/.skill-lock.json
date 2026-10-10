@@ -16,30 +16,30 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
-      "skillFolderHash": "959e63161ff78b4b1cd553b2c0e09e0c68418e5f",
+      "skillFolderHash": "ea30ee454ba264543dbe40737973b1a5afb9f0e6",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-08-12T09:44:16.746Z",
-      "updatedAt": "2026-08-12T09:44:16.746Z"
+      "updatedAt": "2026-10-10T13:36:35.000Z"
     },
     "grilling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/productivity/grilling/SKILL.md",
-      "skillFolderHash": "fd99bcbb818f7ef766b83656fb5fac0b58e223ad",
+      "skillFolderHash": "28aceb4c9567b985cb47f7db88cf23c9f33af8b8",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-08-12T09:44:16.746Z",
-      "updatedAt": "2026-08-12T09:44:16.746Z"
+      "updatedAt": "2026-10-10T13:36:35.000Z"
     },
     "handoff": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/productivity/handoff/SKILL.md",
-      "skillFolderHash": "184d485ae68a2132893a94239b2b85d253e6152b",
+      "skillFolderHash": "ce24892bd2d4b9e7fd5ac9b95c03175e18bef388",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-08-12T09:44:16.748Z",
-      "updatedAt": "2026-08-12T09:44:16.748Z"
+      "updatedAt": "2026-10-10T13:36:35.000Z"
     },
     "herdr": {
       "source": "herdrdev/herdr",

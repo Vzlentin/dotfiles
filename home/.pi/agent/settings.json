@@ -29,5 +29,6 @@
     "anthropic/claude-opus-5-5": "medium",
     "radius/claude-opus-5-5": "medium",
     "cursor/claude-opus-5-5-1m": "medium"
-  }
+  },
+  "hideThinkingBlock": true
 }
