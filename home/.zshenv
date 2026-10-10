@@ -9,6 +9,7 @@ export SHELL_SESSIONS_DISABLE=1
 export EDITOR="nvim"
 export VISUAL="$EDITOR"
 export VAULT="${VAULT:-$HOME/vault}"
+export PI_IPYTHON_ROOT="${PI_IPYTHON_ROOT:-$HOME/Dev/perso/pi-ipython}"
 
 export AZURE_CONFIG_DIR="$XDG_CONFIG_HOME/azure"
 export DOCKER_CONFIG="$XDG_CONFIG_HOME/docker"
