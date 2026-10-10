@@ -2,8 +2,8 @@
   "name": "pi-extensions",
   "private": true,
   "dependencies": {
-    "@ogulcancelik/pi-codex-compaction": "^0.1.5",
-    "@ogulcancelik/pi-minimal-footer": "^0.1.13",
+    "@ogulcancelik/pi-codex-compaction": "^0.1.6",
+    "@ogulcancelik/pi-minimal-footer": "^0.1.14",
     "@ogulcancelik/pi-session-recall": "^1.0.7"
   }
 }
