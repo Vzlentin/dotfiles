@@ -60,10 +60,10 @@ the outcome, read from the last `shipped`, `stopped`, `blocked`, `failed` or `in
 - **blocked**: `blocked <subject> after <n> rounds: <worktree>`, then the implementer's reply, exit
   code 1. A round changed nothing. Give the branch, the worktree and the implementer's reply, which
   says why.
-- **failed**: `failed <subject>: <error>`, then `continue with: workflows ship resume <run-id>`, exit
+- **failed**: `failed <subject>: <error>`, then `continue with: workflows resume <run-id>`, exit
   code 1, for example a failing Git hook or a model error that remained after Pi's retries. Quote
   the error and give the resume command. Do not resume it yourself.
-- **interrupted**: `interrupted; continue with: workflows ship resume <run-id>`, exit code 130. Give
+- **interrupted**: `interrupted; continue with: workflows resume <run-id>`, exit code 130. Give
   the resume command.
 - Anything else, such as a stack trace: quote the error.
 
