@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "1.1.0",
+  "lastChangelogVersion": "1.2.0",
   "theme": "dark",
   "externalEditor": "nvim",
   "defaultProvider": "anthropic",
@@ -18,8 +18,7 @@
     "https://github.com/Vzlentin/pi-rlm",
     "https://github.com/Vzlentin/pi-autoresearch",
     "https://github.com/Vzlentin/pi-cursor",
-    "git:github.com/paoloanzn/pi-black",
-    "git:github.com/aliceisjustplaying/pi-herdr-subagents"
+    "git:github.com/paoloanzn/pi-black"
   ],
   "tuiMode": "fullscreen",
   "defaultTools": [
