@@ -47,7 +47,7 @@ const CreateGoalParams = Type.Object({
 			"Required. The concrete objective to start pursuing. This starts a new active goal when no unfinished goal exists. If the previous goal is complete, it is replaced.",
 	}),
 	token_budget: Type.Optional(
-		Type.Number({ description: "Optional positive integer token budget for the new goal. Omit unless explicitly requested." }),
+		Type.Integer({ minimum: 1, description: "Optional token budget for the new goal. Omit unless explicitly requested." }),
 	),
 });
 
@@ -578,11 +578,8 @@ export default function goalExtension(pi: ExtensionAPI) {
 			details: { goalId: snapshot.id },
 		};
 		try {
-			if (ctx.isIdle()) {
-				pi.sendMessage(message, { triggerTurn: true });
-			} else {
-				pi.sendMessage(message, { triggerTurn: true, deliverAs: "followUp" });
-			}
+			// Starts a run when idle, otherwise queues after the current one.
+			pi.sendMessage(message, { triggerTurn: true, deliverAs: "followUp" });
 		} catch (err) {
 			continuationQueued = false;
 			ctx.ui.notify(`Failed to queue goal continuation: ${err instanceof Error ? err.message : String(err)}`, "error");
