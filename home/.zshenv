@@ -31,3 +31,4 @@ user_path=(
     "$HOME/.local/bin"
 )
 path=($user_path $path)
+export NODE_EXTRA_CA_CERTS="$HOME/.cato-ca.pem"
