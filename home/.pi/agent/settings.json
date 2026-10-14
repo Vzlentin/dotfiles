@@ -14,7 +14,8 @@
     "https://github.com/Vzlentin/pi-rlm",
     "https://github.com/Vzlentin/pi-autoresearch",
     "https://github.com/Vzlentin/pi-cursor",
-    "git:github.com/paoloanzn/pi-black"
+    "git:github.com/paoloanzn/pi-black",
+    "https://github.com/Vzlentin/pi-subagent"
   ],
   "tuiMode": "fullscreen",
   "defaultTools": [
