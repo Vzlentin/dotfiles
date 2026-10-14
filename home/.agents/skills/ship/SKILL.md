@@ -1,18 +1,18 @@
 ---
 name: ship
-description: Ship one work item, from an idea, a GitHub issue or a markdown file, onto a new branch with `workflows ship`, and report whether it shipped
+description: Ship one work item, from an idea, a GitHub issue or a markdown file, onto a new branch with the `workflow` tool, and report whether it shipped
 argument-hint: "[--base <ref>] [--rounds <n>] <idea | #issue | item.md>"
-compatibility: Requires git, gh and the `workflows` command (`npm ci && npm run build && npm link` in ~/Dev/perso/workflows).
+compatibility: Requires git, gh, the `workflow` tool of the workflows Pi package, and the `workflows` command for `show` (`npm ci && npm run build && npm link` in ~/Dev/perso/workflows).
 disable-model-invocation: true
 ---
-Ship the work item in the arguments below with `workflows ship`. The engine's own sessions plan,
+Ship the work item in the arguments below with the `workflow` tool. The engine's own sessions plan,
 implement, review and judge it; your job is to hand it a work item, wait, and report. Never plan,
 edit or commit in the repository yourself, and never merge, push or delete the branch.
 
 ## 1. Resolve the work item
 
-Leading `--base <ref>` and `--rounds <n>` flags go to `workflows ship` unchanged. The rest is the
-input, and the first kind that matches wins:
+Leading `--base <ref>` and `--rounds <n>` flags become the `base` and `rounds` args of the tool.
+The rest is the input, and the first kind that matches wins:
 
 1. **Markdown file**: a path to an existing `.md` file. It is the work item as it is.
 2. **GitHub issue**: `#N`, `N` or an issue URL. Read it with
@@ -26,45 +26,45 @@ Write a new work item to `${XDG_STATE_HOME:-$HOME/.local/state}/workflows/items/
 Stop and ask when the input names nothing: a `.md` path that does not exist, or an issue `gh`
 cannot find.
 
-## 2. Run `workflows ship`
+## 2. Run the `workflow` tool
 
-The engine is the `workflows` command, linked with `npm link` from `~/Dev/perso/workflows`. It runs
-that checkout's built `dist/`, so a change on its `main` takes effect only after `npm run build`
-there. Stop and report if `command -v workflows` finds nothing.
+Use the `workflow` tool. Do not run `workflows ship` through bash, and do not rebuild
+`~/Dev/perso/workflows`: the tool runs the Pi package's own source. Stop and report if the tool is
+not available.
 
-The repository is the output of `git rev-parse --show-toplevel` in the current directory. Run, in
-the foreground and without a timeout:
+The repository is the output of `git rev-parse --show-toplevel` in the current directory. Call the
+tool once, with absolute paths:
 
-```sh
-workflows ship --repo <repository> [flags] <work item path>
+```js
+{ name: "ship", args: { item: "<absolute work item path>", repo: "<repository>", base?: "<ref>", rounds?: <n> } }
 ```
 
-It runs headless until the item ships or stops, which takes many minutes, and prints one progress
-line on stderr as each session starts: `plan`, `round <n>: implement`, `round <n>: review`, `judge`.
-Wait for it: do not background it, poll it or run it twice.
+It runs headless until the item ships or stops, which takes many minutes, and shows one progress
+step as each session starts: `plan`, `round <n>: implement`, `round <n>: review`, `judge`. Wait for
+it: do not poll it or call it twice.
 
 ## 3. Report
 
-The first line of output is `run <run-id>`. The item's branch is `ship/<run-id>`, and the run
-directory is `${XDG_STATE_HOME:-$HOME/.local/state}/workflows/runs/<run-id>`, with the worktree in
-`worktree/` and the patches each review got in `round-<n>.patch` and `round-<n>-fix.patch`. Lead with
-the outcome, read from the last `shipped`, `stopped`, `blocked`, `failed` or `interrupted` line:
+The result is `{ runId, status, result?, report?, error? }`. The item's branch is `ship/<runId>`,
+and the run directory is `${XDG_STATE_HOME:-$HOME/.local/state}/workflows/runs/<runId>`, with the
+worktree in `worktree/` and the patches each review got in `round-<n>.patch` and
+`round-<n>-fix.patch`. Lead with the outcome. For a `finished` status, read it from `result.status`
+and the `report` lines:
 
-- **shipped**: `shipped <subject> in <n> rounds, judge <score>, <commit>`, exit code 0. Give the
-  branch, the rounds, the score and the judge's findings from
+- **shipped**: `shipped <subject> in <n> rounds, judge <score>, <commit>`. Give the branch, the
+  rounds, the score and the judge's findings from `result.findings`, or from
   `git -C <run directory>/worktree log -1 --format=%B`. A `judge failed` score means the commit has
-  no `Judge` trailer. Merging it is the user's call.
-- **stopped**: `stopped <subject> after <n> rounds: <worktree>`, exit code 1. Give the branch, the
-  worktree and the last round's patches. The review's findings are only in the run's store, and
-  `workflows` has no command to print them yet; do not guess them.
-- **blocked**: `blocked <subject> after <n> rounds: <worktree>`, then the implementer's reply, exit
-  code 1. A round changed nothing. Give the branch, the worktree and the implementer's reply, which
-  says why.
-- **failed**: `failed <subject>: <error>`, then `continue with: workflows resume <run-id>`, exit
-  code 1, for example a failing Git hook or a model error that remained after Pi's retries. Quote
-  the error and give the resume command. Do not resume it yourself.
-- **interrupted**: `interrupted; continue with: workflows resume <run-id>`, exit code 130. Give
-  the resume command.
-- Anything else, such as a stack trace: quote the error.
+  no `Judge` trailer, and `result.judgeError` says why. Merging it is the user's call.
+- **stopped**: `stopped <subject> after <n> rounds: <worktree>`. Give the branch, the worktree, the
+  last round's patches and the last review's findings. Read the findings from the run's store with
+  `workflows show <runId> --json`: the `ask` calls under the phase `round <n>: review` of the last
+  round. `show` only reads the store. Do not guess the findings.
+- **blocked**: `blocked <subject> after <n> rounds: <worktree>`. A round changed nothing. Give the
+  branch, the worktree and the implementer's reply from `result.reply`, which says why.
+- **failed** status: `error` holds the error, for example a failing Git hook or a model error that
+  remained after Pi's retries. Quote the error and say that the `workflow` tool with
+  `{ resume: "<runId>" }` continues the run. Do not resume it yourself.
+- **interrupted** status: the run was stopped. Say that `{ resume: "<runId>" }` continues it.
+- A tool error before a run exists, such as bad usage: quote the error.
 
 Then give the work item path and the run directory.
