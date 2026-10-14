@@ -9,7 +9,7 @@
 import { randomUUID } from "node:crypto";
 
 import { StringEnum } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 const STATE_TYPE = "goal";
@@ -388,8 +388,9 @@ function lastAssistantMessage(messages: Array<{ role?: string; stopReason?: stri
 	return undefined;
 }
 
-function wasLastAssistantAborted(messages: Array<{ role?: string; stopReason?: string }>): boolean {
-	return lastAssistantMessage(messages)?.stopReason === "aborted";
+// Print and json modes exit when the command returns.
+async function waitInPrintMode(ctx: ExtensionCommandContext): Promise<void> {
+	if (ctx.mode === "print" || ctx.mode === "json") await ctx.waitForIdle();
 }
 
 function goalStopStatusForAssistantError(message: { errorMessage?: string } | undefined): GoalStatus {
@@ -402,6 +403,8 @@ export default function goalExtension(pi: ExtensionAPI) {
 	let activeSinceMs: number | null = null;
 	let activeGoalIdAtAgentStart: string | null = null;
 	let continuationQueued = false;
+	// Last message of a run that ended with an error or an abort, for agent_settled to handle.
+	let stoppedRun: { stopReason?: string; errorMessage?: string } | undefined;
 	let turn = 0;
 	let turnRunning = false;
 
@@ -591,6 +594,7 @@ export default function goalExtension(pi: ExtensionAPI) {
 		activeSinceMs = null;
 		activeGoalIdAtAgentStart = null;
 		continuationQueued = false;
+		stoppedRun = undefined;
 		turn = 0;
 		turnRunning = running;
 
@@ -639,6 +643,7 @@ export default function goalExtension(pi: ExtensionAPI) {
 
 	pi.on("agent_end", async (event, ctx) => {
 		turnRunning = false;
+		stoppedRun = undefined;
 		if (!goal) {
 			persist("audit");
 			return;
@@ -665,9 +670,24 @@ export default function goalExtension(pi: ExtensionAPI) {
 
 		if (goal.status !== "active") return;
 
+		// An abort during a tool call ends with stopReason "error", and Pi may still retry an error,
+		// so agent_settled decides.
 		const lastAssistant = lastAssistantMessage(event.messages);
-		if (lastAssistant?.stopReason === "error") {
-			const status = goalStopStatusForAssistantError(lastAssistant);
+		if (lastAssistant?.stopReason === "error" || lastAssistant?.stopReason === "aborted") {
+			stoppedRun = lastAssistant;
+			return;
+		}
+
+		queueContinuation(ctx);
+	});
+
+	pi.on("agent_settled", async (event, ctx) => {
+		const stopped = stoppedRun;
+		stoppedRun = undefined;
+		if (!stopped || !goal || goal.status !== "active") return;
+
+		if (!event.aborted && stopped.stopReason !== "aborted") {
+			const status = goalStopStatusForAssistantError(stopped);
 			setGoalStatus(status);
 			persist("status");
 			showGoalMessage(`Goal ${statusLabel(status)}\n\nThe last goal turn ended with an error, so automatic continuation was stopped.\n\n${goalSummary(goal)}`);
@@ -675,27 +695,22 @@ export default function goalExtension(pi: ExtensionAPI) {
 			return;
 		}
 
-		if (wasLastAssistantAborted(event.messages)) {
-			if (!ctx.hasUI) {
-				setGoalStatus("paused");
-				persist("status");
-				updateStatus(ctx);
-				return;
-			}
+		if (ctx.hasUI) {
 			const pause = await ctx.ui.confirm(
 				"Pause active goal?",
 				"Operation aborted. Pause this goal instead of automatically continuing?",
 			);
-			if (pause) {
-				setGoalStatus("paused");
-				persist("status");
-				showGoalMessage(`Goal paused\n\n${goalSummary(goal)}`);
-				updateStatus(ctx);
+			if (!pause) {
+				// Pi starts no run for a message queued during an aborted run, but defers one
+				// requested here until the settled handlers finish.
+				queueContinuation(ctx);
 				return;
 			}
 		}
-
-		queueContinuation(ctx);
+		setGoalStatus("paused");
+		persist("status");
+		if (ctx.hasUI) showGoalMessage(`Goal paused\n\n${goalSummary(goal)}`);
+		updateStatus(ctx);
 	});
 
 	pi.on("context", async (event) => {
@@ -766,6 +781,7 @@ export default function goalExtension(pi: ExtensionAPI) {
 						showGoalMessage(`Goal active\n\n${goalSummary(currentGoalSnapshot()!)}`);
 						updateStatus(ctx);
 						queueContinuation(ctx);
+						await waitInPrintMode(ctx);
 					} catch (err) {
 						showGoalMessage(`Failed to update thread goal: ${err instanceof Error ? err.message : String(err)}`);
 					}
@@ -820,6 +836,7 @@ export default function goalExtension(pi: ExtensionAPI) {
 			showGoalMessage(`Goal active\n\n${goalSummary(goal!)}`);
 			updateStatus(ctx);
 			queueContinuation(ctx);
+			await waitInPrintMode(ctx);
 		},
 	});
 
