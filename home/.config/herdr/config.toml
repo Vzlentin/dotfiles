@@ -60,6 +60,17 @@ pane=$("$HERDR_BIN_PATH" pane split $HERDR_ACTIVE_PANE_ID --direction right --fo
 [ -n "$pane" ] && "$HERDR_BIN_PATH" pane run "$pane" "exec lazygit"
 '''
 
+# prefix+t is taken by the "scratch shell" popup above.
+[[keys.command]]
+key = "prefix+alt+t"
+type = "plugin_action"
+description = "smart rename current tab"
+command = "tab-smart-rename.rename-now"
+
+[ui]
+# Smart Rename names new tabs. A typed name would lock the tab.
+prompt_new_tab_name = false
+
 
 [theme]
 name = "terminal"
