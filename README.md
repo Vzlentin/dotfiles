@@ -42,6 +42,8 @@ export VAULT="$HOME/vault/Val"
 
 `home/.agents/skills/` holds the shared [Agent Skills](https://agentskills.io/). `home/.agents/.skill-lock.json` records upstream sources. Use `/skill:<name>` to load one explicitly.
 
+Pi uses its `system` theme, which builds its colors from the Ghostty theme. After you change the Ghostty theme, run `herdr-pi-theme` to give Herdr the same colors. It runs Pi's theme generator on the colors from `ghostty +show-config`, writes them to the marked block in Herdr's `config.toml`, and reloads Herdr.
+
 The `codex` and `claude` aliases disable approval checks. Use them only where unrestricted agent access is fine.
 
 ## Shell

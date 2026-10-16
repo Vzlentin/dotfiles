@@ -64,9 +64,29 @@ pane=$("$HERDR_BIN_PATH" pane split $HERDR_ACTIVE_PANE_ID --direction right --fo
 [theme]
 name = "terminal"
 
+# herdr-pi-theme writes Pi's `system` colors for the Ghostty theme here.
+# BEGIN herdr-pi-theme
+# Generated from Pi 1.3.0 `system` colors for Ghostty `Desert`. Run herdr-pi-theme to update.
 [theme.custom]
-# Finished agents use Pi's dark-theme footer accent.
-teal = "#8abeb7"
+accent = "#c0a172"
+panel_bg = "#453d33"
+active_row_bg = "#54371d"
+selection_bg = "#54371d"
+surface0 = "#453d33"
+surface1 = "#5d5242"
+surface_dim = "#8f816c"
+overlay0 = "#968772"
+overlay1 = "#b2a492"
+text = "reset"
+subtext0 = "#b2a492"
+mauve = "#c0a172"
+green = "#a2af5f"
+yellow = "#b3a950"
+red = "#e9877f"
+blue = "#d39051"
+teal = "#4dc174"
+peach = "#a2af5f"
+# END herdr-pi-theme
 
 [update]
 channel = "stable"

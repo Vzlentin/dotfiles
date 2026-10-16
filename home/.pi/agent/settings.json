@@ -1,6 +1,6 @@
 {
   "lastChangelogVersion": "1.2.0",
-  "theme": "dark",
+  "theme": "system",
   "externalEditor": "nvim",
   "defaultProvider": "anthropic",
   "defaultModel": "claude-opus-5-5",
