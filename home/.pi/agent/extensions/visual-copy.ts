@@ -689,7 +689,7 @@ class VisualCopy implements Component {
       this.findMatches(this.contentWidth());
     } else if ((key === "n" || key === "N") && this.query) {
       if (this.matchWidth !== this.contentWidth()) this.findMatches(this.contentWidth());
-      this.jump(this.query, this.backward !== (key === "N"), this.cursor);
+      this.jump(this.query, this.backward !== (key === "N"), this.cursor, this.anchor !== undefined);
     } else if (key === "v") {
       this.anchor = this.anchor === undefined ? this.cursor : undefined;
     } else if (key === "V") {
@@ -778,7 +778,9 @@ class VisualCopy implements Component {
 
   // Goes to the next match, or the previous one when `backward` is set. With no current match,
   // it starts after or before the `origin` block. At the ends it wraps, as Vim does.
-  private jump(query: string, backward: boolean, origin: number): void {
+  // With `byBlock`, it skips the other matches in the current block and stops on the
+  // first match of the next block, so a range grows one block at a time.
+  private jump(query: string, backward: boolean, origin: number, byBlock = false): void {
     const count = this.matches.length;
     if (count === 0) {
       this.notice = { text: `Pattern not found: ${query}`, error: true };
@@ -786,13 +788,18 @@ class VisualCopy implements Component {
       return;
     }
     let next: number;
-    if (this.current !== undefined) next = this.current + (backward ? -1 : 1);
-    else if (backward) next = this.matches.findLastIndex((m) => m.block < origin);
+    const step = backward ? -1 : 1;
+    if (this.current !== undefined) {
+      next = this.current + step;
+      const block = this.matches[this.current].block;
+      while (byBlock && next >= 0 && next < count && this.matches[next].block === block) next += step;
+    } else if (backward) next = this.matches.findLastIndex((m) => m.block < origin);
     else next = this.matches.findIndex((m) => m.block > origin);
     if (next < 0 || next >= count) {
       next = backward ? count - 1 : 0;
       this.notice = { text: backward ? "search hit TOP, continuing at BOTTOM" : "search hit BOTTOM, continuing at TOP", error: false };
     }
+    while (byBlock && next > 0 && this.matches[next - 1].block === this.matches[next].block) next--;
     this.move(this.matches[next].block, next);
   }
 
@@ -836,7 +843,7 @@ class VisualCopy implements Component {
       ["v", "range"],
       ["V", "msg range"],
       ["/ ?", "search"],
-      ...(this.query ? [["n/N", "next/prev"]] : []),
+      ...(this.query ? [["n/N", this.anchor === undefined ? "next/prev" : "next/prev block"]] : []),
       ...(this.image()
         ? [["y", "copy image"], ["Y", "copy path"]]
         : this.diagram()
