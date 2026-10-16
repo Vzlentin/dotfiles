@@ -1,5 +1,6 @@
 {
   "tui.altScreen.searchPrevious": "shift+enter",
   "tui.altScreen.previousPrompt": "ctrl+j",
-  "tui.altScreen.nextPrompt": "ctrl+k"
+  "tui.altScreen.nextPrompt": "ctrl+k",
+  "app.session.rename": "ctrl+e"
 }
