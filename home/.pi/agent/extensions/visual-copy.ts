@@ -103,6 +103,16 @@ interface Block extends Segment {
 
 const RAW_FLASH_MS = 150;
 
+// One match of the search query: a row of a rendered assistant message, and the
+// columns in its visible text. `block` is the innermost block that has the row.
+interface Match {
+  block: number;
+  owner: Owner;
+  row: number;
+  start: number;
+  end: number;
+}
+
 type CopyResult =
   | { text: string }
   | { diagram: { source: string; lines?: string[] } }
@@ -153,6 +163,8 @@ function run(argv) {
   return width + "x" + height;
 }`;
 const SGR = /\x1b\[([\d;]*)m/g;
+// One terminal sequence: CSI, OSC, APC or a two-byte escape.
+const ESCAPE = /\x1b(?:\[[0-9;:?<=>]*[ -\/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|_[^\x1b]*\x1b\\|[@-Z\\-_])/y;
 const segmentCache = new WeakMap<MarkdownNode, { width: number; text: string; segments: Segment[] }>();
 
 function isMarkdown(node: unknown): node is MarkdownNode {
@@ -391,6 +403,62 @@ async function copyDiagram(diagram: { source: string; lines?: string[] }, theme:
   return stdout.trim();
 }
 
+// Gives the visible text of a rendered line, and the position in the line of each code unit of it.
+function plainText(line: string): { text: string; index: number[] } {
+  let text = "";
+  const index: number[] = [];
+  let i = 0;
+  while (i < line.length) {
+    ESCAPE.lastIndex = i;
+    const escape = ESCAPE.exec(line);
+    if (escape) {
+      i += escape[0].length;
+      continue;
+    }
+    const char = String.fromCodePoint(line.codePointAt(i)!);
+    for (let unit = 0; unit < char.length; unit++) index.push(i + unit);
+    text += char;
+    i += char.length;
+  }
+  return { text, index };
+}
+
+// Gives the start of each match of the query in the text. The query ignores case
+// unless it has an uppercase letter, as Vim does with smartcase.
+function occurrences(text: string, query: string): number[] {
+  const fold = query === query.toLowerCase();
+  const haystack = fold ? text.toLowerCase() : text;
+  const found: number[] = [];
+  for (let at = haystack.indexOf(query); at !== -1; at = haystack.indexOf(query, at + query.length)) found.push(at);
+  return found;
+}
+
+// Puts each visible character of the ranges between the open and close sequences of its range.
+// Each character gets its own sequences, so the colors of the line cannot cancel them.
+function highlightLine(line: string, ranges: Array<{ start: number; end: number; style: [string, string] }>): string {
+  const { index } = plainText(line);
+  const styles = new Map<number, [string, string]>();
+  for (const { start, end, style } of ranges) {
+    for (let k = start; k < end && k < index.length; k++) styles.set(index[k], style);
+  }
+  let out = "";
+  let i = 0;
+  while (i < line.length) {
+    ESCAPE.lastIndex = i;
+    const escape = ESCAPE.exec(line);
+    if (escape) {
+      out += escape[0];
+      i += escape[0].length;
+      continue;
+    }
+    const char = String.fromCodePoint(line.codePointAt(i)!);
+    const style = styles.get(i);
+    out += style ? style[0] + char + style[1] : char;
+    i += char.length;
+  }
+  return out;
+}
+
 function segmentsOf(markdown: MarkdownNode, width: number): Segment[] {
   const cached = segmentCache.get(markdown);
   if (cached?.width === width && cached.text === markdown.text) return cached.segments;
@@ -532,6 +600,17 @@ class VisualCopy implements Component {
   private anchor: number | undefined;
   private raw = false;
   private pendingReveal = true;
+  // The query while the user types it after `/` or `?`, and the cursor before the search started.
+  private search: { query: string; origin: number; backward: boolean } | undefined;
+  private query = "";
+  private backward = false;
+  private matches: Match[] = [];
+  private matchWidth = -1;
+  private renderWidth: number | undefined;
+  private current: number | undefined;
+  private notice: { text: string; error: boolean } | undefined;
+  private readonly renders = new Map<Owner, (width: number) => string[]>();
+  private readonly matchStyles: { other: [string, string]; current: [string, string] };
   private readonly scrollView: ScrollViewNode | undefined;
   private readonly savedScroll: number | "end" | undefined;
   private readonly background: [string, string];
@@ -547,9 +626,14 @@ class VisualCopy implements Component {
     this.savedScroll = this.scrollView?.isFollowingEnd ? "end" : this.scrollView?.scrollTop;
     const [open, close] = theme.bg("selectedBg", "\u0000").split("\u0000");
     this.background = [open, close];
+    this.matchStyles = {
+      other: ["\x1b[7m", "\x1b[27m"],
+      current: [theme.getFgAnsi("warning").replace("[38;", "[48;") + "\x1b[30m", "\x1b[39m\x1b[49m"],
+    };
 
     for (const owner of new Set(blocks.map((b) => b.owner))) {
       const render = owner.render;
+      this.renders.set(owner, render);
       owner.render = (width) => this.decorate(owner, render.call(owner, width), width);
     }
   }
@@ -564,6 +648,8 @@ class VisualCopy implements Component {
   handleInput(data: string): void {
     if (this.raw) return;
     const key = decodeKittyPrintable(data) ?? data;
+    if (this.search) return this.handleSearchInput(data, key);
+    this.notice = undefined;
     const last = this.blocks.length - 1;
     const message = this.blocks[this.cursor].message;
     const messageStart = (m: number) => this.blocks.findIndex((b) => b.message === m);
@@ -598,6 +684,12 @@ class VisualCopy implements Component {
       this.move(0);
     } else if (key === "G" || matchesKey(data, "end")) {
       this.move(last);
+    } else if (key === "/" || key === "?") {
+      this.search = { query: "", origin: this.cursor, backward: key === "?" };
+      this.findMatches(this.contentWidth());
+    } else if ((key === "n" || key === "N") && this.query) {
+      if (this.matchWidth !== this.contentWidth()) this.findMatches(this.contentWidth());
+      this.jump(this.query, this.backward !== (key === "N"), this.cursor);
     } else if (key === "v") {
       this.anchor = this.anchor === undefined ? this.cursor : undefined;
     } else if (key === "V") {
@@ -607,6 +699,101 @@ class VisualCopy implements Component {
       return;
     }
     this.tui.requestRender();
+  }
+
+  // While the user types, the cursor goes to the first match from the start position, as Vim incsearch does.
+  private handleSearchInput(data: string, key: string): void {
+    const search = this.search!;
+    if (matchesKey(data, "escape") || (matchesKey(data, "backspace") && !search.query)) {
+      this.search = undefined;
+      this.notice = undefined;
+      this.findMatches(this.contentWidth());
+      this.move(search.origin);
+    } else if (matchesKey(data, "enter")) {
+      this.search = undefined;
+      // An empty query repeats the last search, as in Vim.
+      if (search.query) this.query = search.query;
+      this.backward = search.backward;
+      const current = this.current;
+      this.findMatches(this.contentWidth());
+      if (search.query) this.current = current;
+      else if (this.query) this.jump(this.query, search.backward, search.origin);
+    } else if (matchesKey(data, "backspace")) {
+      search.query = [...search.query].slice(0, -1).join("");
+      this.incremental(search);
+    } else if (/^[^\x00-\x1f\x7f]+$/.test(key)) {
+      search.query += key;
+      this.incremental(search);
+    } else {
+      return;
+    }
+    this.tui.requestRender();
+  }
+
+  private incremental(search: { query: string; origin: number; backward: boolean }): void {
+    this.notice = undefined;
+    this.findMatches(this.contentWidth());
+    if (search.query) this.jump(search.query, search.backward, search.origin);
+    else this.move(search.origin);
+  }
+
+  // Matches use the width that the messages get when they render.
+  private contentWidth(): number {
+    return this.renderWidth ?? this.scrollView?.getContentWidth(this.tui.terminal.columns) ?? this.tui.terminal.columns;
+  }
+
+  private activeQuery(): string {
+    return this.search ? this.search.query : this.query;
+  }
+
+  // Finds each match of the active query in the rendered assistant messages, in document order.
+  private findMatches(width: number): void {
+    this.matchWidth = width;
+    this.matches = [];
+    this.current = undefined;
+    const query = this.activeQuery();
+    if (!query) return;
+    const needle = query === query.toLowerCase() ? query.toLowerCase() : query;
+    for (const [owner, render] of this.renders) {
+      if (!isAssistant(owner)) continue;
+      const spans: Array<{ block: number; rows: Rows }> = [];
+      this.blocks.forEach((block, i) => {
+        const rows = block.owner === owner && !block.image ? blockRows(block, width, false) : undefined;
+        if (rows) spans.push({ block: i, rows });
+      });
+      if (spans.length === 0) continue;
+      render.call(owner, width).forEach((line, row) => {
+        let inner: { block: number; rows: Rows } | undefined;
+        for (const span of spans) {
+          if (row < span.rows[0] || row > span.rows[1]) continue;
+          if (!inner || span.rows[1] - span.rows[0] < inner.rows[1] - inner.rows[0]) inner = span;
+        }
+        if (!inner) return;
+        for (const start of occurrences(plainText(line).text, needle)) {
+          this.matches.push({ block: inner.block, owner, row, start, end: start + needle.length });
+        }
+      });
+    }
+  }
+
+  // Goes to the next match, or the previous one when `backward` is set. With no current match,
+  // it starts after or before the `origin` block. At the ends it wraps, as Vim does.
+  private jump(query: string, backward: boolean, origin: number): void {
+    const count = this.matches.length;
+    if (count === 0) {
+      this.notice = { text: `Pattern not found: ${query}`, error: true };
+      this.move(origin);
+      return;
+    }
+    let next: number;
+    if (this.current !== undefined) next = this.current + (backward ? -1 : 1);
+    else if (backward) next = this.matches.findLastIndex((m) => m.block < origin);
+    else next = this.matches.findIndex((m) => m.block > origin);
+    if (next < 0 || next >= count) {
+      next = backward ? count - 1 : 0;
+      this.notice = { text: backward ? "search hit TOP, continuing at BOTTOM" : "search hit BOTTOM, continuing at TOP", error: false };
+    }
+    this.move(this.matches[next].block, next);
   }
 
   invalidate(): void {}
@@ -629,11 +816,27 @@ class VisualCopy implements Component {
       `msg ${block.message + 1}/${this.blocks[this.blocks.length - 1].message + 1}` +
         ` · block ${inMessage.indexOf(block) + 1}/${inMessage.length}`,
     );
+    const count = this.matches.length;
+    const counter = count === 0 ? "" : theme.fg("muted", ` [${this.current === undefined ? "-" : this.current + 1}/${count}]`);
+    const notice = this.notice ? "  " + theme.fg(this.notice.error ? "error" : "warning", this.notice.text) : "";
+    const border = theme.fg("borderAccent", "\u2500".repeat(width));
+    if (this.search) {
+      const prompt = theme.fg("accent", this.search.backward ? "?" : "/") + this.search.query + theme.inverse(" ");
+      const line = ` ${prompt}${counter}${notice}`;
+      const searchHints = [["enter", "keep"], ["esc", "cancel"]]
+        .map(([k, label]) => theme.fg("accent", k) + theme.fg("dim", ` ${label}`))
+        .join(theme.fg("dim", " \u00b7 "));
+      const pad = " ".repeat(Math.max(2, width - visibleWidth(line) - visibleWidth(searchHints) - 1));
+      return [border, truncateToWidth(line + pad + searchHints, width), border];
+    }
+    const searchState = this.query ? theme.fg("muted", `  ${this.backward ? "?" : "/"}${this.query}`) + counter : "";
     const hints = [
       ["j/k", "block"],
       ["{/}", "msg"],
       ["v", "range"],
       ["V", "msg range"],
+      ["/ ?", "search"],
+      ...(this.query ? [["n/N", "next/prev"]] : []),
       ...(this.image()
         ? [["y", "copy image"], ["Y", "copy path"]]
         : this.diagram()
@@ -644,14 +847,14 @@ class VisualCopy implements Component {
       .map(([k, label]) => theme.fg("accent", k) + theme.fg("dim", ` ${label}`))
       .join(theme.fg("dim", " · "));
 
-    const left = `${mode} ${position}`;
+    const left = `${mode} ${position}${searchState}${notice}`;
     const gap = " ".repeat(Math.max(2, width - visibleWidth(left) - visibleWidth(hints) - 1));
-    const border = theme.fg("borderAccent", "─".repeat(width));
     return [border, truncateToWidth(left + gap + hints, width), border];
   }
 
-  private move(target: number): void {
+  private move(target: number, match?: number): void {
     this.cursor = target;
+    this.current = match;
     this.pendingReveal = true;
   }
 
@@ -691,7 +894,29 @@ class VisualCopy implements Component {
       .join("\n\n");
   }
 
-  private decorate(owner: Owner, lines: string[], width: number): string[] {
+  // Marks each match in the message rows, and the current match in its own color.
+  private highlight(owner: Owner, lines: string[], width: number): string[] {
+    this.renderWidth = width;
+    if (!this.activeQuery()) return lines;
+    if (width !== this.matchWidth) this.findMatches(width);
+    const rows = new Map<number, Array<{ start: number; end: number; style: [string, string] }>>();
+    this.matches.forEach((match, i) => {
+      if (match.owner !== owner) return;
+      const style = i === this.current ? this.matchStyles.current : this.matchStyles.other;
+      const ranges = rows.get(match.row) ?? [];
+      ranges.push({ start: match.start, end: match.end, style });
+      rows.set(match.row, ranges);
+    });
+    if (rows.size === 0) return lines;
+    const result = lines.slice();
+    for (const [row, ranges] of rows) {
+      if (row < result.length) result[row] = highlightLine(result[row], ranges);
+    }
+    return result;
+  }
+
+  private decorate(owner: Owner, rendered: string[], width: number): string[] {
+    const lines = this.highlight(owner, rendered, width);
     const [from, to] = this.range();
     let span: Rows | undefined;
     let cursor: Rows | undefined;
@@ -733,6 +958,15 @@ class VisualCopy implements Component {
     const margin = 2;
     const top = owner + rows[0] - margin;
     const bottom = owner + rows[1] + margin;
+    const match = this.current === undefined ? undefined : this.matches[this.current];
+    if (match?.block === this.cursor && bottom - top + 1 > view.viewportHeight) {
+      // The block is taller than the view, so the view goes to the match row and puts it in the middle.
+      const row = owner + match.row;
+      if (row - margin < view.scrollTop || row + margin >= view.scrollTop + view.viewportHeight) {
+        view.scrollTo(Math.max(0, row - Math.floor(view.viewportHeight / 2)), { disableFollow: true });
+      }
+      return;
+    }
     if (top < view.scrollTop || bottom - top + 1 > view.viewportHeight) {
       view.scrollTo(top, { disableFollow: true });
     } else if (bottom >= view.scrollTop + view.viewportHeight) {
