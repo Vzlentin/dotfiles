@@ -2,7 +2,7 @@
 name: ship
 description: Ship one work item, from an idea, a GitHub issue or a markdown file, onto a new branch with the `workflow` tool, and report whether it shipped
 argument-hint: "[--base <ref>] [--rounds <n>] <idea | #issue | item.md>"
-compatibility: Requires git, gh, the `workflow` tool of the workflows Pi package, and the `workflows` command for `show` (`npm ci && npm run build && npm link` in ~/Dev/perso/workflows).
+compatibility: Requires git, gh, the `workflow` tool of the workflows Pi package, and the `workflows` command for `show`.
 disable-model-invocation: true
 ---
 Ship the work item in the arguments below with the `workflow` tool. The engine's own sessions plan,
