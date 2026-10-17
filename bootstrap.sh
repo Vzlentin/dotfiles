@@ -279,4 +279,16 @@ if ! command -v workflows >/dev/null 2>&1 && [ -f "$HOME/Dev/perso/workflows/pyp
     UV_TOOL_BIN_DIR="$HOME/.local/bin" uv tool install --editable "$HOME/Dev/perso/workflows"
 fi
 
+harness_dir="$HOME/Dev/perso/harness"
+if [ -f "$harness_dir/src/cli.ts" ]; then
+    if [ ! -d "$harness_dir/node_modules" ]; then
+        printf '\n==> Installing harness dependencies\n'
+        npm ci --prefix "$harness_dir"
+    fi
+    # subagent is the same CLI as harness.
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$harness_dir/src/cli.ts" "$HOME/.local/bin/harness"
+    ln -sf "$harness_dir/src/cli.ts" "$HOME/.local/bin/subagent"
+fi
+
 printf 'Tools are ready.\n'

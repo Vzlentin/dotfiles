@@ -40,6 +40,8 @@ export VAULT="$HOME/vault/Val"
 
 `home/.pi/agent/` is the global [Pi](https://pi.dev/) configuration. The local extensions add `/clear`, `/goal`, `/vault`, `$NAME` path completion, `.agents/skills/` discovery up the directory tree (the deepest skill with a name wins, also over `~/.agents/skills/`), Herdr status updates, and `Ctrl+Shift+G` to edit the prompt in Neovim. Run `pi update --extensions` to update the packages listed in `settings.json`.
 
+When `~/Dev/perso/harness` is checked out, the bootstrap installs its dependencies and links `harness` and `subagent` in `~/.local/bin` to its `src/cli.ts`. The `pi-subagent` package does not need them, but agents use `subagent` in bash when they do not have the tool.
+
 `home/.agents/skills/` holds the shared [Agent Skills](https://agentskills.io/). `home/.agents/.skill-lock.json` records upstream sources. Use `/skill:<name>` to load one explicitly.
 
 Pi uses its `system` theme, which builds its colors from the Ghostty theme. After you change the Ghostty theme, run `herdr-pi-theme` to give Herdr the same colors. It runs Pi's theme generator on the colors from `ghostty +show-config`, writes them to the marked block in Herdr's `config.toml`, and reloads Herdr.
