@@ -274,19 +274,8 @@ if ! command -v ruff >/dev/null 2>&1; then
     UV_TOOL_BIN_DIR="$HOME/.local/bin" uv tool install ruff
 fi
 
-if ! command -v workflows >/dev/null 2>&1 && [ -f "$HOME/Dev/perso/workflows/pyproject.toml" ]; then
-    printf '\n==> Installing workflows\n'
-    UV_TOOL_BIN_DIR="$HOME/.local/bin" uv tool install --editable "$HOME/Dev/perso/workflows"
-fi
-
-harness_dir="$HOME/Dev/perso/harness"
-if [ -f "$harness_dir/src/cli.ts" ]; then
-    if [ ! -d "$harness_dir/node_modules" ]; then
-        printf '\n==> Installing harness dependencies\n'
-        npm ci --prefix "$harness_dir"
-    fi
-    mkdir -p "$HOME/.local/bin"
-    ln -sf "$harness_dir/src/cli.ts" "$HOME/.local/bin/harness"
-fi
+# Pi installs harness at its first start, or with pi update. The link follows that install, not a dev checkout.
+mkdir -p "$HOME/.local/bin"
+ln -sf "$HOME/.pi/agent/git/github.com/Vzlentin/harness/src/cli.ts" "$HOME/.local/bin/harness"
 
 printf 'Tools are ready.\n'
