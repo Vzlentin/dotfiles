@@ -285,10 +285,8 @@ if [ -f "$harness_dir/src/cli.ts" ]; then
         printf '\n==> Installing harness dependencies\n'
         npm ci --prefix "$harness_dir"
     fi
-    # subagent is the same CLI as harness.
     mkdir -p "$HOME/.local/bin"
     ln -sf "$harness_dir/src/cli.ts" "$HOME/.local/bin/harness"
-    ln -sf "$harness_dir/src/cli.ts" "$HOME/.local/bin/subagent"
 fi
 
 printf 'Tools are ready.\n'

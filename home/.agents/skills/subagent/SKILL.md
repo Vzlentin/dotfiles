@@ -7,7 +7,7 @@ description: Spawn and communicate with observable Pi subagents for second opini
 
 Use the `subagent` tool to delegate work to a separate agent with its own context. Each subagent is a conversation in one background host process, which starts when needed. A subagent can spawn its own subagents, but those cannot spawn more.
 
-When the tool is not available, use the `subagent` CLI in bash. It has the same commands (see [CLI](#cli)).
+When the tool is not available, use the `harness` CLI in bash. It has the same commands (see [CLI](#cli)).
 
 ## Spawn
 
@@ -71,20 +71,20 @@ Use `list` at any time to rediscover the subagents of this session and their han
 
 Explicitly stop every subagent when it is no longer needed; do not leave completed subagents idle. This stops its work and removes it. Keep an idle subagent only when concrete follow-up work is expected, then stop it afterward.
 
-For humans, not for you: `subagent attach <handle>` and the interactive `/subagent` command open a live viewer of a subagent, where the user can read and send messages.
+For humans, not for you: `harness attach <handle>` and the interactive `/subagent` command open a live viewer of a subagent, where the user can read and send messages.
 
 ## CLI
 
 ```sh
-subagent spawn --name implementation --prompt "Complete task"
-subagent spawn --tools read,bash --file /tmp/spec.md --prompt "Investigate the failure"
-subagent status <handle>
-subagent list
-subagent wait <handle>
-subagent rename <handle> "new name"
-subagent send <handle> "message"
-subagent send <handle> --follow-up "message"
-subagent stop <handle>
+harness spawn --name implementation --prompt "Complete task"
+harness spawn --tools read,bash --file /tmp/spec.md --prompt "Investigate the failure"
+harness status <handle>
+harness list
+harness wait <handle>
+harness rename <handle> "new name"
+harness send <handle> "message"
+harness send <handle> --follow-up "message"
+harness stop <handle>
 ```
 
-The CLI takes the provider, model, and reasoning level from the bash environment. Never pass `$PI_PROVIDER`, `$PI_MODEL`, or `$PI_REASONING_LEVEL` back to it explicitly. Repeat `--prompt` and `--file` as needed; `--tools` is a comma-separated list. Run `subagent spawn` and `subagent wait` directly, without piping or redirecting their output, so the bash tool returns it. Set the bash timeout above `wait`'s default 1800-second deadline.
+The CLI takes the provider, model, and reasoning level from the bash environment. Never pass `$PI_PROVIDER`, `$PI_MODEL`, or `$PI_REASONING_LEVEL` back to it explicitly. Repeat `--prompt` and `--file` as needed; `--tools` is a comma-separated list. Run `harness spawn` and `harness wait` directly, without piping or redirecting their output, so the bash tool returns it. Set the bash timeout above `wait`'s default 1800-second deadline.
