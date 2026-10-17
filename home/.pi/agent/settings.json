@@ -14,8 +14,7 @@
     "https://github.com/Vzlentin/pi-ipython",
     "https://github.com/Vzlentin/pi-rlm",
     "https://github.com/Vzlentin/pi-autoresearch",
-    "https://github.com/Vzlentin/pi-cursor",
-    "https://github.com/Vzlentin/pi-subagent"
+    "https://github.com/Vzlentin/pi-cursor"
   ],
   "tuiMode": "fullscreen",
   "defaultTools": [
