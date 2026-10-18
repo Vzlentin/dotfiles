@@ -51,7 +51,7 @@ Spawn prints `Spawned <name> (<handle>)`. The handle is the short hex ID in pare
 
 Use `list` at any time to rediscover the subagents of this session and their handles, names, and current states if you no longer remember them.
 
-`wait` waits until the subagent is idle, up to `timeout` seconds (default 1800), and gives its latest final assistant response. It fails when the last turn failed. `subagent` tool calls in one message run in message order, so a `wait` after a `send` in the same message waits for the answer to that message.
+`wait` waits until the subagent is idle, up to `timeout` seconds (default 1800), and gives its latest final assistant response. If an earlier answer of the spawn or a `send` was never given by a `wait`, it gives those answers first, oldest first, each under a `--- Answer <i> of <n> ---` line. It fails when the last turn failed, and the error still includes the earlier answers. `subagent` tool calls in one message run in message order, so a `wait` after a `send` in the same message waits for the answer to that message.
 
 ## Communicate
 
