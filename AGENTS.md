@@ -1,0 +1,2 @@
+- Never add tests here. Verify changes by running them. This overrides `home/AGENTS.md`.
+- Files under `home/` are linked into `$HOME`. `home/AGENTS.md` is the global agent policy for every directory, not the policy for this repository.
