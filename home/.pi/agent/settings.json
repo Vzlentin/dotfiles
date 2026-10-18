@@ -14,8 +14,8 @@
     "https://github.com/Vzlentin/pi-rlm",
     "https://github.com/Vzlentin/pi-autoresearch",
     "https://github.com/Vzlentin/pi-cursor",
-    "npm:@vzlentin/pi-subagent",
-    "npm:@vzlentin/pi-workflows"
+    "/opt/homebrew/lib/node_modules/@vzlentin/harness/pi",
+    "/opt/homebrew/lib/node_modules/@vzlentin/workflows/pi"
   ],
   "tuiMode": "fullscreen",
   "defaultTools": [
