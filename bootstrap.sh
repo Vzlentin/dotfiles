@@ -274,9 +274,4 @@ if ! command -v ruff >/dev/null 2>&1; then
     UV_TOOL_BIN_DIR="$HOME/.local/bin" uv tool install ruff
 fi
 
-# Pi installs harness and workflows at its first start, or with pi update. The links follow that install, not a dev checkout.
-mkdir -p "$HOME/.local/bin"
-ln -sf "$HOME/.pi/agent/git/github.com/Vzlentin/harness/src/cli.ts" "$HOME/.local/bin/harness"
-ln -sf "$HOME/.pi/agent/git/github.com/Vzlentin/workflows/src/cli.ts" "$HOME/.local/bin/workflows"
-
 printf 'Tools are ready.\n'
