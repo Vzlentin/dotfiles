@@ -59,8 +59,9 @@ install_debian_tools() {
 
     install_node
 
-    if ! command -v nvim >/dev/null 2>&1 && \
-        [ ! -x "$HOME/.local/bin/nvim" ]; then
+    # An older apt Neovim does not count; the full config needs 0.12.
+    if ! nvim --clean --headless -c 'if has("nvim-0.12") | qa | else | cq | endif' \
+        >/dev/null 2>&1; then
         install_neovim
     fi
 
