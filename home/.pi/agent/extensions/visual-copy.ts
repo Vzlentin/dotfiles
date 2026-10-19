@@ -1,9 +1,9 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, openSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { homedir, tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { homedir, release, tmpdir } from "node:os";
+import { delimiter, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
@@ -201,6 +201,60 @@ function run(argv) {
   if (!ok) throw new Error("the pasteboard did not accept the image");
 }`;
 
+// The Windows scripts get $InputFile. Windows PowerShell runs them in a single-threaded
+// apartment, which the clipboard needs. Errors go to stderr as plain text, not as CLIXML.
+const WINDOWS_PRELUDE = `
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+trap { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
+Add-Type -AssemblyName System.Drawing, System.Windows.Forms
+`;
+
+// Puts $bmp on the clipboard as a bitmap and as PNG, and writes its size.
+const WINDOWS_CLIPBOARD = `
+$png = New-Object System.IO.MemoryStream
+$bmp.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
+$data = New-Object System.Windows.Forms.DataObject
+$data.SetImage($bmp)
+$data.SetData('PNG', $png)
+[System.Windows.Forms.Clipboard]::SetDataObject($data, $true)
+"$($bmp.Width)x$($bmp.Height)"
+`;
+
+const WINDOWS_DIAGRAM_SCRIPT = `${WINDOWS_PRELUDE}
+$d = Get-Content -LiteralPath $InputFile -Raw -Encoding UTF8 | ConvertFrom-Json
+$size = $d.fontSize * 2
+$installed = (New-Object System.Drawing.Text.InstalledFontCollection).Families.Name
+$family = @('Cascadia Mono', 'Consolas', 'Courier New') | Where-Object { $installed -contains $_ } | Select-Object -First 1
+$pixel = [System.Drawing.GraphicsUnit]::Pixel
+$fonts = @(
+  (New-Object System.Drawing.Font($family, $size, [System.Drawing.FontStyle]::Regular, $pixel)),
+  (New-Object System.Drawing.Font($family, $size, [System.Drawing.FontStyle]::Bold, $pixel)))
+$format = [System.Drawing.StringFormat]::GenericTypographic
+$probe = New-Object System.Drawing.Bitmap(1, 1)
+$g = [System.Drawing.Graphics]::FromImage($probe)
+$cellW = $g.MeasureString('M', $fonts[0], [System.Drawing.PointF]::Empty, $format).Width
+$cellH = [Math]::Ceiling($fonts[0].GetHeight($g))
+$g.Dispose()
+$pad = $size
+$bmp = New-Object System.Drawing.Bitmap([int][Math]::Ceiling($d.cols * $cellW + 2 * $pad), [int][Math]::Ceiling($d.rows * $cellH + 2 * $pad))
+$g = [System.Drawing.Graphics]::FromImage($bmp)
+$g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+$g.Clear([System.Drawing.ColorTranslator]::FromHtml($d.background))
+$brushes = @($d.colors | ForEach-Object { New-Object System.Drawing.SolidBrush([System.Drawing.ColorTranslator]::FromHtml($_)) })
+# Each character goes in its own cell, so fallback fonts cannot move the columns.
+foreach ($c in $d.cells) {
+  $g.DrawString([string]$c[2], $fonts[[int]$c[4]], $brushes[[int]$c[3]], [float]($pad + $c[1] * $cellW), [float]($pad + $c[0] * $cellH), $format)
+}
+$g.Dispose()
+${WINDOWS_CLIPBOARD}`;
+
+const WINDOWS_IMAGE_SCRIPT = `${WINDOWS_PRELUDE}
+$bmp = [System.Drawing.Image]::FromFile($InputFile)
+${WINDOWS_CLIPBOARD}`;
+
+const WSL_POWERSHELL = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe";
+
 const SGR = /\x1b\[([\d;]*)m/g;
 const EXTENSIONS: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" };
 
@@ -304,12 +358,122 @@ async function diagramLines(diagram: Diagram, theme: Theme): Promise<string[]> {
   return art.styled.map((row) => row.map((span) => styleSpan(span, theme)).join(""));
 }
 
+// Gives the system that puts images on the clipboard. WSL uses the Windows clipboard.
+function imageHost(): "macos" | "windows" | "linux" {
+  if (process.platform === "darwin") return "macos";
+  if (process.platform === "win32" || (process.platform === "linux" && /microsoft/i.test(release()))) return "windows";
+  if (process.platform === "linux") return "linux";
+  throw new Error("image copy requires macOS, Windows, WSL or Linux");
+}
+
+// Gives the first of the commands that is on the PATH.
+function findCommand(...names: string[]): string | undefined {
+  const dirs = (process.env.PATH ?? "").split(delimiter).filter(Boolean);
+  return names.find((name) => dirs.some((dir) => existsSync(join(dir, name))));
+}
+
+function escapeXml(text: string): string {
+  return text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+}
+
+// Draws the input of DIAGRAM_SCRIPT as SVG. The cell size fits DejaVu Sans Mono, the usual Linux monospace font.
+function diagramSvg(d: ReturnType<typeof diagramImage>): { svg: string; width: number; height: number } {
+  const size = d.fontSize * 2;
+  const cellW = size * 0.602;
+  const cellH = Math.ceil(size * 1.17);
+  const pad = size;
+  const width = Math.ceil(d.cols * cellW + 2 * pad);
+  const height = Math.ceil(d.rows * cellH + 2 * pad);
+  // Each character goes in its own cell, so fallback fonts cannot move the columns.
+  const cells = d.cells.map(([row, col, text, c, b]) => {
+    const x = (pad + col * cellW).toFixed(1);
+    const y = (pad + row * cellH + size * 0.93).toFixed(1);
+    return `<text x="${x}" y="${y}" fill="${d.colors[c]}"${b ? ' font-weight="bold"' : ""}>${escapeXml(text)}</text>`;
+  });
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" font-size="${size}"` +
+    ` font-family="DejaVu Sans Mono, Liberation Mono, monospace" xml:space="preserve">` +
+    `<rect width="100%" height="100%" fill="${d.background}"/>${cells.join("")}</svg>`;
+  return { svg, width, height };
+}
+
+// Converts an SVG file to a PNG file with librsvg or ImageMagick.
+async function svgToPng(svg: string, png: string): Promise<void> {
+  const run = promisify(execFile);
+  const command = findCommand("rsvg-convert", "magick", "convert");
+  if (!command) throw new Error("diagram copy on Linux requires rsvg-convert (librsvg) or ImageMagick");
+  if (command === "rsvg-convert") await run(command, ["-f", "png", "-o", png, svg]);
+  else await run(command, [svg, png]);
+}
+
+// Puts the file on the Wayland or X11 clipboard. The clipboard tools stay in the background to
+// serve the clipboard, so this waits for the exit of the command, not for the end of its output.
+async function linuxClipboard(file: string, mimeType: string): Promise<void> {
+  const wayland = process.env.WAYLAND_DISPLAY && findCommand("wl-copy");
+  const x11 = process.env.DISPLAY && findCommand("xclip");
+  if (!wayland && !x11) throw new Error("image copy on Linux requires wl-copy (wl-clipboard) or xclip");
+  const [command, args] = wayland
+    ? ["wl-copy", ["--type", mimeType]]
+    : ["xclip", ["-selection", "clipboard", "-target", mimeType]];
+  const input = openSync(file, "r");
+  try {
+    await new Promise<void>((done, fail) => {
+      const child = spawn(command, args, { stdio: [input, "ignore", "ignore"] });
+      child.on("error", fail);
+      child.on("exit", (code) => (code === 0 ? done() : fail(new Error(`${command} exited with code ${code}`))));
+    });
+  } finally {
+    closeSync(input);
+  }
+}
+
+// Runs a Windows PowerShell script with $InputFile set to the Windows path of the file.
+async function powershell(script: string, file: string): Promise<string> {
+  const run = promisify(execFile);
+  const wsl = process.platform === "linux";
+  const path = wsl ? (await run("wslpath", ["-w", file])).stdout.trim() : file;
+  const source = `$InputFile = '${path.replaceAll("'", "''")}'\n${script}`;
+  const command = wsl && existsSync(WSL_POWERSHELL) ? WSL_POWERSHELL : "powershell.exe";
+  const encoded = Buffer.from(source, "utf16le").toString("base64");
+  try {
+    const { stdout } = await run(command, ["-NoProfile", "-NonInteractive", "-STA", "-EncodedCommand", encoded]);
+    return stdout.trim();
+  } catch (error) {
+    const stderr = (error as { stderr?: string }).stderr?.trim();
+    throw new Error(stderr || (error instanceof Error ? error.message : String(error)));
+  }
+}
+
 async function copyDiagram(diagram: Diagram, theme: Theme): Promise<string> {
-  if (process.platform !== "darwin") throw new Error("image copy requires macOS");
+  const host = imageHost();
   const lines = await diagramLines(diagram, theme);
-  const input = JSON.stringify(diagramImage(lines, theme));
-  const { stdout } = await promisify(execFile)("osascript", ["-l", "JavaScript", "-e", DIAGRAM_SCRIPT, input]);
-  return stdout.trim();
+  const image = diagramImage(lines, theme);
+  const input = JSON.stringify(image);
+  if (host === "macos") {
+    const { stdout } = await promisify(execFile)("osascript", ["-l", "JavaScript", "-e", DIAGRAM_SCRIPT, input]);
+    return stdout.trim();
+  }
+  if (host === "linux") {
+    const { svg, width, height } = diagramSvg(image);
+    const base = join(tmpdir(), `pi-vc-diagram-${process.pid}`);
+    writeFileSync(`${base}.svg`, svg);
+    try {
+      await svgToPng(`${base}.svg`, `${base}.png`);
+      await linuxClipboard(`${base}.png`, "image/png");
+    } finally {
+      rmSync(`${base}.svg`, { force: true });
+      rmSync(`${base}.png`, { force: true });
+    }
+    return `${width}x${height}`;
+  }
+  // The input goes in a file, because a Windows command line holds at most 32767 characters.
+  const file = join(tmpdir(), `pi-vc-diagram-${process.pid}.json`);
+  writeFileSync(file, input);
+  try {
+    return await powershell(WINDOWS_DIAGRAM_SCRIPT, file);
+  } finally {
+    rmSync(file, { force: true });
+  }
 }
 
 // Writes the image data to a temporary file, one file for each image.
@@ -321,7 +485,15 @@ function imageFile(image: ImageRef): string {
 }
 
 async function copyImage(image: ImageRef): Promise<void> {
-  if (process.platform !== "darwin") throw new Error("image copy requires macOS");
+  const host = imageHost();
+  if (host === "windows") {
+    await powershell(WINDOWS_IMAGE_SCRIPT, imageFile(image));
+    return;
+  }
+  if (host === "linux") {
+    await linuxClipboard(imageFile(image), image.mimeType);
+    return;
+  }
   await promisify(execFile)("osascript", ["-l", "JavaScript", "-e", IMAGE_SCRIPT, imageFile(image), image.mimeType]);
 }
 
