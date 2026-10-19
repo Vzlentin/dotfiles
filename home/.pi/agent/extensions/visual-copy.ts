@@ -17,6 +17,8 @@ import {
   visibleWidth,
   type Component,
   type TUI,
+  type TuiMouseEvent,
+  type TuiMouseEventResult,
 } from "@earendil-works/pi-tui";
 
 // One terminal sequence: CSI, OSC, APC or a two-byte escape.
@@ -697,6 +699,22 @@ function offsetOf(root: Node, target: Node, width: number): number | undefined {
   return undefined;
 }
 
+// Gives the first row and the row count of each owner in the rendered output of `root`.
+function ownerRows(root: Node, width: number, start = 0, found = new Map<Owner, [number, number]>()): Map<Owner, [number, number]> {
+  let row = start;
+  for (const child of root.children ?? []) {
+    if (isAssistant(child) || isTool(child)) {
+      const height = baseRender(child, width).length;
+      found.set(child, [row, height]);
+      row += height;
+    } else {
+      ownerRows(child, width, row, found);
+      row += child.render(width).length;
+    }
+  }
+  return found;
+}
+
 // Renders the Markdown with the patch on the node, then restores the node and clears its cache.
 function probe(markdown: MarkdownNode, patch: Partial<MarkdownNode>, width: number): string[] {
   const saved = Object.keys(patch).map((key) => [key, Object.getOwnPropertyDescriptor(markdown, key)] as const);
@@ -1160,8 +1178,17 @@ function rowNeighbor(spans: Span[], index: number, step: 1 | -1): number | undef
   return best;
 }
 
+// A mouse drag from a block. `viewTop` is the screen row of the first row of the transcript
+// view, so the drag still finds the blocks when the view scrolls.
+interface Drag {
+  from: number;
+  viewTop: number;
+  owners: Map<Owner, [number, number]>;
+}
+
 class VisualCopy implements Component {
   private cursor: number;
+  private drag: Drag | undefined;
   private mode: Mode = { kind: "blocks" };
   private pendingReveal = true;
   private query = "";
@@ -1186,9 +1213,9 @@ class VisualCopy implements Component {
     private readonly blocks: Block[],
     private readonly done: (result: CopyResult | undefined) => void,
   ) {
-    this.cursor = blocks.length - 1;
     this.scrollView = scrollViewOf(tui);
     this.savedScroll = this.scrollView?.isFollowingEnd ? "end" : this.scrollView?.scrollTop;
+    this.cursor = this.savedScroll === "end" ? blocks.length - 1 : (this.visibleBlock() ?? blocks.length - 1);
     const [open, close] = theme.bg("selectedBg", "\u0000").split("\u0000");
     this.background = [open, close];
     this.matchStyles = {
@@ -1199,17 +1226,112 @@ class VisualCopy implements Component {
     this.owners = new Set(blocks.map((b) => b.owner));
     for (const owner of this.owners) {
       owner.render = (width) => this.decorate(owner, baseRender(owner, width));
+      owner.handleMouse = (event) => this.ownerMouse(owner, event);
     }
   }
 
   dispose(): void {
-    for (const owner of this.owners) delete (owner as Partial<Owner>).render;
+    for (const owner of this.owners) {
+      delete (owner as Partial<Owner>).render;
+      delete (owner as Partial<Owner>).handleMouse;
+    }
     if (this.savedScroll === "end") this.scrollView?.scrollToEnd();
     else if (this.savedScroll !== undefined) this.scrollView?.scrollTo(this.savedScroll);
     this.tui.requestRender();
   }
 
   invalidate(): void {}
+
+  // Gives the last block that shows in full in the transcript view, or else the last block
+  // that shows in part.
+  private visibleBlock(): number | undefined {
+    const view = this.scrollView;
+    if (!view) return undefined;
+    const layout = this.layout();
+    const owners = ownerRows(view.child, layout.width);
+    const top = view.scrollTop;
+    const bottom = top + view.viewportHeight - 1;
+    let partial: number | undefined;
+    for (let i = this.blocks.length - 1; i >= 0; i--) {
+      const rows = layout.rows[i];
+      const at = owners.get(this.blocks[i].owner)?.[0];
+      if (!rows || at === undefined || at + rows[0] > bottom || at + rows[1] < top) continue;
+      if (at + rows[0] >= top && at + rows[1] <= bottom) return i;
+      partial ??= i;
+    }
+    return partial;
+  }
+
+  // Gives the innermost block at a row of the owner.
+  private blockAt(layout: Layout, owner: Owner, row: number): number | undefined {
+    let found: number | undefined;
+    for (let i = 0; i < this.blocks.length; i++) {
+      const rows = layout.rows[i];
+      if (this.blocks[i].owner !== owner || !rows || row < rows[0] || row > rows[1]) continue;
+      const size = rows[1] - rows[0];
+      if (found === undefined || size <= layout.rows[found]![1] - layout.rows[found]![0]) found = i;
+    }
+    return found;
+  }
+
+  // A click selects the block under the pointer, or the code span in code mode. Shift+click
+  // and a drag select a range, and a double click copies. Other mouse events, such as the
+  // wheel, go to the transcript.
+  private ownerMouse(owner: Owner, event: TuiMouseEvent): TuiMouseEventResult | undefined {
+    if (event.button !== "left" || (event.type !== "press" && event.type !== "drag" && event.type !== "release" && event.type !== "click")) {
+      return undefined;
+    }
+    if (this.flash || (this.mode.kind === "blocks" && this.mode.search)) return { handled: true };
+    const layout = this.layout();
+    if (event.type === "release") {
+      this.drag = undefined;
+      return { handled: true };
+    }
+    if (event.type === "click") {
+      if (event.clickCount === 2) {
+        const target = this.target(layout);
+        this.copy(target.copy);
+      }
+      return { handled: true };
+    }
+    if (event.type === "drag") {
+      if (!this.drag || !this.scrollView || this.mode.kind !== "blocks") return { handled: true };
+      const row = event.screenY - this.drag.viewTop + this.scrollView.scrollTop;
+      for (const [other, [at, height]] of this.drag.owners) {
+        if (row < at || row >= at + height || !this.owners.has(other)) continue;
+        const block = this.blockAt(layout, other, row - at);
+        if (block === undefined || block === this.cursor) break;
+        this.mode.anchor = block === this.drag.from ? undefined : this.drag.from;
+        this.move(block);
+        break;
+      }
+      return { handled: true };
+    }
+
+    this.notice = undefined;
+    this.drag = undefined;
+    if (this.mode.kind === "code") {
+      const span = layout.spans.findIndex((s) => {
+        const after = (p: Position) => event.y > p[0] || (event.y === p[0] && event.x >= p[1]);
+        return s.owner === owner && after(s.start) && !after(s.end);
+      });
+      if (span !== -1) {
+        this.selectSpan(layout, span);
+        return { handled: true };
+      }
+    }
+    const block = this.blockAt(layout, owner, event.y);
+    if (block === undefined) return { handled: true };
+    const anchor = event.shift && this.mode.kind === "blocks" ? (this.mode.anchor ?? this.cursor) : undefined;
+    this.mode = { kind: "blocks", anchor: anchor === block ? undefined : anchor };
+    this.move(block);
+    if (this.scrollView) {
+      const owners = ownerRows(this.scrollView.child, layout.width);
+      const at = owners.get(owner)?.[0] ?? 0;
+      this.drag = { from: anchor ?? block, viewTop: event.screenY - event.y - at + this.scrollView.scrollTop, owners };
+    }
+    return { capture: true };
+  }
 
   // Gives the layout at the width of the transcript. A new width or a replaced Markdown node
   // makes a new layout, and the matches follow it.
