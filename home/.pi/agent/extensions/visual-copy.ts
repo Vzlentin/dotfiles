@@ -568,6 +568,7 @@ interface TextBlock {
   container?: number;
   raw: string;
   code?: string;
+  quote?: string;
   diagram?: Diagram;
 }
 
@@ -587,6 +588,7 @@ interface Segment {
   rows: Rows;
   raw: string;
   code?: string;
+  quote?: string;
   parent?: number;
   diagram?: Diagram;
 }
@@ -890,6 +892,8 @@ function markdownLayout(markdown: MarkdownNode, width: number): { segments: Segm
         const code = token.type === "code" ? dedent(token.text ?? "") : undefined;
         add(rows.get(token), token.raw, code, parent);
         if (isMermaid(token) && code !== undefined && rows.has(token)) segments[segments.length - 1].diagram = { source: code };
+        // Marked removes one level of quote markers from the text of a blockquote.
+        if (token.type === "blockquote" && rows.has(token)) segments[segments.length - 1].quote = token.text?.trim();
         if (token.tokens) walk(token.tokens, false, segments.length - 1);
       } else if (token.tokens) {
         walk(token.tokens, false, parent);
@@ -935,9 +939,9 @@ function collectBlocks(document: Node, width: number): Block[] {
     } else {
       for (const markdown of textParts(owner)) {
         const first = blocks.length;
-        markdownLayout(markdown, width).segments.forEach(({ raw, code, diagram, parent }, segment) => {
+        markdownLayout(markdown, width).segments.forEach(({ raw, code, quote, diagram, parent }, segment) => {
           const container = parent === undefined ? undefined : first + parent;
-          blocks.push({ kind: "text", owner, markdown, segment, message, container, raw, code, diagram });
+          blocks.push({ kind: "text", owner, markdown, segment, message, container, raw, code, quote, diagram });
         });
       }
     }
@@ -1597,10 +1601,10 @@ class VisualCopy implements Component {
       copyAlt = { result: { kind: "text", text: first.diagram.source } };
       copyHints = [["y", "copy image"], ["Y", "copy source"]];
     } else {
-      // Only one code block gives its code without fences. Y shows the raw selection, fences
-      // included, for a moment before the copy.
-      const code = single && first.kind === "text" ? first.code : undefined;
-      copy = { result: { kind: "text", text: code ?? this.selectionText(from, to) } };
+      // Only one code block gives its code without fences, and only one blockquote gives its text
+      // without quote markers. Y shows the raw selection for a moment before the copy.
+      const text = single && first.kind === "text" ? (first.code ?? first.quote) : undefined;
+      copy = { result: { kind: "text", text: text ?? this.selectionText(from, to) } };
       copyAlt = { result: { kind: "text", text: this.selectionText(from, to) }, flash: paint(false) };
       copyHints = [["y", "copy"], ["Y", "copy raw"]];
     }
