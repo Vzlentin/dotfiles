@@ -20,6 +20,7 @@ export KUBECONFIG="$XDG_CONFIG_HOME/kube/config"
 export MPLCONFIGDIR="$XDG_CACHE_HOME/matplotlib"
 export NODE_REPL_HISTORY="$XDG_STATE_HOME/node/repl_history"
 export NPM_CONFIG_CACHE="$XDG_CACHE_HOME/npm"
+export NPM_CONFIG_PREFIX="$HOME/.local"
 export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
 export PYTHON_HISTORY="$XDG_STATE_HOME/python/history"
 export CHECKPOINT_DISABLE=1
