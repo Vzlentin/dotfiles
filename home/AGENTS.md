@@ -2,7 +2,8 @@
 
 Your memory is OptMem:
 - The tool is `~/.optmem/memo`
-- Your memories are in `~/.optmem/memory`
+- Your memories are in `$MEMORY_DIR`, or in `~/.optmem/memory` if `$MEMORY_DIR` is not set
+- A workspace sets `$MEMORY_DIR` with direnv to keep its own memory. Never set or change it yourself.
 
 OptMem outlives every session, compaction, model and vendor change.
 Without it you do not know who you are, or what was decided and tried.
@@ -23,7 +24,7 @@ Do not register redundant memories.
 
 If `~/.optmem/memo note` asks a compression: do it before your next action.
 
-Never edit or delete anything under `~/.optmem/memory`: the tool manages it.
+Never edit or delete anything under a memory directory: the tool manages it.
 
 ### When you need an old memory: search, or navigate
 
