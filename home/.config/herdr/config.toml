@@ -60,6 +60,15 @@ pane=$("$HERDR_BIN_PATH" pane split $HERDR_ACTIVE_PANE_ID --direction right --fo
 [ -n "$pane" ] && "$HERDR_BIN_PATH" pane run "$pane" "exec lazygit"
 '''
 
+[[keys.command]]
+key = "prefix+w"
+type = "popup"
+description = "attach to a workflows run"
+command = '''
+id=$(workflows list --pick) || exit 0
+HERDR_PANE_ID=$HERDR_ACTIVE_PANE_ID workflows attach "$id" || { printf 'Press Enter to close'; read -r _; }
+'''
+
 # prefix+t is taken by the "scratch shell" popup above.
 [[keys.command]]
 key = "prefix+alt+t"
