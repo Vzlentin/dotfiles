@@ -69,6 +69,23 @@ id=$(workflows list --pick) || exit 0
 HERDR_PANE_ID=$HERDR_ACTIVE_PANE_ID workflows attach "$id" || { printf 'Press Enter to close'; read -r _; }
 '''
 
+[[keys.command]]
+key = "prefix+m"
+type = "popup"
+description = "move pane to tab (left side)"
+width = 40
+height = 5
+command = '''
+h="$HERDR_BIN_PATH"; src="$HERDR_ACTIVE_PANE_ID"
+printf 'Move pane to tab #: '; read -r n
+tab=$("$h" tab list --workspace "$HERDR_ACTIVE_WORKSPACE_ID" | jq -r --argjson n "${n:-0}" '.result.tabs[$n-1].tab_id // empty')
+[ -n "$tab" ] && [ "$tab" != "$HERDR_ACTIVE_TAB_ID" ] || exit 0
+any=$("$h" pane list --workspace "$HERDR_ACTIVE_WORKSPACE_ID" | jq -r --arg t "$tab" '[.result.panes[] | select(.tab_id == $t)][0].pane_id')
+target=$("$h" pane layout --pane "$any" | jq -r '.result.layout.focused_pane_id')
+new=$("$h" pane move "$src" --tab "$tab" --split right --target-pane "$target" --focus | jq -r '.result.move_result.pane.pane_id')
+[ -n "$new" ] && "$h" pane swap --source-pane "$new" --target-pane "$target" >/dev/null
+'''
+
 # prefix+t is taken by the "scratch shell" popup above.
 [[keys.command]]
 key = "prefix+alt+t"
