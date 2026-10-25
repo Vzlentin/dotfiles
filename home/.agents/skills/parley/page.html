@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{title}}</title>
+<style>
+:root{{{tokens}}
+  --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SF Mono",ui-monospace,Menlo,monospace;
+  --card:var(--tool-pending-bg);
+  --sunk:color-mix(in srgb,#000 22%,var(--bg));
+  --line:color-mix(in srgb,var(--border-muted) 45%,var(--bg));
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 var(--sans);padding-bottom:190px}
+body.contract{padding-bottom:40px}
+a{color:var(--md-link)}
+code{font:.86em var(--mono);color:var(--md-code);background:var(--sunk);padding:1px 6px;border-radius:6px}
+strong,b{color:var(--fg)}
+.wrap{max-width:800px;margin:0 auto;padding:0 18px}
+hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+
+/* header */
+header.top{padding:26px 0 6px}
+.kicker{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(27px,6vw,40px);line-height:1.12;margin:12px 0 12px;color:var(--fg);letter-spacing:-.02em}
+.lede p{margin:0 0 10px;font-size:17px}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.stats span{font:13px var(--mono);color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:4px 10px}
+.stats b{color:var(--fg)}
+
+/* nav */
+nav{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .row{display:flex;gap:8px;overflow-x:auto;padding:10px 18px;max-width:800px;margin:0 auto;scrollbar-width:none}
+nav .row::-webkit-scrollbar{display:none}
+nav a{flex:none;text-decoration:none;color:var(--text);font-size:14px;padding:6px 13px;border-radius:99px;border:1px solid var(--line)}
+nav .bar{height:2px;background:var(--accent);width:0}
+
+/* sections */
+section{padding:20px 0 8px}
+h2{font-size:24px;margin:8px 0 12px;color:var(--md-heading);letter-spacing:-.01em}
+h3{font-size:18px;margin:22px 0 8px;color:var(--fg)}
+section p{margin:0 0 12px}
+ul,ol{padding-left:22px;margin:0 0 12px}
+li{margin:4px 0}
+li::marker{color:var(--md-list-bullet)}
+.tw{overflow-x:auto;margin:8px 0 16px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;font-size:14px;width:100%;min-width:520px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--card);color:var(--fg)}
+td:first-child{color:var(--fg)}
+
+/* your words: they look like your messages in Pi */
+blockquote{margin:8px 0 12px;padding:9px 13px;background:var(--user-message-bg);border-left:3px solid var(--accent);border-radius:8px;color:var(--fg)}
+blockquote p{margin:0}
+
+/* code and diagrams */
+pre.code{background:var(--sunk);border:1px solid var(--md-code-block-border);border-radius:10px;padding:12px 14px;overflow-x:auto;font:13px/1.55 var(--mono);color:var(--text);margin:8px 0 14px}
+pre.code code{background:none;padding:0;color:inherit;font:inherit}
+.diff .add{color:var(--tool-diff-added)} .diff .del{color:var(--tool-diff-removed)} .diff .ctx{color:var(--tool-diff-context)}
+.hljs-keyword,.hljs-built_in{color:var(--syntax-keyword)} .hljs-string{color:var(--syntax-string)}
+.hljs-comment{color:var(--syntax-comment);font-style:italic} .hljs-number,.hljs-literal{color:var(--syntax-number)}
+.hljs-title,.hljs-function{color:var(--syntax-function)} .hljs-type,.hljs-class{color:var(--syntax-type)}
+.hljs-variable,.hljs-attr,.hljs-property{color:var(--syntax-variable)} .hljs-punctuation,.hljs-operator{color:var(--syntax-punctuation)}
+.fig{margin:10px 0 16px;padding:12px;background:var(--sunk);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+.fig svg{display:block;margin:0 auto;max-width:100%;height:auto;
+  --pele-bg:transparent;--pele-fg:var(--text);--pele-muted:var(--muted);--pele-line:var(--border-muted);
+  --pele-surface:var(--card);--pele-surface-alt:var(--selected-bg);--pele-border:var(--border);
+  --pele-accent:var(--accent);--pele-error:var(--error);--pele-critical:var(--error);
+  --pele-font:var(--sans);--pele-font-mono:var(--mono);--pele-radius:8px}
+
+/* principles and settled */
+.principles ul,.settled ul{list-style:none;padding:0}
+.principles li,.settled li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin:8px 0}
+.settled li{background:var(--tool-success-bg)}
+.settled li strong::before{content:"settled";font:700 10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--bg);background:var(--success);border-radius:5px;padding:2px 6px;margin-right:8px;vertical-align:2px}
+.principles li blockquote,.settled li blockquote{margin:8px 0 0}
+
+/* terms: the design as it stands; blanks show your current answers */
+.terms{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 16px 6px;margin-top:14px}
+.terms h2::after{content:"draft: it fills in as you answer";display:block;font:500 12px var(--mono);color:var(--muted);letter-spacing:0;margin-top:4px}
+body.contract .terms h2::after{content:"the contract: what we agreed";color:var(--success)}
+body.readback .terms h2::after{content:"read-back: answer aligned, or correct a card";color:var(--warning)}
+.blank{display:inline-block;text-decoration:none;color:var(--fg);border:1px dashed var(--warning);border-radius:7px;padding:0 6px;line-height:1.5;margin:1px 0}
+.blank sup{font:600 10px var(--mono);color:var(--muted);margin-left:3px}
+.blank.plan{border:1px solid var(--border-muted);color:var(--text)}
+.blank.set{border:1px solid var(--accent);background:var(--selected-bg)}
+.blank.own{border:1px solid var(--success);background:var(--tool-success-bg)}
+body.contract .blank{display:inline;border:0;background:none;padding:0;color:var(--fg)}
+body.contract .blank sup{display:none}
+
+/* decisions */
+.hint{color:var(--muted);font-size:15px}
+h3.group{font:700 12px var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin:22px 0 6px}
+.dec{display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 14px 12px;margin:12px 0}
+.dec header,.dec summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dec summary{cursor:pointer;list-style:none}
+.dec summary::-webkit-details-marker{display:none}
+.num{flex:none;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--bg);font:700 14px var(--mono)}
+.dtitle{font-weight:700;color:var(--fg);font-size:17px;flex:1;min-width:150px}
+.whose{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;border-radius:6px;padding:3px 7px}
+.whose.you{color:var(--accent);border:1px solid var(--accent)}
+.whose.me{color:var(--muted);border:1px solid var(--border-muted)}
+.planline{flex-basis:100%;font-size:14px;color:var(--muted);padding-left:38px}
+.dec.mine[open] .planline{display:none}
+.tension{margin:10px 0 6px}
+.opts{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.opt{all:unset;box-sizing:border-box;display:flex;gap:11px;width:100%;cursor:pointer;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sunk);-webkit-tap-highlight-color:transparent}
+.opt:hover{border-color:var(--border-muted)}
+.opt.sel{background:var(--selected-bg);border-color:var(--accent)}
+.opt .key{flex:none;font:700 14px var(--mono);color:var(--muted);width:16px;padding-top:1px}
+.opt.sel .key{color:var(--accent)}
+.opt .body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.opt .label{color:var(--fg);font-weight:600}
+.planbadge{font:600 10px var(--mono);font-style:normal;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:5px;padding:1px 5px;margin-left:4px;vertical-align:2px}
+.gain,.cost{font-size:14px;line-height:1.45}
+.gain{color:var(--success)} .gain::before{content:"+ "}
+.cost{color:color-mix(in srgb,var(--error) 80%,var(--text))} .cost::before{content:"\2212  "}
+.why{color:var(--muted);font-size:15px;margin-top:6px}
+.acts{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+textarea{width:100%;background:var(--sunk);color:var(--fg);border:1px dashed var(--border-muted);border-radius:10px;padding:9px 11px;font:15px/1.4 var(--sans);resize:vertical}
+textarea:focus{outline:none;border-style:solid;border-color:var(--accent)}
+.ask{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px;cursor:pointer}
+.ask input{accent-color:var(--accent);width:17px;height:17px}
+.dec.asked{border-color:var(--warning)}
+.decidedline{margin:10px 0 6px;color:var(--muted)}
+.decidedline b{color:var(--fg)}
+.receipt blockquote{margin:6px 0}
+.after{color:var(--text);font-size:15px}
+.after p{margin:6px 0}
+details.more{margin-top:8px}
+details.more>summary{cursor:pointer;color:var(--muted);font-size:14px}
+.dec.decided.changed{border-color:var(--accent)}
+body.contract .acts,body.contract .opt:not(.sel),body.contract .hint{display:none}
+body.contract .opt{cursor:default}
+
+/* dock */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+body.contract .dock{display:none}
+.dock .in{max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.dock .meta{display:flex;justify-content:space-between;gap:10px;font:12px var(--mono);color:var(--muted)}
+.dock .meta .open{color:var(--warning)} .dock .meta .done{color:var(--success)}
+.dots{display:flex;gap:5px;flex-wrap:wrap}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--sunk);border:1px solid var(--border-muted);cursor:pointer}
+.dots i.set{background:var(--accent);border-color:var(--accent)} .dots i.plan{background:var(--border-muted)}
+.dots i.own{background:var(--success);border-color:var(--success)} .dots i.ask{background:var(--warning);border-color:var(--warning)}
+.dock .line{font:13px/1.45 var(--mono);color:var(--fg);background:var(--sunk);border-radius:8px;padding:8px 10px;word-break:break-word;user-select:all;-webkit-user-select:all}
+.btns{display:flex;gap:8px}
+.btns button{flex:1;font:600 15px var(--sans);border:0;border-radius:10px;padding:10px;min-height:44px;cursor:pointer}
+#copy{background:var(--accent);color:var(--bg)} #send{background:var(--success);color:var(--bg);display:none}
+#reset{flex:0 0 auto;background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+.toast{position:fixed;left:50%;bottom:170px;transform:translateX(-50%);background:var(--fg);color:var(--bg);font:600 14px var(--sans);padding:8px 14px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40}
+.toast.on{opacity:1}
+footer{color:var(--dim);font-size:13px;padding:24px 0}
+.swatches{display:grid;gap:6px;margin:10px 0 14px}
+.swatches div{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px}
+.swatches b{width:100%;font:600 12px var(--mono);color:var(--muted)}
+.swatches span{font:12px var(--mono);color:var(--bg);background:var(--c);border-radius:6px;padding:3px 8px}
+@media (max-width:700px){.fig svg{max-width:none}}
+@media (min-width:900px){body{font-size:17px}.wrap,nav .row,.dock .in{max-width:860px}}
+</style>
+</head>
+<body class="{{statusClass}}">
+<div class="wrap"><header class="top">
+  <div class="kicker">{{kicker}}</div>
+  <h1>{{h1}}</h1>
+  <div class="lede">{{lede}}</div>
+  <div class="stats">{{stats}}</div>
+</header></div>
+<nav><div class="row">{{nav}}</div><div class="bar" id="bar"></div></nav>
+<main class="wrap">
+{{main}}
+<footer>{{footer}}</footer>
+</main>
+<div class="dock"><div class="in">
+  <div class="meta"><span id="count"></span><div class="dots" id="dots"></div></div>
+  <div class="line" id="line"></div>
+  <div class="btns"><button id="reset">Reset</button><button id="send">Send</button><button id="copy">Copy</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+<script type="application/json" id="parley-data">{{data}}</script>
+<script type="text/markdown" id="parley-record">{{record}}</script>
+<script>
+const P = JSON.parse(document.getElementById("parley-data").textContent);
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const KEY = `parley:${P.slug}`;
+const contract = P.status === "contract";
+// One key for each parley. Taps from an earlier round do not carry over: that round is decided.
+let state = {};
+try { const saved = JSON.parse(localStorage.getItem(KEY) || "{}"); if (!contract && saved.round === P.round) state = saved.state || {}; } catch {}
+const base = (d) => (d.decided ? d.answer : contract || d.whose === "me" ? d.plan : null);
+for (const d of P.decisions) state[d.n] = { k: base(d), note: "", ask: false, ...(state[d.n] || {}) };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ round: P.round, state })); } catch {} };
+const changed = (d) => state[d.n].k !== base(d) || state[d.n].note.trim() !== "";
+const quote = (text) => text.trim().replace(/\s+/g, " ").replace(/"/g, "'");
+
+function kind(d) {
+  const s = state[d.n];
+  if (s.ask) return "ask";
+  if (d.decided) return changed(d) ? (s.k ? "set" : "own") : "plan";
+  if (s.k && (d.whose === "you" || s.k !== d.plan)) return "set";
+  if (!s.k && s.note.trim()) return "own";
+  if (s.k) return s.note.trim() ? "set" : "plan";
+  return "open";
+}
+
+function line() {
+  const parts = [];
+  for (const d of P.decisions) {
+    const s = state[d.n];
+    const note = quote(s.note);
+    if (s.ask) parts.push(`?${d.n}`);
+    if ((d.decided || d.whose === "me") && !changed(d)) continue;
+    if (s.k) parts.push(`${d.n}${s.k}${note ? `:"${note}"` : ""}`);
+    else if (note) parts.push(`${d.n}:"${note}"`);
+  }
+  const open = P.decisions.some((d) => !d.decided);
+  if (!open && !parts.length) parts.push("aligned");
+  else if (open && P.decisions.some((d) => d.whose === "me" && !d.decided)) parts.push("ok");
+  return `[${P.slug} r${P.round}] ${parts.join(" ")}`.trim();
+}
+
+function paint() {
+  for (const d of P.decisions) {
+    const card = $(`#d-${d.n}`);
+    const s = state[d.n];
+    $$(".opt", card).forEach((o) => o.classList.toggle("sel", o.dataset.k === s.k));
+    card.classList.toggle("asked", s.ask);
+    card.classList.toggle("changed", d.decided && changed(d));
+    const area = $("textarea", card);
+    if (area && area.value !== s.note) area.value = s.note;
+    const box = $(".ask input", card);
+    if (box) box.checked = s.ask;
+    $$(`.blank[data-n="${d.n}"]`).forEach((b) => {
+      const k = d.decided && !changed(d) ? (d.answer ? "set" : "own") : kind(d);
+      b.className = `blank ${k === "ask" ? (s.k ? "set" : "open") : k === "plan" && d.decided ? "set" : k}`;
+      $("b", b).textContent = s.k ? d.labels[s.k] : s.note.trim() ? quote(s.note).slice(0, 60) : d.own || d.labels[d.plan];
+    });
+  }
+  const open = P.decisions.filter((d) => d.whose === "you" && !d.decided && !state[d.n].k && !state[d.n].note.trim()).length;
+  const asks = P.decisions.filter((d) => state[d.n].ask).length;
+  const yours = P.decisions.filter((d) => d.whose === "you" && !d.decided).length;
+  const fixes = P.decisions.filter((d) => d.decided && changed(d)).length;
+  const head = yours ? (open ? `<span class="open">${open} of ${yours} your calls open</span>` : `<span class="done">your calls answered</span>`)
+    : fixes ? `<span class="open">${fixes} correction${fixes > 1 ? "s" : ""}</span>` : `<span class="done">all decided: copy aligned if the terms are right</span>`;
+  $("#count").innerHTML = head + (asks ? ` · ${asks} to explain` : "");
+  $("#dots").innerHTML = P.decisions.map((d) => `<i class="${kind(d)}" data-go="${d.n}" title="${d.n}"></i>`).join("");
+  $$("#dots i").forEach((i) => (i.onclick = () => { const c = $(`#d-${i.dataset.go}`); if (c.tagName === "DETAILS") c.open = true; c.scrollIntoView({ block: "start" }); }));
+  $("#line").textContent = line();
+}
+
+if (!contract) {
+  for (const d of P.decisions) {
+    const card = $(`#d-${d.n}`);
+    $$(".opt", card).forEach((o) => (o.onclick = (e) => {
+      e.preventDefault();
+      const s = state[d.n];
+      // A decided card goes back to its answer; an open card can be left empty.
+      s.k = s.k !== o.dataset.k ? o.dataset.k : d.decided ? base(d) : null;
+      save(); paint();
+    }));
+    $("textarea", card).oninput = (e) => { state[d.n].note = e.target.value; save(); paint(); };
+    $(".ask input", card).onchange = (e) => { state[d.n].ask = e.target.checked; save(); paint(); };
+  }
+}
+function toast(text) { const t = $("#toast"); t.textContent = text; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 1500); }
+$("#copy").onclick = async () => {
+  const text = line();
+  try { await navigator.clipboard.writeText(text); }
+  catch { const ta = document.createElement("textarea"); ta.value = text; document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+  toast("Copied: paste it in the terminal");
+};
+if (typeof window.sendPrompt === "function") { $("#send").style.display = "block"; $("#send").onclick = () => window.sendPrompt(line()); }
+$("#reset").onclick = () => { if (confirm("Clear your answers and notes?")) { localStorage.removeItem(KEY); location.reload(); } };
+addEventListener("scroll", () => { const h = document.documentElement; $("#bar").style.width = `${(100 * h.scrollTop) / Math.max(1, h.scrollHeight - h.clientHeight)}%`; }, { passive: true });
+paint();
+</script>
+</body>
+</html>
