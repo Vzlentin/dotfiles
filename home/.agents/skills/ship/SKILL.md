@@ -48,9 +48,11 @@ step as each phase starts: `research`, `plan`, `implement`, `round <n>/<rounds>:
 The result is `{ runId, status, result?, report?, error? }`. The item's branch is `ship/<runId>`
 until the item ships. A shipped item gets a branch named from its commit subject, such as
 `feat/<slug>` for `feat: <subject>`: read it from `result.branch` and the `branch <name>` report
-line. The run directory is `${XDG_STATE_HOME:-$HOME/.local/state}/workflows/runs/<runId>`, with the
-worktree in `worktree/` and the patches each review got in `round-<n>.patch` and
-`round-<n>-fix.patch`. Lead with the outcome. For a `finished` status, read it from `result.status`
+line. The worktree is next to the repository, in `<workspace>/.worktrees/<repo>/<runId>`, where
+`<workspace>` is the folder that holds the repository. In Herdr, it also shows in the sidebar under
+the repository. The run directory is `${XDG_STATE_HOME:-$HOME/.local/state}/workflows/runs/<runId>`,
+with the patches each review got in `round-<n>.patch` and `round-<n>-fix.patch`. Lead with the
+outcome. For a `finished` status, read it from `result.status`
 and the `report` lines:
 
 - **shipped**: `shipped <subject> in <n> rounds, judge <score>, <commit>`. Give the branch, the
