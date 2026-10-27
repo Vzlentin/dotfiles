@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Builds the page of a parley: the page source that you write, with the decision cards of the record.
-// Usage: page.mjs [--share] <record.md> <page.md> [out.html]
+// Usage: build.mjs [--share] <record.md> <page.md> [out.html]
 // The record is the contract. The page source is Markdown and HTML that you lay out for the topic:
 // - {{cards}} is where the decision cards go: a line of its own, with a blank line before and after it.
 // - {?3} is a blank: the answer to decision 3, or its plan while it is open.
@@ -24,7 +24,7 @@ const flags = new Set(process.argv.slice(2).filter((arg) => arg.startsWith("--")
 const [recordPath, pagePath, outPath] = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 const share = flags.has("--share");
 if (!pagePath) {
-	console.error("usage: page.mjs [--share] <record.md> <page.md> [out.html]");
+	console.error("usage: build.mjs [--share] <record.md> <page.md> [out.html]");
 	process.exit(2);
 }
 

@@ -72,18 +72,17 @@ Write it when the user asks for a page, and at the contract. Use the format of `
 
 The record is the contract. The page explains it: you design the page for its topic, as `artifacts` says. Do not copy the record into the page. Lay out what the user needs to answer: the terms as they stand, the views from `show-me`, the settled points that matter.
 
-Write the page source in `/tmp/pages/<slug>/page.md`: Markdown and HTML, as for `artifacts`.
+Write the page source in `/tmp/pages/<slug>/page.md`, as an `artifacts` source. `build.mjs` builds it with the `artifacts` renderer and adds only the parley parts:
 
-- `{{cards}}` is where the decision cards go: alone on its line, with a blank line before and after it. The cards come from the record.
-- The page source may use Alpine, as `artifacts` says. Its Alpine parts also work on the contract and the share copy.
+- `{{cards}}` is where the decision cards of the record go: alone on its line, with a blank line before and after it.
 - `{?3}` is a blank: the answer to decision 3, or its plan while it is open. It changes when the user picks.
-- A ` ```mermaid ` block becomes a diagram in the page colors.
-- On a live page, the bar comes last. Its Copy gives the answer line, then each field that the page adds to the way back of `artifacts`.
+- A ` ```mermaid ` block, in the record or in the page source, becomes a `show-me` diagram. The record keeps the Mermaid text, because Obsidian draws it.
+- On a live page, the bar comes last. Its Copy gives the answer line first.
 - The contract and the share copy have no cards to answer and no bar.
 
 ```sh
-node {baseDir}/page.mjs <record.md> <page.md> [out.html]   # /tmp/pages/<slug>/index.html
-node {baseDir}/page.mjs --share <record.md> <page.md>      # light copy
+node {baseDir}/build.mjs <record.md> <page.md> [out.html]   # /tmp/pages/<slug>/index.html
+node {baseDir}/build.mjs --share <record.md> <page.md>      # light copy
 ```
 
 When the record changes, update the page source and build it again.

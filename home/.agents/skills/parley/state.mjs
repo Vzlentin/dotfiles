@@ -1,5 +1,5 @@
-// The state of a decision card, for page.mjs and for the page itself.
-// page.mjs renders each card at its fresh state, and the page script runs the same functions on the user's taps.
+// The state of a decision card, for build.mjs and for the page itself.
+// build.mjs renders each card at its fresh state, and the page script runs the same functions on the user's taps.
 // The page gets this file as plain script, so export each function as `export function` only.
 //
 // d: a decision of the parley data. card: { pick, note, ask }, where pick is an option key or "" for none.
