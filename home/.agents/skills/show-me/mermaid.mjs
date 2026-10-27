@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Renders one Mermaid diagram to SVG with Pele, from the global npm install.
-// Usage: mermaid.mjs [--page] <diagram.mmd> <diagram.svg>
-// --page: an SVG for an artifacts page, with its text 30% larger. The page gives it its colors.
+// Usage: mermaid.mjs [--large] <diagram.mmd> <diagram.svg>
+// --large: the text 30% larger, for a page that shows the SVG at its own size.
 // Other scripts import renderMermaid() from this file.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -14,13 +14,13 @@ const entry = join(peleDir, "dist", "pele.js");
 const pele = existsSync(entry) ? await import(pathToFileURL(entry).href) : undefined;
 
 // A Mermaid parse error throws: the source is wrong.
-export function renderMermaid(source, { page = false } = {}) {
+export function renderMermaid(source, { large = false } = {}) {
 	if (!pele) throw new Error(`pele not found at ${peleDir}: npm install -g pele`);
-	const { svg } = pele.render(source, { padding: page ? 12 : 16 });
+	const { svg } = pele.render(source, { padding: large ? 12 : 16 });
 	// Pele leaves the background transparent, which is unreadable in GitHub's dark theme.
 	// --_bg is --pele-bg: white on its own, the page color inside a page.
 	const opened = svg.indexOf(">") + 1;
-	const open = page ? larger(svg.slice(0, opened)) : svg.slice(0, opened);
+	const open = large ? larger(svg.slice(0, opened)) : svg.slice(0, opened);
 	return `${open}<rect width="100%" height="100%" fill="var(--_bg)"/>${svg.slice(opened)}`;
 }
 
@@ -33,12 +33,12 @@ function larger(open) {
 
 if (import.meta.main) {
 	const args = process.argv.slice(2);
-	const page = args.includes("--page");
-	const [input, output] = args.filter((arg) => arg !== "--page");
+	const large = args.includes("--large");
+	const [input, output] = args.filter((arg) => arg !== "--large");
 	if (!input || !output) {
-		console.error("usage: mermaid.mjs [--page] <diagram.mmd> <diagram.svg>");
+		console.error("usage: mermaid.mjs [--large] <diagram.mmd> <diagram.svg>");
 		process.exit(2);
 	}
-	writeFileSync(output, renderMermaid(readFileSync(input, "utf8"), { page }));
+	writeFileSync(output, renderMermaid(readFileSync(input, "utf8"), { large }));
 	console.log(output);
 }

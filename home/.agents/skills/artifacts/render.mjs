@@ -43,9 +43,11 @@ const hljs = hljsDir ? createRequire(import.meta.url)(hljsDir) : undefined;
 
 // base: the directory that local images resolve from, the directory of the source.
 // code: a renderer for a code block. It returns HTML, or undefined to leave the block to this file.
-export function createMarkdown({ base, code }) {
+// extensions: marked extensions, for the syntax of a script that builds on this file.
+export function createMarkdown({ base, code, extensions = [] }) {
 	const md = new Marked({ gfm: true });
 	md.use({
+		extensions,
 		renderer: {
 			code: (token) => code?.(token) ?? renderCode(token),
 			heading: renderHeading,
@@ -64,19 +66,19 @@ export function escapeHtml(text) {
 }
 
 // body is HTML. source is the text that the page carries inside, so any copy of the page gives it back.
-export async function renderPage({ slug, title, body, source, sourcePath, share = false, alpine, out }) {
+// key: the name of the state that the browser keeps for the page. Another key starts from the defaults.
+export async function renderPage({ slug, key = slug, title, body, source, sourcePath, share = false, alpine, out }) {
 	const theme = share ? { source: "light", colors: terminalTokens(LIGHT) } : await loadTheme();
 	const interactive = alpine ?? ALPINE_ATTRIBUTE.test(body);
 	const vendor = (name) => readFileSync(join(here, name), "utf8");
 	const parts = {
 		title: escapeHtml(title),
 		slug: escapeHtml(slug),
+		key: escapeHtml(key),
 		tokens: cssTokens(theme.colors),
 		// Alpine starts when its own script runs: the plugin and the store of the way back come first, the page last.
 		head: interactive ? `<script>${vendor("vendor/alpine-persist.min.js")}</script>\n<script>${vendor("back.js")}</script>` : "",
-		alpine: interactive
-			? `<div class="toast" x-data :class="$store.back.toast && 'on'" x-text="$store.back.toast"></div>\n<script>${vendor("vendor/alpine.min.js")}</script>`
-			: "",
+		alpine: interactive ? `<script>${vendor("vendor/alpine.min.js")}</script>` : "",
 		body,
 		footer: footer(sourcePath, theme.source),
 		source: (source ?? "").replaceAll("</script", "<\\/script"),

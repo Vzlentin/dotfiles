@@ -63,6 +63,7 @@ Apply these rules to your plan and to each option that you recommend:
 
 Write it when the user asks for a page, and at the contract. Use the format of `{baseDir}/template.md`. It goes in the vault: load `vault`. With no vault, it goes in `/tmp/pages/<slug>/record.md`.
 
+- `round:` goes up by one each time you apply an answer line. A page starts each round from the record, not from the user's earlier taps.
 - `type: memo` while open. At the contract: `type: canon`, `status: contract`, and plain words in place of each blank.
 - Below the options of each decided card: `Answer: <letter>`, or `Answer: own · <short label>`. Under it, quote the user's exact words with the time in UTC from the session log: `> "words" (you, 10-25 13:27)`.
 - Never write a summary of a settled decision: quote the user's words. Decision numbers never change.
@@ -73,7 +74,8 @@ The record is the contract. The page explains it: you design the page for its to
 
 Write the page source in `/tmp/pages/<slug>/page.md`: Markdown and HTML, as for `artifacts`.
 
-- `{{cards}}` is where the decision cards go. The cards come from the record.
+- `{{cards}}` is where the decision cards go: alone on its line, with a blank line before and after it. The cards come from the record.
+- The page source may use Alpine, as `artifacts` says. Its Alpine parts also work on the contract and the share copy.
 - `{?3}` is a blank: the answer to decision 3, or its plan while it is open. It changes when the user picks.
 - A ` ```mermaid ` block becomes a diagram in the page colors.
 - On a live page, the bar comes last. Its Copy gives the answer line, then each field that the page adds to the way back of `artifacts`.

@@ -18,8 +18,8 @@ h3.group{font:700 12px var(--mono);text-transform:uppercase;letter-spacing:.12em
 .num{flex:none;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--bg);font:700 14px var(--mono)}
 .dtitle{font-weight:700;color:var(--fg);font-size:17px;flex:1;min-width:150px}
 .whose{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;border-radius:6px;padding:3px 7px}
-.whose.you{color:var(--accent);border:1px solid var(--accent)}
-.whose.me{color:var(--muted);border:1px solid var(--border-muted)}
+.whose.your{color:var(--accent);border:1px solid var(--accent)}
+.whose.my{color:var(--muted);border:1px solid var(--border-muted)}
 .planline{flex-basis:100%;font-size:14px;color:var(--muted);padding-left:38px}
 .dec.mine[open] .planline{display:none}
 .tension{margin:10px 0 6px}

@@ -29,7 +29,7 @@ node {baseDir}/render.mjs --theme                  # the theme as CSS variables,
 - The source: frontmatter with a `page:` slug, then Markdown and HTML. `<style>` and `<script>` blocks go in as they are.
 - The base shell gives the theme as CSS variables (`--accent`, `--text`, `--muted`, `--card`, `--line`, ...), the type, the spacing and the code style. The page is at most `--page` wide (1440 px), centered. Inside it, the page lays itself out. Optional parts: `.grid` (columns that wrap on a phone), `.card`, `.muted`, `.no-share`.
 - Code blocks: `diff`, and each language that highlight.js knows.
-- A local image goes into the page. A local SVG goes in as it is and takes the page colors. For a diagram, draw it with `show-me` (`mermaid.mjs --page`) and link the SVG: `![what it shows](diagram.svg)`.
+- A local image goes into the page. A local SVG goes in as it is and takes the page colors. For a diagram, draw it with `show-me` (`mermaid.mjs --large`) and link the SVG: `![what it shows](diagram.svg)`.
 - A PDF: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --no-pdf-header-footer --print-to-pdf=<file.pdf> file:///tmp/pages/<slug>/share.html`.
 
 ## Interaction and the way back
@@ -46,7 +46,8 @@ The way back is how the user's edits come back to you: one store, `$store.back`,
 ```
 
 - `$store.back.text` is the block that Copy gives: the lines of each part, then each changed field as `key:` and its text. With no part, it starts with `[slug]`.
-- A page that builds its own lines adds a part: `Alpine.store("back").part(() => "a line")`, in an `alpine:init` listener.
+- A page that builds its own lines adds a part: `Alpine.store("back").part(() => "a line")`, in an `alpine:init` listener. Its fields take `{ list: false }`, so that only the part reports them.
+- The browser keeps only the user's edits. When you build the page again with new defaults, a field that he did not edit shows the new default.
 - The user pastes the block to you. Read it, then apply it.
 
 ## Check

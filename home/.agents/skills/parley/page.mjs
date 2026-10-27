@@ -2,7 +2,7 @@
 // Builds the page of a parley: the page source that you write, with the decision cards of the record.
 // Usage: page.mjs [--share] <record.md> <page.md> [out.html]
 // The record is the contract. The page source is Markdown and HTML that you lay out for the topic:
-// - {{cards}} is where the decision cards go.
+// - {{cards}} is where the decision cards go: a line of its own, with a blank line before and after it.
 // - {?3} is a blank: the answer to decision 3, or its plan while it is open.
 // A live page ends with the bar of the way back. The page itself comes from artifacts, diagrams from show-me.
 import { readFileSync } from "node:fs";
@@ -10,8 +10,16 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createMarkdown, escapeHtml, frontmatter, plainText, renderPage } from "../artifacts/render.mjs";
 import { renderMermaid } from "../show-me/mermaid.mjs";
+import { blankKind, blankText, freshCard } from "./state.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
+// The lines of a decision in the record.
+const HEADING = /^(\d+) · (.+?) · (your|my) call$/;
+const OPTION = /^- ([a-z]) · (.+?)(?: · (plan))?\s*$/;
+const GAIN = /^\s+\+ (.*)$/;
+const COST = /^\s+- (.*)$/;
+const ANSWER = /^Answer: ([a-z]|own)(?: · (.+?))?\s*$/;
+
 const flags = new Set(process.argv.slice(2).filter((arg) => arg.startsWith("--")));
 const [recordPath, pagePath, outPath] = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 const share = flags.has("--share");
@@ -28,9 +36,8 @@ if (!["open", "readback", "contract"].includes(status)) throw new Error(`Unknown
 const live = status !== "contract" && !share;
 const round = Number(meta.round ?? 1);
 
-const decisions = splitAt(splitSections(body).sections.find((section) => section.title === "Decisions")?.text ?? "", "### ")
-	.slice(1)
-	.map(parseDecision);
+const decisionsText = splitAt(body, "## ").find((section) => section.startsWith("Decisions\n")) ?? "";
+const decisions = splitAt(decisionsText, "### ").slice(1).map(parseDecision);
 const byNumber = new Map(decisions.map((decision) => [decision.n, decision]));
 const recordMarkdown = createMarkdown({ base: dirname(resolve(recordPath)), code: drawDiagram });
 const block = (text) => fillBlanks(recordMarkdown.markdown(text));
@@ -38,9 +45,23 @@ const inline = (text) => fillBlanks(recordMarkdown.inline(text));
 
 const source = readFileSync(pagePath, "utf8");
 const pageBody = frontmatter(source).body;
-const CARDS = /(?:<p>)?\{\{cards\}\}(?:<\/p>)?/;
-const pageHtml = fillBlanks(createMarkdown({ base: dirname(resolve(pagePath)), code: drawDiagram }).markdown(pageBody));
-if (!CARDS.test(pageHtml)) throw new Error("The page source has no {{cards}}: write it where the decision cards go");
+let cardsWritten = 0;
+const cards = {
+	name: "cards",
+	level: "block",
+	tokenizer(src) {
+		const match = src.match(/^\{\{cards\}\}[ \t]*(?:\n|$)/);
+		return match ? { type: "cards", raw: match[0] } : undefined;
+	},
+	renderer() {
+		cardsWritten++;
+		return renderDecisions();
+	},
+};
+const pageHtml = fillBlanks(createMarkdown({ base: dirname(resolve(pagePath)), code: drawDiagram, extensions: [cards] }).markdown(pageBody));
+if (cardsWritten !== 1) {
+	throw new Error(`The page source has ${cardsWritten} {{cards}} lines, it needs 1: write it alone on its line, with a blank line before and after it`);
+}
 const title = plainText(pageBody.match(/^# (.+)$/m)?.[1] ?? meta.title ?? meta.page);
 
 const data = {
@@ -49,28 +70,28 @@ const data = {
 	status,
 	decisions: decisions.map(({ n, whose, plan, decided, answer, labels, shown }) => ({ n, whose, plan, decided, answer, labels, shown })),
 };
+const script = () => {
+	const state = readFileSync(join(here, "state.mjs"), "utf8").replace(/^export /gm, "");
+	return `<script type="application/json" id="parley-data">${JSON.stringify(data).replaceAll("<", "\\u003c")}</script>
+<script>(() => {
+${state}
+${readFileSync(join(here, "cards.js"), "utf8")}
+})();</script>`;
+};
 
 const html = `<div class="parley ${status}">
-${pageHtml.replace(CARDS, () => renderDecisions())}
+${pageHtml}
 ${live ? bar() : ""}
 </div>
 <style>${readFileSync(join(here, "cards.css"), "utf8")}</style>
-${live ? `<script type="application/json" id="parley-data">${JSON.stringify(data).replaceAll("<", "\\u003c")}</script>\n<script>${readFileSync(join(here, "cards.js"), "utf8")}</script>` : ""}`;
+${live ? script() : ""}`;
 
-const page = await renderPage({ slug: meta.page, title, body: html, source, sourcePath: pagePath, share, alpine: live, out: outPath });
+// One saved state for each round: a new round starts from the record.
+const page = await renderPage({ slug: meta.page, key: `${meta.page} r${round}`, title, body: html, source, sourcePath: pagePath, share, alpine: live || undefined, out: outPath });
 const decided = decisions.filter((decision) => decision.decided).length;
 console.log(`${page.target} ${page.bytes} bytes, ${decisions.length} decisions (${decided} decided), colors: ${page.colors}`);
 
 // ---------------------------------------------------------------- record
-
-function splitSections(text) {
-	const [intro, ...parts] = splitAt(text, "## ");
-	const sections = parts.map((part) => {
-		const end = part.indexOf("\n");
-		return { title: part.slice(0, end).trim(), text: part.slice(end + 1) };
-	});
-	return { intro, sections };
-}
 
 // Splits before each line that starts with `marker`, but not inside a fenced code block.
 function splitAt(text, marker) {
@@ -84,138 +105,160 @@ function splitAt(text, marker) {
 	return parts.map((lines) => lines.join("\n"));
 }
 
-// "### 3 · How you answer · your call", then the tension, the options and the reason for the plan.
-// A decided card adds "Answer: <letter or own>", the user's words as a quote, then the follow-up.
+// A decision, in this order:
+// - "### 3 · How you answer · your call"
+// - the tension, the options with their gains and costs, and the reason for the plan
+// - on a decided card: "Answer: <letter or own>", the user's words as a quote, then the follow-up
 function parseDecision(chunk) {
-	const end = chunk.indexOf("\n");
-	const head = chunk.slice(0, end).trim();
-	const match = head.match(/^(\d+) · (.+?) · (your call|my call)$/);
-	if (!match) throw new Error(`Bad decision heading: "### ${head}". Write "### <n> · <title> · your call" or "· my call"`);
-	const decision = { n: Number(match[1]), title: match[2], whose: match[3] === "your call" ? "you" : "me", options: [] };
-	const text = { tension: [], why: [], receipt: [], after: [] };
-	let part = "tension";
-	for (const line of chunk.slice(end + 1).split("\n")) {
-		const option = part !== "receipt" && part !== "after" && line.match(/^- ([a-z]) · (.+?)(?: · (plan))?\s*$/);
-		if (option) {
-			decision.options.push({ key: option[1], label: option[2], plan: Boolean(option[3]), gains: [], costs: [] });
-			part = "options";
-			continue;
-		}
-		const answer = line.match(/^Answer: ([a-z]|own)(?: · (.+?))?\s*$/);
-		if (answer) {
-			decision.answer = answer[1] === "own" ? null : answer[1];
-			decision.own = answer[1] === "own" ? answer[2] : undefined;
-			part = "receipt";
-			continue;
-		}
-		if (part === "options") {
-			const gain = line.match(/^\s+\+ (.*)$/);
-			const cost = line.match(/^\s+- (.*)$/);
-			if (gain) decision.options.at(-1).gains.push(gain[1]);
-			else if (cost) decision.options.at(-1).costs.push(cost[1]);
-			else if (line.trim() !== "") part = "why";
-			if (part === "options") continue;
-		}
-		if (part === "receipt" && line.trim() !== "" && !line.startsWith(">")) part = "after";
-		text[part].push(line);
-	}
-	const planned = decision.options.filter((option) => option.plan);
+	const [heading, ...lines] = chunk.split("\n");
+	const match = heading.trim().match(HEADING);
+	if (!match) throw new Error(`Bad decision heading: "### ${heading.trim()}". Write "### <n> · <title> · your call" or "· my call"`);
+	const n = Number(match[1]);
+
+	const answerAt = lines.findIndex((line) => ANSWER.test(line));
+	const card = answerAt < 0 ? lines : lines.slice(0, answerAt);
+	const optionsAt = indexFrom(card, 0, (line) => OPTION.test(line));
+	const whyAt = indexFrom(card, optionsAt, (line) => line.trim() !== "" && ![OPTION, GAIN, COST].some((pattern) => pattern.test(line)));
+	const options = parseOptions(card.slice(optionsAt, whyAt));
+
+	const answer = answerAt < 0 ? undefined : lines[answerAt].match(ANSWER);
+	const rest = answerAt < 0 ? [] : lines.slice(answerAt + 1);
+	const afterAt = indexFrom(rest, 0, (line) => line.trim() !== "" && !line.startsWith(">"));
+	const receipt = rest.slice(0, afterAt).join("\n");
+
+	const planned = options.filter((option) => option.plan);
 	if (planned.length !== 1) {
-		throw new Error(
-			`Decision ${decision.n} has ${planned.length} plan options, it needs 1. Write each option on its own line as "- a · **label**", and end one of them with " · plan"`,
-		);
+		throw new Error(`Decision ${n} has ${planned.length} plan options, it needs 1. Write each option on its own line as "- a · **label**", and end one of them with " · plan"`);
 	}
-	const decided = "answer" in decision;
-	if (decided && decision.answer && !decision.options.some((option) => option.key === decision.answer)) {
-		throw new Error(`Decision ${decision.n} answers "${decision.answer}", which is not an option`);
+	const decided = Boolean(answer);
+	const picked = decided && answer[1] !== "own" ? answer[1] : null;
+	if (picked && !options.some((option) => option.key === picked)) throw new Error(`Decision ${n} answers "${picked}", which is not an option`);
+	if (decided && !receipt.trim()) {
+		throw new Error(`Decision ${n} has an answer but not the user's words. Under "Answer:", quote them: > "words" (you, 10-25 13:27)`);
 	}
-	if (decided && !text.receipt.join("").trim()) {
-		throw new Error(`Decision ${decision.n} has an answer but not the user's words. Under "Answer:", quote them: > "words" (you, 10-25 13:27)`);
-	}
-	if (decided && decision.answer === null) decision.own ??= text.receipt.join("\n").match(/"([^"]+)"/)?.[1];
-	const joined = Object.fromEntries(Object.entries(text).map(([name, lines]) => [name, lines.join("\n")]));
-	const labels = Object.fromEntries(decision.options.map((option) => [option.key, label(option.label)]));
+	const own = decided && !picked ? (answer[2] ?? receipt.match(/"([^"]+)"/)?.[1]) : undefined;
+	const labels = Object.fromEntries(options.map((option) => [option.key, label(option.label)]));
 	const plan = planned[0].key;
-	// What the card and its blanks show before the user picks: the answer, or the plan while the decision is open.
-	const shown = !decided ? labels[plan] : decision.answer ? labels[decision.answer] : (decision.own ?? "your own answer");
-	return { ...decision, ...joined, decided, plan, labels, shown };
+	return {
+		n,
+		title: match[2],
+		whose: match[3],
+		options,
+		tension: card.slice(0, optionsAt).join("\n"),
+		why: card.slice(whyAt).join("\n"),
+		decided,
+		answer: decided ? picked : undefined,
+		own,
+		receipt,
+		after: rest.slice(afterAt).join("\n"),
+		plan,
+		labels,
+		// What the card and its blanks show before the user picks: the answer, or the plan while the decision is open.
+		shown: !decided ? labels[plan] : picked ? labels[picked] : (own ?? "your own answer"),
+	};
+}
+
+function parseOptions(lines) {
+	const options = [];
+	for (const line of lines) {
+		const [option, gain, cost] = [OPTION, GAIN, COST].map((pattern) => line.match(pattern));
+		if (option) options.push({ key: option[1], label: option[2], plan: Boolean(option[3]), gains: [], costs: [] });
+		else if (gain) options.at(-1).gains.push(gain[1]);
+		else if (cost) options.at(-1).costs.push(cost[1]);
+	}
+	return options;
+}
+
+// The index of the first line from `from` that passes `test`, or the length.
+function indexFrom(lines, from, test) {
+	const at = lines.findIndex((line, index) => index >= from && test(line));
+	return at < 0 ? lines.length : at;
 }
 
 // ---------------------------------------------------------------- page parts
 
 // A Mermaid block in the record becomes the SVG of show-me, in the page colors.
 function drawDiagram({ text, lang }) {
-	if ((lang ?? "").trim().split(/\s+/)[0] === "mermaid") return `<figure class="fig">${renderMermaid(text, { page: true })}</figure>\n`;
+	if ((lang ?? "").trim().split(/\s+/)[0] === "mermaid") return `<figure class="fig">${renderMermaid(text, { large: true })}</figure>\n`;
 }
 
-// Each Alpine attribute only on a live page: the contract and the share copy stay plain HTML.
+// Alpine attributes go only on a live page: the contract and the share copy stay plain HTML.
+// The HTML always gives the state at the start. A live page binds classes as objects, so Alpine can take them away.
 function on(attributes) {
 	return live ? ` ${attributes}` : "";
 }
 
-// The class of a part that shows the state of a card. On a live page Alpine owns that state: it sets
-// `bound`, and the page writes no `fixed` class, because Alpine never removes a class that the HTML gives.
-function classes(base, fixed, bound) {
-	return live ? `class="${base}" :class="${bound}"` : `class="${[base, fixed].filter(Boolean).join(" ")}"`;
-}
-
 function renderDecisions() {
-	const card = (decision) => {
-		const n = decision.n;
-		const options = decision.options
-			.map(
-				(option) => `<button ${classes("opt", decision.decided && option.key === decision.answer ? "sel" : "", `$store.parley.s(${n}).k === '${option.key}' && 'sel'`)}${on(`@click.prevent="$store.parley.pick(${n}, '${option.key}')"`)}><span class="key">${option.key}</span><span class="body">
-<span class="label">${inline(option.label)}${option.plan ? ' <i class="planbadge">plan</i>' : ""}</span>
-${option.gains.map((gain) => `<span class="gain">${inline(gain)}</span>`).join("")}
-${option.costs.map((cost) => `<span class="cost">${inline(cost)}</span>`).join("")}</span></button>`,
-			)
-			.join("");
-		const head = `<span class="num">${n}</span><span class="dtitle">${inline(decision.title)}</span><span class="whose ${decision.whose}">${decision.whose === "you" ? "your call" : "my call"}</span>`;
-		const acts = live
-			? `<div class="acts"><textarea rows="2" placeholder="${decision.decided ? "Your words: a correction" : "Your words: a note on your pick, or your own answer"}" x-model="$store.parley.s(${n}).note"></textarea>
-<label class="ask"><input type="checkbox" x-model="$store.parley.s(${n}).ask"> Explain this first <code>?${n}</code></label></div>`
-			: "";
-		const inner = `<div class="tension">${block(decision.tension)}</div><div class="opts">${options}</div>
-${decision.why.trim() ? `<div class="why">${block(decision.why)}</div>` : ""}${acts}`;
-		const state = on(`x-data :class="{ asked: $store.parley.s(${n}).ask, changed: $store.parley.changed(${n}) }"`);
-		if (decision.decided) {
-			return `<article class="dec decided" id="d-${n}"${state}><header>${head}</header>
-<p class="decidedline">decided: <b>${escapeHtml(decision.shown)}</b></p><div class="receipt">${block(decision.receipt)}</div>
-${decision.after.trim() ? `<div class="after">${block(decision.after)}</div>` : ""}
-<details class="more"><summary>The options and the reasons</summary>${inner}</details></article>`;
-		}
-		return decision.whose === "you"
-			? `<article class="dec" id="d-${n}"${state}><header>${head}</header>${inner}</article>`
-			: `<details class="dec mine" id="d-${n}"${state}><summary>${head}<span class="planline">plan: ${escapeHtml(decision.labels[decision.plan])}</span></summary>${inner}</details>`;
-	};
 	const hint = {
 		open: "Your calls start empty: only you can answer them. My calls are set to my plan; open one to change it. Any card takes your own words, or a request to explain it first.",
 		readback: "Every call has an answer. Each card shows your words. To correct one, open it and pick another option, or write your words.",
 		contract: "What we agreed, with your words.",
 	}[status];
 	const group = (whose, name) => {
-		const cards = decisions.filter((decision) => decision.whose === whose).map(card).join("\n");
+		const cards = decisions.filter((decision) => decision.whose === whose).map(renderCard).join("\n");
 		return cards ? `<h3 class="group">${name}</h3><div class="cards">${cards}</div>` : "";
 	};
-	return `<p class="hint">${hint}</p>${group("you", "Your calls")}${group("me", "My calls")}`;
+	return `<p class="hint">${hint}</p>${group("your", "Your calls")}${group("my", "My calls")}`;
 }
 
-// "{?3}" in any text becomes a blank: the answer to decision 3, or its plan while it is open.
+function renderCard(decision) {
+	const n = decision.n;
+	const head = `<span class="num">${n}</span><span class="dtitle">${inline(decision.title)}</span><span class="whose ${decision.whose}">${decision.whose} call</span>`;
+	const why = decision.why.trim() ? `<div class="why">${block(decision.why)}</div>` : "";
+	const inner = `<div class="tension">${block(decision.tension)}</div><div class="opts">${decision.options.map((option) => renderOption(decision, option)).join("")}</div>
+${why}${live ? renderActs(decision) : ""}`;
+	const state = on(`x-data :class="{ asked: $store.parley.card(${n}).ask, changed: $store.parley.changed(${n}) }"`);
+	if (decision.decided) {
+		const after = decision.after.trim() ? `<div class="after">${block(decision.after)}</div>` : "";
+		return `<article class="dec decided" id="d-${n}"${state}><header>${head}</header>
+<p class="decidedline">decided: <b>${escapeHtml(decision.shown)}</b></p><div class="receipt">${block(decision.receipt)}</div>
+${after}
+<details class="more"><summary>The options and the reasons</summary>${inner}</details></article>`;
+	}
+	if (decision.whose === "your") return `<article class="dec" id="d-${n}"${state}><header>${head}</header>${inner}</article>`;
+	return `<details class="dec mine" id="d-${n}"${state}><summary>${head}<span class="planline">plan: ${escapeHtml(decision.labels[decision.plan])}</span></summary>${inner}</details>`;
+}
+
+function renderOption(decision, option) {
+	const n = decision.n;
+	const selected = freshCard(decision).pick === option.key;
+	const binding = on(`:class="{ sel: $store.parley.card(${n}).pick === '${option.key}' }" @click.prevent="$store.parley.pick(${n}, '${option.key}')"`);
+	const badge = option.plan ? ' <i class="planbadge">plan</i>' : "";
+	return `<button class="opt${selected ? " sel" : ""}"${binding}><span class="key">${option.key}</span><span class="body">
+<span class="label">${inline(option.label)}${badge}</span>
+${option.gains.map((gain) => `<span class="gain">${inline(gain)}</span>`).join("")}
+${option.costs.map((cost) => `<span class="cost">${inline(cost)}</span>`).join("")}</span></button>`;
+}
+
+function renderActs(decision) {
+	const n = decision.n;
+	const placeholder = decision.decided ? "Your words: a correction" : "Your words: a note on your pick, or your own answer";
+	return `<div class="acts"><textarea rows="2" placeholder="${placeholder}" x-model="$store.back.values['${n} note']"></textarea>
+<label class="ask"><input type="checkbox" x-model="$store.back.values['${n} ask']"> Explain this first <code>?${n}</code></label></div>`;
+}
+
+// "{?3}" in the text of the page becomes a blank: the answer to decision 3, or its plan while it is open.
+// Tags, code, scripts, styles and SVGs keep their text.
 function fillBlanks(html) {
-	return html.replace(/\{\?(\d+)\}/g, (all, n) => {
-		const decision = byNumber.get(Number(n));
-		if (!decision) throw new Error(`Blank {?${n}} names no decision`);
-		const kind = decision.decided ? (decision.answer ? "set" : "own") : "plan";
-		return `<a ${classes("blank", kind, `$store.parley.blank(${n})`)} href="#d-${n}"${on("x-data")}><b${on(`x-text="$store.parley.shown(${n})"`)}>${escapeHtml(decision.shown)}</b><sup>${n}</sup></a>`;
-	});
+	return html
+		.split(/(<(pre|code|script|style|svg)\b[\s\S]*?<\/\2>|<[^>]*>)/)
+		.map((part, index) => (index % 3 === 0 ? part.replace(/\{\?(\d+)\}/g, (all, n) => renderBlank(Number(n))) : index % 3 === 1 ? part : ""))
+		.join("");
+}
+
+function renderBlank(n) {
+	const decision = byNumber.get(n);
+	if (!decision) throw new Error(`Blank {?${n}} names no decision`);
+	const card = freshCard(decision);
+	return `<a class="blank ${blankKind(decision, card)}"${on(`:class="$store.parley.blank(${n})"`)} href="#d-${n}"${on("x-data")}><b${on(`x-text="$store.parley.shown(${n})"`)}>${escapeHtml(blankText(decision, card))}</b><sup>${n}</sup></a>`;
 }
 
 // The bar of the way back of artifacts, with the state of the cards and a Reset.
 function bar() {
 	return `<div class="bar dock" x-data>
-  <div class="meta"><span><span :class="$store.parley.head.state" x-text="$store.parley.head.text"></span><span x-show="$store.parley.asks" x-text="' · ' + $store.parley.asks + ' to explain'"></span></span><div class="dots"><template x-for="d in $store.parley.P.decisions" :key="d.n"><i :class="$store.parley.s(d.n).ask ? 'ask' : $store.parley.kind(d)" :title="d.n" @click="$store.parley.go(d.n)"></i></template></div></div>
+  <div class="meta"><span><span :class="$store.parley.head.state" x-text="$store.parley.head.text"></span><span x-show="$store.parley.asks" x-text="' · ' + $store.parley.asks + ' to explain'"></span></span><div class="dots"><template x-for="d in $store.parley.P.decisions" :key="d.n"><i :class="$store.parley.dot(d)" :title="d.n" @click="$store.parley.go(d.n)"></i></template></div></div>
   <div class="line" x-text="$store.back.text"></div>
-  <div class="btns"><button @click="$store.parley.reset()">Reset</button><button class="primary" x-show="typeof sendPrompt === 'function'" x-cloak @click="sendPrompt($store.back.text)">Send</button><button class="primary" @click="$store.back.copy()">Copy</button></div>
+  <div class="btns"><button @click="confirm('Clear your answers and notes?') && $store.back.reset()">Reset</button><button class="primary" x-show="typeof sendPrompt === 'function'" x-cloak @click="sendPrompt($store.back.text)">Send</button><button class="primary" @click="$store.back.copy()">Copy</button></div>
 </div>`;
 }
 

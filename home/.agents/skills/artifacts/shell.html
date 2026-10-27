@@ -14,13 +14,14 @@
   --measure:78ch;
   --page:1440px;
   --pad:clamp(16px,3.2vw,48px);
+  --end:40px;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 var(--sans)}
 /* the page width: a page may set --page, or lay itself out inside it */
 main,footer{max-width:var(--page);margin:0 auto}
-main{padding:28px var(--pad) 40px}
+main{padding:28px var(--pad) var(--end)}
 a{color:var(--md-link)}
 code{font:.86em var(--mono);color:var(--md-code);background:var(--sunk);padding:1px 6px;border-radius:6px}
 strong,b{color:var(--fg)}
@@ -67,7 +68,7 @@ textarea,input[type=text]{width:100%;background:var(--sunk);color:var(--fg);bord
 textarea:focus,input[type=text]:focus{outline:none;border-color:var(--accent)}
 
 /* the way back: a bar at the bottom with the block that Copy gives */
-.bar{position:sticky;bottom:0;z-index:30;display:flex;align-items:center;gap:12px;margin:24px calc(-1 * var(--pad)) -40px;padding:10px var(--pad) calc(10px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+.bar{position:sticky;bottom:0;z-index:30;display:flex;align-items:center;gap:12px;margin:24px calc(-1 * var(--pad)) calc(-1 * var(--end));padding:10px var(--pad) calc(10px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line)}
 .bar .line{flex:1;min-width:0;font:13px/1.45 var(--mono);color:var(--fg);background:var(--sunk);border-radius:8px;padding:8px 10px;max-height:7.5em;overflow:auto;white-space:pre-wrap;word-break:break-word}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--fg);color:var(--bg);font:600 14px var(--sans);padding:8px 14px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40}
 .toast.on{opacity:1}
@@ -98,12 +99,14 @@ body.share .bar,body.share .toast,body.share footer,body.share .no-share{display
 </style>
 {{head}}
 </head>
-<body class="{{bodyClass}}" data-page="{{slug}}">
+<body class="{{bodyClass}}" data-page="{{slug}}" data-key="{{key}}">
 <main>
 {{body}}
 </main>
 <footer>{{footer}}</footer>
 <script type="text/markdown" id="page-source">{{source}}</script>
+<!-- the toast of Copy: empty and hidden on a page without Alpine -->
+<div class="toast" x-data :class="$store.back.toast && 'on'" x-text="$store.back.toast"></div>
 {{alpine}}
 </body>
 </html>
