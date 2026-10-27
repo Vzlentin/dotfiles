@@ -27,25 +27,21 @@ document.addEventListener("alpine:init", () => {
 			const s = this.s(n);
 			s.k = s.k !== key ? key : d.decided ? base(d) : null;
 		},
+		// open: it waits for the user. plan: as planned or as decided. set: a pick. own: the user's words only.
 		kind(d) {
 			const s = this.s(d.n);
-			if (s.ask) return "ask";
-			if (d.decided) return this.changed(d.n) ? (s.k ? "set" : "own") : "plan";
-			if (s.k && (d.whose === "you" || s.k !== d.plan)) return "set";
-			if (!s.k && s.note.trim()) return "own";
-			if (s.k) return s.note.trim() ? "set" : "plan";
-			return "open";
+			if (!this.changed(d.n)) return s.k || d.decided ? "plan" : "open";
+			return s.k ? "set" : s.note.trim() ? "own" : "open";
 		},
 		shown(n) {
 			const d = byNumber.get(n);
 			const s = this.s(n);
-			return s.k ? d.labels[s.k] : s.note.trim() ? quote(s.note).slice(0, 60) : d.own || d.labels[d.plan];
+			return s.k ? d.labels[s.k] : s.note.trim() ? quote(s.note).slice(0, 60) : d.shown;
 		},
 		blank(n) {
 			const d = byNumber.get(n);
 			if (d.decided && !this.changed(n)) return d.answer ? "set" : "own";
-			const kind = this.kind(d);
-			return kind === "ask" ? (this.s(n).k ? "set" : "open") : kind;
+			return this.kind(d);
 		},
 		line() {
 			const parts = [];

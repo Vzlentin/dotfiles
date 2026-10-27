@@ -1,33 +1,4 @@
-/* The layout of a parley page: the terms and the cards take the width, the text keeps its measure. */
-header.top{padding:0 0 6px}
-.kicker{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
-.lede p{margin:0 0 10px}
-.stats{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
-.stats span{font:13px var(--mono);color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:4px 10px}
-.stats b{color:var(--fg)}
-nav.toc{position:sticky;top:0;z-index:20;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:10px calc(-1 * var(--pad)) 0;padding:10px var(--pad);background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-nav.toc::-webkit-scrollbar{display:none}
-nav.toc a{flex:none;text-decoration:none;color:var(--text);font-size:14px;padding:6px 13px;border-radius:99px;border:1px solid var(--line)}
-section{padding:20px 0 8px;scroll-margin-top:60px}
-
-/* a folded section: the detail opens on demand */
-details.fold>summary{cursor:pointer;list-style:none}
-details.fold>summary::-webkit-details-marker{display:none}
-details.fold>summary h2{display:inline}
-details.fold>summary::after{content:"show";font:12px var(--mono);color:var(--muted);margin-left:10px}
-details.fold[open]>summary::after{content:"hide"}
-
-/* settled */
-.settled ul{list-style:none;padding:0;max-width:none}
-.settled li{background:var(--tool-success-bg);border:1px solid var(--line);border-radius:12px;padding:10px 13px;margin:8px 0}
-.settled li strong::before{content:"settled";font:700 10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--bg);background:var(--success);border-radius:5px;padding:2px 6px;margin-right:8px;vertical-align:2px}
-.settled li blockquote{margin:8px 0 0}
-
-/* terms: the design as it stands; blanks show the current answers */
-.terms{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 18px;margin-top:14px}
-.terms h2::after{content:"draft: it fills in as you answer";display:block;font:500 12px var(--mono);color:var(--muted);letter-spacing:0;margin-top:4px}
-.parley.contract .terms h2::after{content:"the contract: what we agreed";color:var(--success)}
-.parley.readback .terms h2::after{content:"read-back: answer aligned, or correct a card";color:var(--warning)}
+/* The parts of a parley page: the blanks, the decision cards and the bar. The page lays out the rest. */
 .blank{display:inline-block;text-decoration:none;color:var(--fg);border:1px dashed var(--warning);border-radius:7px;padding:0 6px;line-height:1.5;margin:1px 0}
 .blank sup{font:600 10px var(--mono);color:var(--muted);margin-left:3px}
 .blank.plan{border:1px solid var(--border-muted);color:var(--text)}
@@ -95,6 +66,5 @@ details.more>summary{cursor:pointer;color:var(--muted);font-size:14px}
   .btns{flex-basis:100%}
   .btns button.primary{flex:1}
 }
-body.share nav.toc,body.share .hint,body.share .stats{display:none}
-body.share .terms h2::after{content:none}
-@media print{nav.toc{display:none} .dec{break-inside:avoid}}
+body.share .hint{display:none}
+@media print{.dec{break-inside:avoid}}

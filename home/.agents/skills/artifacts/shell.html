@@ -12,11 +12,14 @@
   --sunk:color-mix(in srgb,#000 22%,var(--bg));
   --line:color-mix(in srgb,var(--border-muted) 45%,var(--bg));
   --measure:78ch;
+  --page:1440px;
   --pad:clamp(16px,3.2vw,48px);
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 var(--sans)}
+/* the page width: a page may set --page, or lay itself out inside it */
+main,footer{max-width:var(--page);margin:0 auto}
 main{padding:28px var(--pad) 40px}
 a{color:var(--md-link)}
 code{font:.86em var(--mono);color:var(--md-code);background:var(--sunk);padding:1px 6px;border-radius:6px}
@@ -35,7 +38,7 @@ li::marker{color:var(--md-list-bullet)}
 blockquote{margin:8px 0 12px;padding:9px 13px;background:var(--user-message-bg);border-left:3px solid var(--accent);border-radius:8px;color:var(--fg)}
 blockquote p{margin:0}
 .tw{overflow-x:auto;margin:8px 0 16px;-webkit-overflow-scrolling:touch}
-table{border-collapse:collapse;font-size:14px;width:100%}
+table{border-collapse:collapse;font-size:14px}
 th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
 th{background:var(--card);color:var(--fg)}
 

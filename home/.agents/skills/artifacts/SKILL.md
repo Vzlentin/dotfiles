@@ -27,7 +27,7 @@ node {baseDir}/render.mjs --theme                  # the theme as CSS variables,
 ```
 
 - The source: frontmatter with a `page:` slug, then Markdown and HTML. `<style>` and `<script>` blocks go in as they are.
-- The base shell gives the theme as CSS variables (`--accent`, `--text`, `--muted`, `--card`, `--line`, ...), the type, the spacing and the code style. It has no layout. Optional parts: `.grid` (columns that wrap on a phone), `.card`, `.muted`, `.no-share`.
+- The base shell gives the theme as CSS variables (`--accent`, `--text`, `--muted`, `--card`, `--line`, ...), the type, the spacing and the code style. The page is at most `--page` wide (1440 px), centered. Inside it, the page lays itself out. Optional parts: `.grid` (columns that wrap on a phone), `.card`, `.muted`, `.no-share`.
 - Code blocks: `diff`, and each language that highlight.js knows.
 - A local image goes into the page. A local SVG goes in as it is and takes the page colors. For a diagram, draw it with `show-me` (`mermaid.mjs --page`) and link the SVG: `![what it shows](diagram.svg)`.
 - A PDF: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --no-pdf-header-footer --print-to-pdf=<file.pdf> file:///tmp/pages/<slug>/share.html`.
