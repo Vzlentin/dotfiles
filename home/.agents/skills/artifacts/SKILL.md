@@ -1,6 +1,6 @@
 ---
 name: artifacts
-description: Make HTML pages for the user and get them to him: pages that teach, decision pages, and copies to share. Covers the approach, the terminal theme, the renderer, and the hosts (local file, Radius, Claude Artifact).
+description: "Make HTML pages for the user and get them to him: pages that teach, decision pages, and copies to share. Covers the approach, the terminal theme, the renderer, and the hosts (local file, Radius, Claude Artifact)."
 ---
 
 # artifacts
