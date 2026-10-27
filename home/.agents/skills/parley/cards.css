@@ -1,6 +1,4 @@
 /* The layout of a parley page: the terms and the cards take the width, the text keeps its measure. */
-.parley{padding-bottom:110px}
-.parley.contract{padding-bottom:0}
 header.top{padding:0 0 6px}
 .kicker{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
 .lede p{margin:0 0 10px}
@@ -82,25 +80,21 @@ details.more>summary{cursor:pointer;color:var(--muted);font-size:14px}
 .parley.contract .opt:not(.sel),.parley.contract .hint{display:none}
 .parley.contract .opt{cursor:default}
 
-/* dock: the answer line, and Copy */
-.dock{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:10px var(--pad) calc(10px + env(safe-area-inset-bottom))}
-.dock .in{display:flex;align-items:center;gap:14px}
+/* dock: the bar of artifacts, with the state of the cards */
 .dock .meta{flex:none;display:flex;flex-direction:column;gap:6px;width:170px;font:12px var(--mono);color:var(--muted)}
 .dock .meta .open{color:var(--warning)} .dock .meta .done{color:var(--success)}
 .dots{display:flex;gap:5px;flex-wrap:wrap}
 .dots i{width:10px;height:10px;border-radius:50%;background:var(--sunk);border:1px solid var(--border-muted);cursor:pointer}
 .dots i.set{background:var(--accent);border-color:var(--accent)} .dots i.plan{background:var(--border-muted)}
 .dots i.own{background:var(--success);border-color:var(--success)} .dots i.ask{background:var(--warning);border-color:var(--warning)}
-.dock .line{flex:1;min-width:0;font:13px/1.45 var(--mono);color:var(--fg);background:var(--sunk);border-radius:8px;padding:8px 10px;max-height:6em;overflow:auto;white-space:pre-wrap;word-break:break-word}
 .btns{flex:none;display:flex;gap:8px}
 .btns button{min-height:44px}
 .btns button.primary{min-width:120px}
-@media (max-width:899px){
-  .parley{padding-bottom:200px}
-  .dock .in{flex-direction:column;align-items:stretch;gap:8px}
-  .dock .meta{flex-direction:row;justify-content:space-between;width:auto}
+@media (max-width:700px){
+  .dock .meta{flex-basis:100%;flex-direction:row;justify-content:space-between;width:auto}
+  .btns{flex-basis:100%}
   .btns button.primary{flex:1}
 }
-body.share .dock,body.share nav.toc,body.share .hint,body.share .stats{display:none}
+body.share nav.toc,body.share .hint,body.share .stats{display:none}
 body.share .terms h2::after{content:none}
-@media print{nav.toc,.dock{display:none} .dec{break-inside:avoid}}
+@media print{nav.toc{display:none} .dec{break-inside:avoid}}

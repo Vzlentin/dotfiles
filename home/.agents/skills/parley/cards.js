@@ -45,8 +45,7 @@ document.addEventListener("alpine:init", () => {
 			const d = byNumber.get(n);
 			if (d.decided && !this.changed(n)) return d.answer ? "set" : "own";
 			const kind = this.kind(d);
-			if (kind === "ask") return this.s(n).k ? "set" : "open";
-			return kind === "plan" && d.decided ? "set" : kind;
+			return kind === "ask" ? (this.s(n).k ? "set" : "open") : kind;
 		},
 		line() {
 			const parts = [];
@@ -63,19 +62,17 @@ document.addEventListener("alpine:init", () => {
 			else if (open && P.decisions.some((d) => d.whose === "me" && !d.decided)) parts.push("ok");
 			return `[${P.slug} r${P.round}] ${parts.join(" ")}`.trim();
 		},
+		// The state of the round, above the dots: "open" while something waits for the user, else "done".
 		get head() {
 			const yours = P.decisions.filter((d) => d.whose === "you" && !d.decided).length;
 			const open = P.decisions.filter((d) => d.whose === "you" && !d.decided && !this.s(d.n).k && !this.s(d.n).note.trim()).length;
-			const asks = P.decisions.filter((d) => this.s(d.n).ask).length;
 			const fixes = P.decisions.filter((d) => d.decided && this.changed(d.n)).length;
-			const head = yours
-				? open
-					? `<span class="open">${open} of ${yours} your calls open</span>`
-					: `<span class="done">your calls answered</span>`
-				: fixes
-					? `<span class="open">${fixes} correction${fixes > 1 ? "s" : ""}</span>`
-					: `<span class="done">all decided: copy aligned if the terms are right</span>`;
-			return head + (asks ? ` · ${asks} to explain` : "");
+			if (yours) return open ? { state: "open", text: `${open} of ${yours} your calls open` } : { state: "done", text: "your calls answered" };
+			if (fixes) return { state: "open", text: `${fixes} correction${fixes > 1 ? "s" : ""}` };
+			return { state: "done", text: "all decided: copy aligned if the terms are right" };
+		},
+		get asks() {
+			return P.decisions.filter((d) => this.s(d.n).ask).length;
 		},
 		go(n) {
 			const card = document.getElementById(`d-${n}`);

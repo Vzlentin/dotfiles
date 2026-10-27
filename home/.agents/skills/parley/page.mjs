@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { escapeHtml, frontmatter, inline as inlineMarkdown, markdown, renderPage, setImageBase } from "../artifacts/render.mjs";
+import { createMarkdown, escapeHtml, frontmatter, plainText, renderPage, slug } from "../artifacts/render.mjs";
 import { renderMermaid } from "../show-me/mermaid.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -20,7 +20,7 @@ if (!recordPath) {
 const source = readFileSync(recordPath, "utf8");
 const { meta, body } = frontmatter(source);
 if (!meta.page) throw new Error("The record needs a `page:` slug in its frontmatter");
-setImageBase(dirname(resolve(recordPath)));
+const { markdown, inline: inlineMarkdown } = createMarkdown({ base: dirname(resolve(recordPath)), code: drawDiagram });
 const status = meta.status ?? "open";
 const stage = { open: "open", readback: "read-back", contract: "contract" }[status];
 if (!stage) throw new Error(`Unknown status: ${status}`);
@@ -33,7 +33,7 @@ const decisions = splitAt(sections.find((section) => section.title === "Decision
 	.slice(1)
 	.map(parseDecision);
 const byNumber = new Map(decisions.map((decision) => [decision.n, decision]));
-const block = (text) => fillBlanks(markdown(drawDiagrams(text)));
+const block = (text) => fillBlanks(markdown(text));
 const inline = (text) => fillBlanks(inlineMarkdown(text));
 
 const title = (intro.match(/^# (.+)$/m)?.[1] ?? meta.title ?? meta.page).trim();
@@ -69,7 +69,7 @@ const data = {
 		decided,
 		answer,
 		own,
-		labels: Object.fromEntries(options.map((option) => [option.key, plainText(option.label)])),
+		labels: Object.fromEntries(options.map((option) => [option.key, label(option.label)])),
 	})),
 };
 
@@ -78,12 +78,12 @@ const html = `<div class="parley ${status}">
 <header class="top">${kicker}<h1>${inline(title)}</h1><div class="lede">${block(lede)}</div><div class="stats">${stats()}</div></header>
 <nav class="toc">${nav.join("")}</nav>
 ${main}
-${live ? dock() : ""}
+${live ? bar() : ""}
 </div>
 <style>${readFileSync(join(here, "cards.css"), "utf8")}</style>
 ${live ? `<script type="application/json" id="parley-data">${JSON.stringify(data).replaceAll("<", "\\u003c")}</script>\n<script>${readFileSync(join(here, "cards.js"), "utf8")}</script>` : ""}`;
 
-const page = await renderPage({ slug: meta.page, title: plainText(title), body: html, source, sourcePath: recordPath, share, alpine: live, out: outPath });
+const page = await renderPage({ slug: meta.page, title: label(title), body: html, source, sourcePath: recordPath, share, alpine: live, out: outPath });
 console.log(`${page.target} ${page.bytes} bytes, ${decisions.length} decisions (${counts.decided} decided), colors: ${page.colors}`);
 
 // ---------------------------------------------------------------- record
@@ -165,8 +165,8 @@ function parseDecision(chunk) {
 // ---------------------------------------------------------------- page parts
 
 // A Mermaid block in the record becomes the SVG of show-me, in the page colors.
-function drawDiagrams(text) {
-	return text.replace(/^```mermaid\n([\s\S]*?)^```$/gm, (all, diagram) => `\n<figure class="fig">${renderMermaid(diagram, { page: true })}</figure>\n`);
+function drawDiagram({ text, lang }) {
+	if ((lang ?? "").trim().split(/\s+/)[0] === "mermaid") return `<figure class="fig">${renderMermaid(text, { page: true })}</figure>\n`;
 }
 
 // Each Alpine attribute only on a live page: the contract and the share copy stay plain HTML.
@@ -174,12 +174,18 @@ function on(attributes) {
 	return live ? ` ${attributes}` : "";
 }
 
+// The class of a part that shows the state of a card. On a live page Alpine owns that state: it sets
+// `bound`, and the page writes no `fixed` class, because Alpine never removes a class that the HTML gives.
+function classes(base, fixed, bound) {
+	return live ? `class="${base}" :class="${bound}"` : `class="${[base, fixed].filter(Boolean).join(" ")}"`;
+}
+
 function renderDecisions() {
 	const card = (decision) => {
 		const n = decision.n;
 		const options = decision.options
 			.map(
-				(option) => `<button class="opt${option.key === (decision.decided ? decision.answer : null) ? " sel" : ""}"${on(`:class="$store.parley.s(${n}).k === '${option.key}' && 'sel'" @click.prevent="$store.parley.pick(${n}, '${option.key}')"`)}><span class="key">${option.key}</span><span class="body">
+				(option) => `<button ${classes("opt", decision.decided && option.key === decision.answer ? "sel" : "", `$store.parley.s(${n}).k === '${option.key}' && 'sel'`)}${on(`@click.prevent="$store.parley.pick(${n}, '${option.key}')"`)}><span class="key">${option.key}</span><span class="body">
 <span class="label">${inline(option.label)}${option.plan ? ' <i class="planbadge">plan</i>' : ""}</span>
 ${option.gains.map((gain) => `<span class="gain">${inline(gain)}</span>`).join("")}
 ${option.costs.map((cost) => `<span class="cost">${inline(cost)}</span>`).join("")}</span></button>`,
@@ -192,10 +198,10 @@ ${option.costs.map((cost) => `<span class="cost">${inline(cost)}</span>`).join("
 			: "";
 		const inner = `<div class="tension">${block(decision.tension)}</div><div class="opts">${options}</div>
 ${decision.why.trim() ? `<div class="why">${block(decision.why)}</div>` : ""}${acts}`;
-		const label = (key) => plainText(decision.options.find((option) => option.key === key).label);
+		const optionLabel = (key) => label(decision.options.find((option) => option.key === key).label);
 		const state = on(`x-data :class="{ asked: $store.parley.s(${n}).ask, changed: $store.parley.changed(${n}) }"`);
 		if (decision.decided) {
-			const chosen = decision.answer ? label(decision.answer) : (decision.own ?? "your own answer");
+			const chosen = decision.answer ? optionLabel(decision.answer) : (decision.own ?? "your own answer");
 			return `<article class="dec decided" id="d-${n}"${state}><header>${head}</header>
 <p class="decidedline">decided: <b>${escapeHtml(chosen)}</b></p><div class="receipt">${block(decision.receipt)}</div>
 ${decision.after.trim() ? `<div class="after">${block(decision.after)}</div>` : ""}
@@ -203,7 +209,7 @@ ${decision.after.trim() ? `<div class="after">${block(decision.after)}</div>` : 
 		}
 		return decision.whose === "you"
 			? `<article class="dec" id="d-${n}"${state}><header>${head}</header>${inner}</article>`
-			: `<details class="dec mine" id="d-${n}"${state}><summary>${head}<span class="planline">plan: ${escapeHtml(label(decision.plan))}</span></summary>${inner}</details>`;
+			: `<details class="dec mine" id="d-${n}"${state}><summary>${head}<span class="planline">plan: ${escapeHtml(optionLabel(decision.plan))}</span></summary>${inner}</details>`;
 	};
 	const hint = {
 		open: "Your calls start empty: only you can answer them. My calls are set to my plan; open one to change it. Any card takes your own words, or a request to explain it first.",
@@ -223,18 +229,19 @@ function fillBlanks(html) {
 		const decision = byNumber.get(Number(n));
 		if (!decision) throw new Error(`Blank {?${n}} names no decision`);
 		const key = decision.decided ? decision.answer : decision.plan;
-		const shown = key ? plainText(decision.options.find((option) => option.key === key).label) : (decision.own ?? "your own answer");
+		const shown = key ? label(decision.options.find((option) => option.key === key).label) : (decision.own ?? "your own answer");
 		const kind = decision.decided ? (decision.answer ? "set" : "own") : "plan";
-		return `<a class="blank ${kind}" href="#d-${n}"${on(`x-data :class="$store.parley.blank(${n})"`)}><b${on(`x-text="$store.parley.shown(${n})"`)}>${escapeHtml(shown)}</b><sup>${n}</sup></a>`;
+		return `<a ${classes("blank", kind, `$store.parley.blank(${n})`)} href="#d-${n}"${on("x-data")}><b${on(`x-text="$store.parley.shown(${n})"`)}>${escapeHtml(shown)}</b><sup>${n}</sup></a>`;
 	});
 }
 
-function dock() {
-	return `<div class="dock" x-data><div class="in">
-  <div class="meta"><span x-html="$store.parley.head"></span><div class="dots"><template x-for="d in $store.parley.P.decisions" :key="d.n"><i :class="$store.parley.kind(d)" :title="d.n" @click="$store.parley.go(d.n)"></i></template></div></div>
+// The bar of the way back of artifacts, with the state of the cards and a Reset.
+function bar() {
+	return `<div class="bar dock" x-data>
+  <div class="meta"><span><span :class="$store.parley.head.state" x-text="$store.parley.head.text"></span><span x-show="$store.parley.asks" x-text="' · ' + $store.parley.asks + ' to explain'"></span></span><div class="dots"><template x-for="d in $store.parley.P.decisions" :key="d.n"><i :class="$store.parley.kind(d)" :title="d.n" @click="$store.parley.go(d.n)"></i></template></div></div>
   <div class="line" x-text="$store.back.text"></div>
   <div class="btns"><button @click="$store.parley.reset()">Reset</button><button class="primary" x-show="typeof sendPrompt === 'function'" x-cloak @click="sendPrompt($store.back.text)">Send</button><button class="primary" @click="$store.back.copy()">Copy</button></div>
-</div></div>`;
+</div>`;
 }
 
 function stats() {
@@ -250,10 +257,7 @@ function stats() {
 
 // ---------------------------------------------------------------- text helpers
 
-function plainText(markdown) {
-	return markdown.replace(/[*_`]/g, "").replace(/\s*\(.*?\)\s*$/, "").trim();
-}
-
-function slug(text) {
-	return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+// A label for a blank, a button or a title: plain text, with no closing "(...)".
+function label(markdown) {
+	return plainText(markdown).replace(/\s*\(.*?\)\s*$/, "");
 }

@@ -8,7 +8,8 @@ document.addEventListener("alpine:init", () => {
 		values: Alpine.$persist({}).as(`${page}:back`),
 		defaults: {},
 		parts: [],
-		note: "",
+		// The text of the toast that Copy shows.
+		toast: "",
 		field(key, value) {
 			this.defaults[key] = value;
 			if (!(key in this.values)) this.values[key] = value;
@@ -29,7 +30,8 @@ document.addEventListener("alpine:init", () => {
 				.map((key) => `${key}:\n${String(this.values[key]).trim()}`);
 			return [...(lines.length ? lines : [`[${page}]`]), ...fields].join("\n\n");
 		},
-		async copy(text = this.text, message = "Copied: paste it in the terminal") {
+		async copy() {
+			const text = this.text;
 			try {
 				await navigator.clipboard.writeText(text);
 			} catch {
@@ -40,14 +42,11 @@ document.addEventListener("alpine:init", () => {
 				document.execCommand("copy");
 				area.remove();
 			}
-			this.toast(message);
+			this.toast = "Copied: paste it in the terminal";
+			setTimeout(() => (this.toast = ""), 1500);
 		},
 		reset() {
 			for (const key of Object.keys(this.defaults)) this.values[key] = this.defaults[key];
-		},
-		toast(message) {
-			this.note = message;
-			setTimeout(() => (this.note = ""), 1500);
 		},
 	});
 });

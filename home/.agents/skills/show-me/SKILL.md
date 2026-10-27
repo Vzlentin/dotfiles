@@ -126,7 +126,7 @@ In the chat, Pi draws a ` ```mermaid ` block itself. A diagram for a file (a PR 
 
 ```sh
 {baseDir}/mermaid.mjs /tmp/<name>.mmd /tmp/<name>.svg
-{baseDir}/mermaid.mjs --page /tmp/<name>.mmd /tmp/<name>.svg   # for an artifacts page: its colors, larger text
+{baseDir}/mermaid.mjs --page /tmp/<name>.mmd /tmp/<name>.svg   # for an artifacts page: larger text, the page gives the colors
 ```
 
 - Pele is in the global npm prefix. If it is missing, ask the user, and suggest `npm install -g pele`. Do not install it in a project or with `npx`.

@@ -4,7 +4,8 @@
 //        render.mjs --theme
 // The page goes to /tmp/pages/<slug>/index.html by default: build output stays out of the vault.
 // --share: a light copy for other people and for print. --theme: the colors as CSS variables.
-// Other scripts import markdown(), inline() and renderPage() from this file.
+// Other scripts import createMarkdown() and renderPage() from this file.
+// A page gets Alpine when its body has an Alpine attribute, or when the frontmatter says `alpine: true`.
 //
 // It uses what is already on the machine, first from the Pi install, then from the global npm prefix:
 // - Markdown and code colors: marked and highlight.js
@@ -40,17 +41,22 @@ const { Marked } = await import(pathToFileURL(join(markedDir, "lib/marked.esm.js
 const hljsDir = findModule("highlight.js");
 const hljs = hljsDir ? createRequire(import.meta.url)(hljsDir) : undefined;
 
-// Local images resolve from the directory of the source that is being rendered.
-let imageBase = process.cwd();
-const md = new Marked({ gfm: true });
-md.use({ renderer: { code: renderCode, heading: renderHeading, image: renderImage, paragraph: renderParagraph } });
-
-export function markdown(text) {
-	return md.parse(unlink(text)).replaceAll("<table>", '<div class="tw"><table>').replaceAll("</table>", "</table></div>");
-}
-
-export function inline(text) {
-	return md.parseInline(unlink(text));
+// base: the directory that local images resolve from, the directory of the source.
+// code: a renderer for a code block. It returns HTML, or undefined to leave the block to this file.
+export function createMarkdown({ base, code }) {
+	const md = new Marked({ gfm: true });
+	md.use({
+		renderer: {
+			code: (token) => code?.(token) ?? renderCode(token),
+			heading: renderHeading,
+			image: (token) => renderImage(token, base),
+			paragraph: renderParagraph,
+		},
+	});
+	return {
+		markdown: (text) => md.parse(unlink(text)).replaceAll("<table>", '<div class="tw"><table>').replaceAll("</table>", "</table></div>"),
+		inline: (text) => md.parseInline(unlink(text)),
+	};
 }
 
 export function escapeHtml(text) {
@@ -69,7 +75,7 @@ export async function renderPage({ slug, title, body, source, sourcePath, share 
 		// Alpine starts when its own script runs: the plugin and the store of the way back come first, the page last.
 		head: interactive ? `<script>${vendor("vendor/alpine-persist.min.js")}</script>\n<script>${vendor("back.js")}</script>` : "",
 		alpine: interactive
-			? `<div class="toast" x-data :class="$store.back.note && 'on'" x-text="$store.back.note"></div>\n<script>${vendor("vendor/alpine.min.js")}</script>`
+			? `<div class="toast" x-data :class="$store.back.toast && 'on'" x-text="$store.back.toast"></div>\n<script>${vendor("vendor/alpine.min.js")}</script>`
 			: "",
 		body,
 		footer: footer(sourcePath, theme.source),
@@ -98,8 +104,13 @@ export function frontmatter(text) {
 	return { meta, body: text.slice(match[0].length) };
 }
 
-export function setImageBase(dir) {
-	imageBase = dir;
+// Markdown to plain text: the emphasis and code marks go.
+export function plainText(markdown) {
+	return markdown.replace(/[*_`]/g, "").trim();
+}
+
+export function slug(text) {
+	return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 if (import.meta.main) {
@@ -117,8 +128,8 @@ if (import.meta.main) {
 	const source = readFileSync(sourcePath, "utf8");
 	const { meta, body } = frontmatter(source);
 	if (!meta.page) throw new Error("The source needs a `page:` slug in its frontmatter");
-	setImageBase(dirname(resolve(sourcePath)));
-	const title = (body.match(/^# (.+)$/m)?.[1] ?? meta.title ?? meta.page).replace(/[*_`]/g, "").trim();
+	const { markdown } = createMarkdown({ base: dirname(resolve(sourcePath)) });
+	const title = plainText(body.match(/^# (.+)$/m)?.[1] ?? meta.title ?? meta.page);
 	const alpine = meta.alpine === undefined ? undefined : meta.alpine === "true";
 	const page = await renderPage({ slug: meta.page, title, body: markdown(body), source, sourcePath, share: flags.has("--share"), alpine, out });
 	console.log(`${page.target} ${page.bytes} bytes, ${page.interactive ? "Alpine" : "no Alpine"}, colors: ${page.colors}`);
@@ -161,9 +172,9 @@ function renderHeading({ tokens, depth, text }) {
 }
 
 // A local SVG goes into the page as it is, so it takes the page colors. Other local images become data URLs.
-function renderImage({ href, text }) {
+function renderImage({ href, text }, base) {
 	if (/^[a-z]+:/i.test(href)) return `<img src="${escapeHtml(href)}" alt="${escapeHtml(text)}">`;
-	const path = resolve(imageBase, href.replace(/^~(?=\/)/, homedir()));
+	const path = resolve(base, href.replace(/^~(?=\/)/, homedir()));
 	const type = extname(path).toLowerCase();
 	if (type === ".svg") return `<figure class="fig" role="img" aria-label="${escapeHtml(text)}">${readFileSync(path, "utf8")}</figure>`;
 	if (!IMAGE_TYPES[type]) throw new Error(`Unknown image type: ${href}`);
@@ -179,10 +190,6 @@ function renderParagraph({ tokens }) {
 // Vault wikilinks have no target on a page: keep their label.
 function unlink(text) {
 	return text.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (all, target, label) => label ?? target.split("/").at(-1));
-}
-
-function slug(text) {
-	return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 function footer(sourcePath, colors) {

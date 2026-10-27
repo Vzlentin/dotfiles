@@ -49,6 +49,8 @@ pre.code code{background:none;padding:0;color:inherit;font:inherit}
 .hljs-variable,.hljs-attr,.hljs-property{color:var(--syntax-variable)} .hljs-punctuation,.hljs-operator{color:var(--syntax-punctuation)}
 .fig{margin:10px 0 16px;padding:12px;background:var(--sunk);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
 .fig svg{display:block;margin:0 auto;max-width:100%;height:auto}
+/* a Pele diagram reads these variables, so it takes the page colors */
+.fig{--pele-bg:transparent;--pele-fg:var(--text);--pele-muted:var(--muted);--pele-line:var(--border-muted);--pele-surface:var(--card);--pele-surface-alt:var(--selected-bg);--pele-border:var(--border);--pele-accent:var(--accent);--pele-error:var(--error);--pele-critical:var(--error);--pele-font:var(--sans);--pele-font-mono:var(--mono);--pele-radius:8px}
 img{max-width:100%;height:auto;border-radius:8px}
 
 /* parts that a page may use */
