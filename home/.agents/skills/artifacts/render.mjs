@@ -122,9 +122,9 @@ export function frontmatter(text) {
 	return { meta, body: text.slice(match[0].length) };
 }
 
-// Markdown to plain text: the emphasis and code marks go.
+// Markdown to plain text: the emphasis and code marks go. A mark inside a word, as in `XDG_STATE_HOME`, stays.
 export function plainText(markdown) {
-	return markdown.replace(/[*_`]/g, "").trim();
+	return markdown.replace(/`/g, "").replace(/(?<!\w)[*_]+|[*_]+(?!\w)/g, "").trim();
 }
 
 export function slug(text) {
