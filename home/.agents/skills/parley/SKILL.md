@@ -1,13 +1,28 @@
 ---
 name: parley
-description: The user's design and decision primitive, and his way to be asked questions. Use when a design, a plan or a question has decisions that only the user can make (trade-offs, taste, priorities, how it must work for him), when he says "parley", or when he asks for a decision doc or a Radius doc.
+description: The user's decision primitive, and his way to be asked questions. Use when a design, a plan or a question has decisions that only the user can make (trade-offs, taste, priorities, how it must work for him), or when he says "parley".
 ---
 
 # parley
 
-A parley turns a question that only the user can answer into a contract that you both agree. Its source is one Markdown record. A page shows the record. The page is never the source.
+A parley turns a question that only the user can answer into a contract that you both agree. It happens in the chat.
 
 `{baseDir}` is the directory of this `SKILL.md`.
+
+## How you talk
+
+The user takes many decisions each day, on many systems. Brief him like an executive.
+
+- BLUF, then Minto's pyramid principle.
+- Each call: your plan, and what each option costs, in outcomes and numbers, not code.
+- Plain language. Define each term on first use.
+- At most 5 open calls at a time. The others wait their turn.
+- Each turn, give the state: decided, open, next.
+- Each round builds on the last one. When a view you already showed changes, show that same view again, updated, with the change marked.
+- A side topic gets one line at the end.
+- End with one thing to answer.
+
+Use `show-me` for the views. Make a page only when the user asks for it: write the record, then load `artifacts`.
 
 ## Rules
 
@@ -27,17 +42,10 @@ Apply these rules to your plan and to each option that you recommend:
 2. Sort the calls:
    - A **your call** is taste, priority, or how it must work for the user. It starts empty.
    - A **my call** is a choice that evidence can settle. It starts set to your plan, with one line of evidence.
-3. Up to 3 your calls and no diagram: ask in chat, with the same cards and the same answer line. Else, write a record and a page.
-4. Write the record. Use the format of `{baseDir}/template.md`. The terms come first: the design as it stands, with a `{?N}` blank for each open point.
-5. Render, publish and read back (see "Hosts"). Give the link and the default line.
-6. Apply each answer line to the record:
-   - Write `Answer: <letter>`, or `Answer: own`, below the options.
-   - Under it, quote the user's exact words with the time in UTC: `> "words" (you, 10-25 13:27)`.
-   - For `?N`, explain N in chat first. Use the show-me forms. Then update the card.
-7. When no call is open, do the read-back. Write the terms again in your own words, with each answer. Set `status: readback`, publish, and ask for `aligned`.
-8. On `aligned`, set `type: canon` and `status: contract`. Replace each blank with plain words, and publish. Goal files come after this step, and they cite the record and its version.
-
-Never write a summary of a settled decision. Quote the user's words. Decision numbers never change.
+3. Ask in the chat. Give the answer line that takes all your plans.
+4. Apply each answer line. For `?N`, explain N first.
+5. When no call is open, read back: the terms in your own words, with each answer. Ask for `aligned`.
+6. On `aligned`, write the record as the contract. Goal files come after this step, and they cite the record.
 
 ## Answer line
 
@@ -47,39 +55,14 @@ Never write a summary of a settled decision. Quote the user's words. Decision nu
 ```
 
 - `1a` picks option a. `3:"..."` is an own answer. `4b:"..."` is a pick with a note.
-- `?5` asks you to explain 5 in chat first.
+- `?5` asks you to explain 5 first.
 - `ok` accepts each my call that the line does not name.
 - `aligned` accepts the terms of a read-back.
 
 ## Record
 
-- The home is the vault folder of the topic, for example `Val/Harness/<slug>.md`. Add a line to the `_index.md` of that folder. Follow the vault `AGENTS.md`. Do not commit the vault without the user's OK.
-- With no vault, the home is `/tmp/parley/<slug>/record.md`.
-- `type: memo` while open, `type: canon` as a contract. The `parley:` slug names the page, its storage key and its Radius artifact.
-- Show-me blocks go in as they are: `text`, `diff`, `tsx` and `mermaid` (statecharts, sequences, parts diagrams).
+Write it when the user asks for a page, and at the contract. Use the format of `{baseDir}/template.md`. It goes in the vault: load `vault`. With no vault, it goes in `/tmp/pages/<slug>/record.md`.
 
-## Render
-
-```sh
-node {baseDir}/render.mjs <record.md>
-```
-
-- This writes `/tmp/parley/<slug>/index.html`, with the record inside the page.
-- Colors: Pi's system colors from Ghostty. Without Pi, the terminal theme. Without both, `saved-colors.json`.
-- Markdown, code colors and diagrams come from the Pi install. Without Pi, they come from the global npm prefix (`marked`, `highlight.js`, `pele`). A missing package stops the render and names the package.
-- Before you publish a new layout, look at headless Chrome screenshots at 390 px and 1280 px.
-
-## Hosts
-
-**Radius**, when the `mcp__radius` tools are there:
-
-- Create the artifact once: `artifacts_create` with `content`, `content_type: "text/html"`, `title`, `visibility: "private"` and a `note`.
-- For each new version, use `artifacts_versions_publish` on the same slug, with a note that says what changed.
-- The title cannot change after the create. Name the topic, not the state.
-- After each publish, read it back: `artifacts_versions_read` (`latest`), then `artifacts_files_download`, `curl` the URL and `cmp` the result with the local file.
-- Never publish while an edit runs.
-- Radius keeps an artifact 90 days after its last publish.
-
-**Claude Code**: publish the page as an Artifact. Load the `artifact-capabilities` skill first. If the account has them, keep the answers in the page database (`ArtifactData`) and use comment threads (`ArtifactComments`). Copy stays as the fallback. In an inline widget, the page shows Send (`sendPrompt`). This path is not tested yet: test it before you rely on it.
-
-**Else**: open `/tmp/parley/<slug>/index.html` in the browser.
+- `type: memo` while open. At the contract: `type: canon`, `status: contract`, and plain words in place of each blank.
+- Below the options of each decided card: `Answer: <letter>`, or `Answer: own · <short label>`. Under it, quote the user's exact words with the time in UTC from the session log: `> "words" (you, 10-25 13:27)`.
+- Never write a summary of a settled decision: quote the user's words. Decision numbers never change.

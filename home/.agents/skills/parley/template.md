@@ -1,6 +1,6 @@
 ---
 type: memo
-parley: install-lock
+page: install-lock
 round: 1
 status: open
 description: "One line: what this parley decides."
