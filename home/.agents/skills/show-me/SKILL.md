@@ -126,11 +126,12 @@ In the chat, Pi draws a ` ```mermaid ` block itself. A diagram for a file (a PR 
 
 ```sh
 {baseDir}/mermaid.mjs /tmp/<name>.mmd /tmp/<name>.svg
+{baseDir}/mermaid.mjs --large /tmp/<name>.mmd /tmp/<name>.svg   # for an artifacts page: larger text, the page gives the colors
 ```
 
 - Pele is in the global npm prefix. If it is missing, ask the user, and suggest `npm install -g pele`. Do not install it in a project or with `npx`.
 - A parse error means the source is wrong. For example, `call`, `end`, `class`, `style`, `click` and `graph` cannot be node IDs.
 - Look at the SVG before you use it: `qlmanage -t -s 1600 -o /tmp /tmp/<name>.svg` makes a PNG that you can read.
-- Scripts import `renderMermaid(source)` from `{baseDir}/mermaid.mjs`.
+- Scripts import `renderMermaid(source, { large })` from `{baseDir}/mermaid.mjs`.
 
 You may use one of these, you may use several, it is unlikely you will use all of them. Use your judgement and don't overwhelm the user.

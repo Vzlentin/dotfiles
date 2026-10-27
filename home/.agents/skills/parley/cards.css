@@ -1,0 +1,70 @@
+/* The parts of a parley page: the blanks, the decision cards and the bar. The page lays out the rest. */
+.blank{display:inline-block;text-decoration:none;color:var(--fg);border:1px dashed var(--warning);border-radius:7px;padding:0 6px;line-height:1.5;margin:1px 0}
+.blank sup{font:600 10px var(--mono);color:var(--muted);margin-left:3px}
+.blank.plan{border:1px solid var(--border-muted);color:var(--text)}
+.blank.set{border:1px solid var(--accent);background:var(--selected-bg)}
+.blank.own{border:1px solid var(--success);background:var(--tool-success-bg)}
+.parley.contract .blank,body.share .blank{display:inline;border:0;background:none;padding:0;color:var(--fg)}
+.parley.contract .blank sup,body.share .blank sup{display:none}
+
+/* decisions: on a wide screen, the cards of a group sit side by side */
+.hint{color:var(--muted);font-size:15px}
+h3.group{font:700 12px var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin:22px 0 6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,540px),1fr));gap:12px 16px;align-items:start}
+.dec{display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 14px 12px}
+.dec header,.dec summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dec summary{cursor:pointer;list-style:none}
+.dec summary::-webkit-details-marker{display:none}
+.num{flex:none;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--bg);font:700 14px var(--mono)}
+.dtitle{font-weight:700;color:var(--fg);font-size:17px;flex:1;min-width:150px}
+.whose{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;border-radius:6px;padding:3px 7px}
+.whose.your{color:var(--accent);border:1px solid var(--accent)}
+.whose.my{color:var(--muted);border:1px solid var(--border-muted)}
+.planline{flex-basis:100%;font-size:14px;color:var(--muted);padding-left:38px}
+.dec.mine[open] .planline{display:none}
+.tension{margin:10px 0 6px}
+.opts{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.opt{all:unset;box-sizing:border-box;display:flex;gap:11px;width:100%;cursor:pointer;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sunk);-webkit-tap-highlight-color:transparent}
+.opt:hover{border-color:var(--border-muted)}
+.opt.sel{background:var(--selected-bg);border-color:var(--accent)}
+.opt .key{flex:none;font:700 14px var(--mono);color:var(--muted);width:16px;padding-top:1px}
+.opt.sel .key{color:var(--accent)}
+.opt .body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.opt .label{color:var(--fg);font-weight:600}
+.planbadge{font:600 10px var(--mono);font-style:normal;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:5px;padding:1px 5px;margin-left:4px;vertical-align:2px}
+.gain,.cost{font-size:14px;line-height:1.45}
+.gain{color:var(--success)} .gain::before{content:"+ "}
+.cost{color:color-mix(in srgb,var(--error) 80%,var(--text))} .cost::before{content:"\2212  "}
+.why{color:var(--muted);font-size:15px;margin-top:6px}
+.acts{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.acts textarea{border-style:dashed;resize:vertical}
+.ask{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px;cursor:pointer}
+.ask input{accent-color:var(--accent);width:17px;height:17px}
+.dec.asked{border-color:var(--warning)}
+.decidedline{margin:10px 0 6px;color:var(--muted)}
+.decidedline b{color:var(--fg)}
+.receipt blockquote{margin:6px 0}
+.after{font-size:15px}
+details.more{margin-top:8px}
+details.more>summary{cursor:pointer;color:var(--muted);font-size:14px}
+.dec.decided.changed{border-color:var(--accent)}
+.parley.contract .opt:not(.sel),.parley.contract .hint{display:none}
+.parley.contract .opt{cursor:default}
+
+/* dock: the bar of artifacts, with the state of the cards */
+.dock .meta{flex:none;display:flex;flex-direction:column;gap:6px;width:170px;font:12px var(--mono);color:var(--muted)}
+.dock .meta .open{color:var(--warning)} .dock .meta .done{color:var(--success)}
+.dots{display:flex;gap:5px;flex-wrap:wrap}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--sunk);border:1px solid var(--border-muted);cursor:pointer}
+.dots i.set{background:var(--accent);border-color:var(--accent)} .dots i.plan{background:var(--border-muted)}
+.dots i.own{background:var(--success);border-color:var(--success)} .dots i.ask{background:var(--warning);border-color:var(--warning)}
+.btns{flex:none;display:flex;gap:8px}
+.btns button{min-height:44px}
+.btns button.primary{min-width:120px}
+@media (max-width:700px){
+  .dock .meta{flex-basis:100%;flex-direction:row;justify-content:space-between;width:auto}
+  .btns{flex-basis:100%}
+  .btns button.primary{flex:1}
+}
+body.share .hint{display:none}
+@media print{.dec{break-inside:avoid}}

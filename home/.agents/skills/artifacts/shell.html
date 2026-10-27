@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{title}}</title>
+<style>
+:root{{{tokens}}
+  --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SF Mono",ui-monospace,Menlo,monospace;
+  --card:var(--tool-pending-bg);
+  --sunk:color-mix(in srgb,#000 22%,var(--bg));
+  --line:color-mix(in srgb,var(--border-muted) 45%,var(--bg));
+  --measure:78ch;
+  --page:1440px;
+  --pad:clamp(16px,3.2vw,48px);
+  --end:40px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 var(--sans)}
+/* the page width: a page may set --page, or lay itself out inside it */
+main,footer{max-width:var(--page);margin:0 auto}
+main{padding:28px var(--pad) var(--end)}
+a{color:var(--md-link)}
+code{font:.86em var(--mono);color:var(--md-code);background:var(--sunk);padding:1px 6px;border-radius:6px}
+strong,b{color:var(--fg)}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+
+/* type: text keeps a readable measure, tables, figures, code and grids take the width */
+:where(p,ul,ol,blockquote,h1,h2,h3,h4,dl){max-width:var(--measure)}
+h1{font-size:clamp(28px,4.2vw,42px);line-height:1.12;margin:6px 0 14px;color:var(--fg);letter-spacing:-.02em}
+h2{font-size:24px;margin:30px 0 12px;color:var(--md-heading);letter-spacing:-.01em}
+h3{font-size:18px;margin:22px 0 8px;color:var(--fg)}
+p{margin:0 0 12px}
+ul,ol{padding-left:22px;margin:0 0 12px}
+li{margin:4px 0}
+li::marker{color:var(--md-list-bullet)}
+blockquote{margin:8px 0 12px;padding:9px 13px;background:var(--user-message-bg);border-left:3px solid var(--accent);border-radius:8px;color:var(--fg)}
+blockquote p{margin:0}
+.tw{overflow-x:auto;margin:8px 0 16px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--card);color:var(--fg)}
+
+/* code and figures */
+pre.code{background:var(--sunk);border:1px solid var(--md-code-block-border);border-radius:10px;padding:12px 14px;overflow-x:auto;font:13px/1.55 var(--mono);color:var(--text);margin:8px 0 14px}
+pre.code code{background:none;padding:0;color:inherit;font:inherit}
+.diff .add{color:var(--tool-diff-added)} .diff .del{color:var(--tool-diff-removed)} .diff .ctx{color:var(--tool-diff-context)}
+.hljs-keyword,.hljs-built_in{color:var(--syntax-keyword)} .hljs-string{color:var(--syntax-string)}
+.hljs-comment{color:var(--syntax-comment);font-style:italic} .hljs-number,.hljs-literal{color:var(--syntax-number)}
+.hljs-title,.hljs-function{color:var(--syntax-function)} .hljs-type,.hljs-class{color:var(--syntax-type)}
+.hljs-variable,.hljs-attr,.hljs-property{color:var(--syntax-variable)} .hljs-punctuation,.hljs-operator{color:var(--syntax-punctuation)}
+.fig{margin:10px 0 16px;padding:12px;background:var(--sunk);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+.fig svg{display:block;margin:0 auto;max-width:100%;height:auto}
+/* a Pele diagram reads these variables, so it takes the page colors */
+.fig{--pele-bg:transparent;--pele-fg:var(--text);--pele-muted:var(--muted);--pele-line:var(--border-muted);--pele-surface:var(--card);--pele-surface-alt:var(--selected-bg);--pele-border:var(--border);--pele-accent:var(--accent);--pele-error:var(--error);--pele-critical:var(--error);--pele-font:var(--sans);--pele-font-mono:var(--mono);--pele-radius:8px}
+img{max-width:100%;height:auto;border-radius:8px}
+
+/* parts that a page may use */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px 28px;align-items:start}
+.grid>*>:first-child{margin-top:0}
+.muted{color:var(--muted)}
+button{font:600 15px var(--sans);border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-height:40px;cursor:pointer;background:var(--sunk);color:var(--fg)}
+button.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+textarea,input[type=text]{width:100%;background:var(--sunk);color:var(--fg);border:1px solid var(--border-muted);border-radius:10px;padding:9px 11px;font:15px/1.5 var(--sans)}
+textarea:focus,input[type=text]:focus{outline:none;border-color:var(--accent)}
+
+/* the way back: a bar at the bottom with the block that Copy gives */
+.bar{position:sticky;bottom:0;z-index:30;display:flex;align-items:center;gap:12px;margin:24px calc(-1 * var(--pad)) calc(-1 * var(--end));padding:10px var(--pad) calc(10px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+.bar .line{flex:1;min-width:0;font:13px/1.45 var(--mono);color:var(--fg);background:var(--sunk);border-radius:8px;padding:8px 10px;max-height:7.5em;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--fg);color:var(--bg);font:600 14px var(--sans);padding:8px 14px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40}
+.toast.on{opacity:1}
+[x-cloak]{display:none!important}
+
+footer{color:var(--dim);font-size:13px;padding:24px var(--pad)}
+footer code{overflow-wrap:anywhere}
+
+/* phone: wide figures scroll sideways (Pele sets max-width inline, so it needs !important) */
+@media (max-width:700px){
+  body{font-size:16px}
+  .fig svg{max-width:none!important}
+  .bar{flex-wrap:wrap}
+  .bar .line{flex-basis:100%}
+}
+
+/* share: a light copy for other people, and for print */
+body.share{--sunk:color-mix(in srgb,#000 4%,var(--bg))}
+body.share .bar,body.share .toast,body.share footer,body.share .no-share{display:none}
+@page{size:A4;margin:16mm}
+@media print{
+  .bar,.toast,footer,.no-share{display:none}
+  body{font-size:11pt}
+  main{padding:0}
+  .fig,table,.card,blockquote{break-inside:avoid}
+  h2,h3{break-after:avoid}
+}
+</style>
+{{head}}
+</head>
+<body class="{{bodyClass}}" data-page="{{slug}}" data-key="{{key}}">
+<main>
+{{body}}
+</main>
+<footer>{{footer}}</footer>
+<script type="text/markdown" id="page-source">{{source}}</script>
+<!-- the toast of Copy: empty and hidden on a page without Alpine -->
+<div class="toast" x-data :class="$store.back.toast && 'on'" x-text="$store.back.toast"></div>
+{{alpine}}
+</body>
+</html>
