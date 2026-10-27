@@ -11,15 +11,16 @@
   --card:var(--tool-pending-bg);
   --sunk:color-mix(in srgb,#000 22%,var(--bg));
   --line:color-mix(in srgb,var(--border-muted) 45%,var(--bg));
+  --w:860px;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 var(--sans);padding-bottom:190px}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 var(--sans);padding-bottom:96px}
 body.contract{padding-bottom:40px}
 a{color:var(--md-link)}
 code{font:.86em var(--mono);color:var(--md-code);background:var(--sunk);padding:1px 6px;border-radius:6px}
 strong,b{color:var(--fg)}
-.wrap{max-width:800px;margin:0 auto;padding:0 18px}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 18px}
 hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 
 /* header */
@@ -33,13 +34,19 @@ h1{font-size:clamp(27px,6vw,40px);line-height:1.12;margin:12px 0 12px;color:var(
 
 /* nav */
 nav{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-nav .row{display:flex;gap:8px;overflow-x:auto;padding:10px 18px;max-width:800px;margin:0 auto;scrollbar-width:none}
+nav .row{display:flex;gap:8px;overflow-x:auto;padding:10px 18px;max-width:var(--w);margin:0 auto;scrollbar-width:none}
 nav .row::-webkit-scrollbar{display:none}
 nav a{flex:none;text-decoration:none;color:var(--text);font-size:14px;padding:6px 13px;border-radius:99px;border:1px solid var(--line)}
 nav .bar{height:2px;background:var(--accent);width:0}
 
 /* sections */
 section{padding:20px 0 8px}
+/* a folded section: the detail opens on demand */
+details.fold>summary{cursor:pointer;list-style:none}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary h2{display:inline}
+details.fold>summary::after{content:"show";font:12px var(--mono);color:var(--muted);margin-left:10px}
+details.fold[open]>summary::after{content:"hide"}
 h2{font-size:24px;margin:8px 0 12px;color:var(--md-heading);letter-spacing:-.01em}
 h3{font-size:18px;margin:22px 0 8px;color:var(--fg)}
 section p{margin:0 0 12px}
@@ -88,8 +95,8 @@ body.readback .terms h2::after{content:"read-back: answer aligned, or correct a 
 .blank.plan{border:1px solid var(--border-muted);color:var(--text)}
 .blank.set{border:1px solid var(--accent);background:var(--selected-bg)}
 .blank.own{border:1px solid var(--success);background:var(--tool-success-bg)}
-body.contract .blank{display:inline;border:0;background:none;padding:0;color:var(--fg)}
-body.contract .blank sup{display:none}
+body.contract .blank,body.share .blank{display:inline;border:0;background:none;padding:0;color:var(--fg)}
+body.contract .blank sup,body.share .blank sup{display:none}
 
 /* decisions */
 .hint{color:var(--muted);font-size:15px}
@@ -139,30 +146,50 @@ body.contract .opt{cursor:default}
 /* dock */
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
 body.contract .dock{display:none}
-.dock .in{max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
-.dock .meta{display:flex;justify-content:space-between;gap:10px;font:12px var(--mono);color:var(--muted)}
+.dock .in{max-width:var(--w);margin:0 auto;display:flex;align-items:center;gap:14px}
+.dock .meta{flex:none;display:flex;flex-direction:column;gap:6px;width:150px;font:12px var(--mono);color:var(--muted)}
 .dock .meta .open{color:var(--warning)} .dock .meta .done{color:var(--success)}
 .dots{display:flex;gap:5px;flex-wrap:wrap}
 .dots i{width:10px;height:10px;border-radius:50%;background:var(--sunk);border:1px solid var(--border-muted);cursor:pointer}
 .dots i.set{background:var(--accent);border-color:var(--accent)} .dots i.plan{background:var(--border-muted)}
 .dots i.own{background:var(--success);border-color:var(--success)} .dots i.ask{background:var(--warning);border-color:var(--warning)}
-.dock .line{font:13px/1.45 var(--mono);color:var(--fg);background:var(--sunk);border-radius:8px;padding:8px 10px;word-break:break-word;user-select:all;-webkit-user-select:all}
-.btns{display:flex;gap:8px}
+.dock .line{flex:1;font:13px/1.45 var(--mono);color:var(--fg);background:var(--sunk);border-radius:8px;padding:8px 10px;word-break:break-word;user-select:all;-webkit-user-select:all}
+.btns{flex:none;width:300px;display:flex;gap:8px}
 .btns button{flex:1;font:600 15px var(--sans);border:0;border-radius:10px;padding:10px;min-height:44px;cursor:pointer}
 #copy{background:var(--accent);color:var(--bg)} #send{background:var(--success);color:var(--bg);display:none}
 #reset{flex:0 0 auto;background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
-.toast{position:fixed;left:50%;bottom:170px;transform:translateX(-50%);background:var(--fg);color:var(--bg);font:600 14px var(--sans);padding:8px 14px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--fg);color:var(--bg);font:600 14px var(--sans);padding:8px 14px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40}
 .toast.on{opacity:1}
 footer{color:var(--dim);font-size:13px;padding:24px 0}
+footer code{overflow-wrap:anywhere}
 .swatches{display:grid;gap:6px;margin:10px 0 14px}
 .swatches div{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px}
 .swatches b{width:100%;font:600 12px var(--mono);color:var(--muted)}
 .swatches span{font:12px var(--mono);color:var(--bg);background:var(--c);border-radius:6px;padding:3px 8px}
-@media (max-width:700px){.fig svg{max-width:none}}
-@media (min-width:900px){body{font-size:17px}.wrap,nav .row,.dock .in{max-width:860px}}
+/* phone: the dock stacks, wide diagrams scroll sideways (Pele sets max-width inline, so it needs !important) */
+@media (max-width:899px){
+  body{font-size:16px;padding-bottom:190px}
+  .dock .in{flex-direction:column;align-items:stretch;gap:8px}
+  .dock .meta{flex-direction:row;justify-content:space-between;width:auto}
+  .btns{width:auto}
+  .toast{bottom:170px}
+  .fig svg{max-width:none!important}
+}
+
+/* share: a light copy for other people, and for print */
+body.share{padding-bottom:0;--sunk:color-mix(in srgb,#000 4%,var(--bg))}
+body.share nav,body.share .dock,body.share footer,body.share .acts,body.share .hint,body.share .stats{display:none}
+body.share .terms h2::after{content:none}
+@page{size:A4;margin:16mm}
+@media print{
+  nav,.dock,.toast,footer{display:none}
+  body{padding:0;font-size:11pt}
+  .fig,table,.dec,blockquote{break-inside:avoid}
+  h2,h3{break-after:avoid}
+}
 </style>
 </head>
-<body class="{{statusClass}}">
+<body class="{{bodyClass}}">
 <div class="wrap"><header class="top">
   <div class="kicker">{{kicker}}</div>
   <h1>{{h1}}</h1>
@@ -180,15 +207,15 @@ footer{color:var(--dim);font-size:13px;padding:24px 0}
   <div class="btns"><button id="reset">Reset</button><button id="send">Send</button><button id="copy">Copy</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
-<script type="application/json" id="parley-data">{{data}}</script>
-<script type="text/markdown" id="parley-record">{{record}}</script>
+<script type="application/json" id="page-data">{{data}}</script>
+<script type="text/markdown" id="page-source">{{record}}</script>
 <script>
-const P = JSON.parse(document.getElementById("parley-data").textContent);
+const P = JSON.parse(document.getElementById("page-data").textContent);
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const KEY = `parley:${P.slug}`;
+const KEY = `page:${P.slug}`;
 const contract = P.status === "contract";
-// One key for each parley. Taps from an earlier round do not carry over: that round is decided.
+// One key for each page. Taps from an earlier round do not carry over: that round is decided.
 let state = {};
 try { const saved = JSON.parse(localStorage.getItem(KEY) || "{}"); if (!contract && saved.round === P.round) state = saved.state || {}; } catch {}
 const base = (d) => (d.decided ? d.answer : contract || d.whose === "me" ? d.plan : null);
