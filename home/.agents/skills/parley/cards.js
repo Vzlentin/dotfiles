@@ -49,7 +49,7 @@ document.addEventListener("alpine:init", () => {
 		// The state of the round, above the dots: "open" while something waits for the user, else "done".
 		get head() {
 			const yours = P.decisions.filter((d) => d.whose === "your" && !d.decided);
-			const open = yours.filter((d) => !this.card(d.n).pick && !this.card(d.n).note.trim()).length;
+			const open = yours.filter((d) => cardKind(d, this.card(d.n)) === "open").length;
 			const fixes = P.decisions.filter((d) => d.decided && this.changed(d.n)).length;
 			if (yours.length) return open ? { state: "open", text: `${open} of ${yours.length} your calls open` } : { state: "done", text: "your calls answered" };
 			if (fixes) return { state: "open", text: `${fixes} correction${fixes > 1 ? "s" : ""}` };

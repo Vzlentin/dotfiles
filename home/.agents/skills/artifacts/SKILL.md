@@ -34,7 +34,7 @@ node {baseDir}/render.mjs --theme                  # the theme as CSS variables,
 
 ## Interaction and the way back
 
-When the source has an Alpine attribute (`x-data`, `x-model`, `@click`, ...), the page gets Alpine.js with its persist plugin (`{baseDir}/vendor`). Write tabs, steps, toggles and fields as Alpine attributes in the HTML. Set `alpine: true` or `false` in the frontmatter to force it.
+When the source has an Alpine attribute (`x-data`, `x-model`, `@click`, ...), the page gets Alpine.js with its persist plugin (`{baseDir}/vendor`). Write tabs, steps, toggles and fields as Alpine attributes in the HTML.
 
 The way back is how the user's edits come back to you: one store, `$store.back`, kept in his browser.
 

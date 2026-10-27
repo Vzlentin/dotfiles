@@ -5,7 +5,7 @@
 // The page goes to /tmp/pages/<slug>/index.html by default: build output stays out of the vault.
 // --share: a light copy for other people and for print. --theme: the colors as CSS variables.
 // Other scripts import createMarkdown() and renderPage() from this file.
-// A page gets Alpine when its body has an Alpine attribute, or when the frontmatter says `alpine: true`.
+// A page gets Alpine when its body has an Alpine attribute.
 //
 // It uses what is already on the machine, first from the Pi install, then from the global npm prefix:
 // - Markdown and code colors: marked and highlight.js
@@ -67,9 +67,9 @@ export function escapeHtml(text) {
 
 // body is HTML. source is the text that the page carries inside, so any copy of the page gives it back.
 // key: the name of the state that the browser keeps for the page. Another key starts from the defaults.
-export async function renderPage({ slug, key = slug, title, body, source, sourcePath, share = false, alpine, out }) {
+export async function renderPage({ slug, key = slug, title, body, source, sourcePath, share = false, out }) {
 	const theme = share ? { source: "light", colors: terminalTokens(LIGHT) } : await loadTheme();
-	const interactive = alpine ?? ALPINE_ATTRIBUTE.test(body);
+	const interactive = ALPINE_ATTRIBUTE.test(body);
 	const vendor = (name) => readFileSync(join(here, name), "utf8");
 	const parts = {
 		title: escapeHtml(title),
@@ -132,8 +132,7 @@ if (import.meta.main) {
 	if (!meta.page) throw new Error("The source needs a `page:` slug in its frontmatter");
 	const { markdown } = createMarkdown({ base: dirname(resolve(sourcePath)) });
 	const title = plainText(body.match(/^# (.+)$/m)?.[1] ?? meta.title ?? meta.page);
-	const alpine = meta.alpine === undefined ? undefined : meta.alpine === "true";
-	const page = await renderPage({ slug: meta.page, title, body: markdown(body), source, sourcePath, share: flags.has("--share"), alpine, out });
+	const page = await renderPage({ slug: meta.page, title, body: markdown(body), source, sourcePath, share: flags.has("--share"), out });
 	console.log(`${page.target} ${page.bytes} bytes, ${page.interactive ? "Alpine" : "no Alpine"}, colors: ${page.colors}`);
 }
 

@@ -40,8 +40,8 @@ const decisionsText = splitAt(body, "## ").find((section) => section.startsWith(
 const decisions = splitAt(decisionsText, "### ").slice(1).map(parseDecision);
 const byNumber = new Map(decisions.map((decision) => [decision.n, decision]));
 const recordMarkdown = createMarkdown({ base: dirname(resolve(recordPath)), code: drawDiagram });
-const block = (text) => fillBlanks(recordMarkdown.markdown(text));
-const inline = (text) => fillBlanks(recordMarkdown.inline(text));
+const block = recordMarkdown.markdown;
+const inline = recordMarkdown.inline;
 
 const source = readFileSync(pagePath, "utf8");
 const pageBody = frontmatter(source).body;
@@ -58,6 +58,7 @@ const cards = {
 		return renderDecisions();
 	},
 };
+// The cards are a part of the page, so this one pass fills the blanks of the page and of the cards.
 const pageHtml = fillBlanks(createMarkdown({ base: dirname(resolve(pagePath)), code: drawDiagram, extensions: [cards] }).markdown(pageBody));
 if (cardsWritten !== 1) {
 	throw new Error(`The page source has ${cardsWritten} {{cards}} lines, it needs 1: write it alone on its line, with a blank line before and after it`);
@@ -71,7 +72,9 @@ const data = {
 	decisions: decisions.map(({ n, whose, plan, decided, answer, labels, shown }) => ({ n, whose, plan, decided, answer, labels, shown })),
 };
 const script = () => {
-	const state = readFileSync(join(here, "state.mjs"), "utf8").replace(/^export /gm, "");
+	// The page has no modules: each `export function` of state.mjs becomes a plain function.
+	const state = readFileSync(join(here, "state.mjs"), "utf8").replace(/^export function /gm, "function ");
+	if (/^export\b/m.test(state)) throw new Error("state.mjs can export only with `export function`");
 	return `<script type="application/json" id="parley-data">${JSON.stringify(data).replaceAll("<", "\\u003c")}</script>
 <script>(() => {
 ${state}
@@ -87,7 +90,7 @@ ${live ? bar() : ""}
 ${live ? script() : ""}`;
 
 // One saved state for each round: a new round starts from the record.
-const page = await renderPage({ slug: meta.page, key: `${meta.page} r${round}`, title, body: html, source, sourcePath: pagePath, share, alpine: live || undefined, out: outPath });
+const page = await renderPage({ slug: meta.page, key: `${meta.page} r${round}`, title, body: html, source, sourcePath: pagePath, share, out: outPath });
 const decided = decisions.filter((decision) => decision.decided).length;
 console.log(`${page.target} ${page.bytes} bytes, ${decisions.length} decisions (${decided} decided), colors: ${page.colors}`);
 
@@ -240,10 +243,7 @@ function renderActs(decision) {
 // "{?3}" in the text of the page becomes a blank: the answer to decision 3, or its plan while it is open.
 // Tags, code, scripts, styles and SVGs keep their text.
 function fillBlanks(html) {
-	return html
-		.split(/(<(pre|code|script|style|svg)\b[\s\S]*?<\/\2>|<[^>]*>)/)
-		.map((part, index) => (index % 3 === 0 ? part.replace(/\{\?(\d+)\}/g, (all, n) => renderBlank(Number(n))) : index % 3 === 1 ? part : ""))
-		.join("");
+	return html.replace(/(<(pre|code|script|style|svg)\b[\s\S]*?<\/\2>|<[^>]*>)|\{\?(\d+)\}/g, (all, kept, name, n) => kept ?? renderBlank(Number(n)));
 }
 
 function renderBlank(n) {
