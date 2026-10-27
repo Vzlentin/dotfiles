@@ -28,6 +28,21 @@ const LIGHT = {
 	foreground: "#1b1f24",
 	palette: ["#1b1f24", "#b42318", "#2e7d32", "#8a5a00", "#0055a5", "#7b1fa2", "#00796b", "#5f6b7a", "#5f6b7a", "#d92d20", "#43a047", "#a66f00", "#1565c0", "#8e24aa", "#00897b", "#1b1f24"],
 };
+// Vault wikilinks have no target on a page: keep their label. Code keeps them as they are.
+const WIKILINKS = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+const WIKILINK = {
+	name: "wikilink",
+	level: "inline",
+	start: (src) => src.indexOf("[["),
+	tokenizer(src) {
+		const match = new RegExp(`^${WIKILINKS.source}`).exec(src);
+		if (!match) return undefined;
+		return { type: "wikilink", raw: match[0], tokens: this.lexer.inlineTokens(wikiLabel(match[0], match[1], match[2])) };
+	},
+	renderer(token) {
+		return this.parser.parseInline(token.tokens);
+	},
+};
 const IMAGE_TYPES = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
 // An Alpine attribute with a plain quote. In a code block the quote is escaped, so a code sample does not count.
 const ALPINE_ATTRIBUTE = /\s(x-[a-z][\w:.-]*|@[a-z][\w:.-]*|:[a-z][\w-]*)="/;
@@ -37,7 +52,7 @@ const npmModules = join(execFileSync("npm", ["prefix", "-g"], { encoding: "utf8"
 const moduleDirs = [pi?.modules, npmModules].filter(Boolean);
 const markedDir = findModule("marked");
 if (!markedDir) throw new Error("marked not found in Pi or in the global npm prefix: npm install -g marked");
-const { Marked } = await import(pathToFileURL(join(markedDir, "lib/marked.esm.js")).href);
+const { Marked, Renderer } = await import(pathToFileURL(join(markedDir, "lib/marked.esm.js")).href);
 const hljsDir = findModule("highlight.js");
 const hljs = hljsDir ? createRequire(import.meta.url)(hljsDir) : undefined;
 
@@ -47,17 +62,18 @@ const hljs = hljsDir ? createRequire(import.meta.url)(hljsDir) : undefined;
 export function createMarkdown({ base, code, extensions = [] }) {
 	const md = new Marked({ gfm: true });
 	md.use({
-		extensions,
+		extensions: [WIKILINK, ...extensions],
 		renderer: {
 			code: (token) => code?.(token) ?? renderCode(token),
 			heading: renderHeading,
 			image: (token) => renderImage(token, base),
 			paragraph: renderParagraph,
+			table: renderTable,
 		},
 	});
 	return {
-		markdown: (text) => md.parse(unlink(text)).replaceAll("<table>", '<div class="tw"><table>').replaceAll("</table>", "</table></div>"),
-		inline: (text) => md.parseInline(unlink(text)),
+		markdown: (text) => md.parse(text),
+		inline: (text) => md.parseInline(text),
 	};
 }
 
@@ -169,7 +185,7 @@ function renderCode({ text, lang }) {
 }
 
 function renderHeading({ tokens, depth, text }) {
-	return `<h${depth} id="${slug(text)}">${this.parser.parseInline(tokens)}</h${depth}>\n`;
+	return `<h${depth} id="${slug(text.replace(WIKILINKS, wikiLabel))}">${this.parser.parseInline(tokens)}</h${depth}>\n`;
 }
 
 // A local SVG goes into the page as it is, so it takes the page colors. Other local images become data URLs.
@@ -188,9 +204,13 @@ function renderParagraph({ tokens }) {
 	return tokens.length === 1 && tokens[0].type === "image" ? `${body}\n` : `<p>${body}</p>\n`;
 }
 
-// Vault wikilinks have no target on a page: keep their label.
-function unlink(text) {
-	return text.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (all, target, label) => label ?? target.split("/").at(-1));
+function wikiLabel(all, target, label) {
+	return label ?? target.split("/").at(-1);
+}
+
+// A wide Markdown table scrolls sideways in its own box.
+function renderTable(token) {
+	return `<div class="tw">${Renderer.prototype.table.call(this, token)}</div>\n`;
 }
 
 function footer(sourcePath, colors) {
