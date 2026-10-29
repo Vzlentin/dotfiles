@@ -58,15 +58,6 @@
       "installedAt": "2026-08-13T14:12:55.246Z",
       "updatedAt": "2026-08-13T14:12:55.246Z"
     },
-    "show-me": {
-      "source": "humanlayer/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/humanlayer/skills.git",
-      "skillPath": "plugins/show-me/skills/show-me/SKILL.md",
-      "skillFolderHash": "a8eda6381157e27b067400b46cdf395da68b8670",
-      "installedAt": "2026-08-13T14:13:20.346Z",
-      "updatedAt": "2026-08-13T14:13:20.346Z"
-    },
     "web-search": {
       "source": "ogulcancelik/agent-skills",
       "sourceType": "github",
