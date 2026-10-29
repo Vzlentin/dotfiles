@@ -38,9 +38,11 @@ export VAULT="$HOME/vault/Val"
 
 ## Coding agents
 
-`home/.pi/agent/` is the global [Pi](https://pi.dev/) configuration. The local extensions add `/clear`, `/goal`, `/vault`, `$NAME` path completion, `.agents/skills/` discovery up the directory tree (the deepest skill with a name wins, also over `~/.agents/skills/`), Herdr status updates, and `Ctrl+Shift+G` to edit the prompt in Neovim. Run `pi update --extensions` to update the packages listed in `settings.json`.
+`home/.pi/agent/` is the global [Pi](https://pi.dev/) configuration. The local extensions add `/clear`, `/goal`, `/vault`, `/vc` and `Ctrl+Shift+Y` to copy blocks of the transcript, `$NAME` path completion, `.agents/skills/` and `.pi/mcp.json` discovery up the directory tree (the deepest skill with a name wins, also over `~/.agents/skills/`), and `Ctrl+Shift+G` to edit the prompt in Neovim. Run `pi update --extensions` to update the packages listed in `settings.json`.
 
-`home/.agents/skills/` holds the shared [Agent Skills](https://agentskills.io/). `home/.agents/.skill-lock.json` records upstream sources. Use `/skill:<name>` to load one explicitly.
+Herdr shows the state of Pi through its own extension. `herdr integration install pi` writes it to `~/.pi/agent/extensions/`, outside this repository.
+
+`home/.agents/skills/` holds the private [Agent Skills](https://agentskills.io/) and copies of third-party skills. `home/.agents/.skill-lock.json` records the upstream sources of the copies. parley, show-me, artifacts and writing-pr are in the public repository [Vzlentin/skills](https://github.com/Vzlentin/skills): clone it to `~/Dev/perso/skills` and link each folder of its `skills/` into `~/.agents/skills/`. Use `/skill:<name>` to load one explicitly.
 
 Pi uses its `system` theme, which builds its colors from the Ghostty theme. After you change the Ghostty theme, run `herdr-pi-theme` to give Herdr the same colors. It runs Pi's theme generator on the colors from `ghostty +show-config`, writes them to the marked block in Herdr's `config.toml`, and reloads Herdr.
 

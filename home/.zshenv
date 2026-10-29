@@ -32,4 +32,7 @@ user_path=(
     "$HOME/.local/bin"
 )
 path=($user_path $path)
-export NODE_EXTRA_CA_CERTS="$HOME/.cato-ca.pem"
+# Pi's npm folder has the workflows and harness commands. It goes last because it also has an older pi.
+path+=("$HOME/.pi/agent/npm/node_modules/.bin")
+
+[[ -f "$HOME/.cato-ca.pem" ]] && export NODE_EXTRA_CA_CERTS="$HOME/.cato-ca.pem"

@@ -50,6 +50,11 @@ remove_stale_links() {
             if ! is_linkable "$source_path"; then
                 rm -f "$link_path"
                 echo "remove ${link_path#"$HOME/"}"
+                # rmdir removes only empty folders, so this stops at the first one in use.
+                parent=$(dirname "$link_path")
+                while [ "$parent" != "$HOME" ] && rmdir "$parent" 2>/dev/null; do
+                    parent=$(dirname "$parent")
+                done
             fi
         done
 }
