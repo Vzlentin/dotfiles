@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 export PATH="$HOME/.local/bin:$PATH"
+# The same global npm folder as ~/.zshenv, also before ~/.zshenv is linked.
+export NPM_CONFIG_PREFIX="${NPM_CONFIG_PREFIX:-$HOME/.local}"
 # Show downloads and lifecycle scripts instead of an unexplained npm spinner.
 export npm_config_progress=false npm_config_foreground_scripts=true
 export npm_config_loglevel=info npm_config_audit=false npm_config_fund=false
@@ -232,6 +234,12 @@ if [ -d "$script_dir/home/.agents" ]; then
             npm ci --prefix "$package_dir"
         fi
     done
+fi
+
+# show-me draws diagrams with Pele from the global npm folder.
+if [ ! -d "$(npm root -g)/pele" ]; then
+    printf '\n==> Installing Pele\n'
+    npm install -g pele
 fi
 
 starship_missing=0

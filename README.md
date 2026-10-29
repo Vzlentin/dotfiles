@@ -8,9 +8,9 @@ Personal, XDG-oriented shell, editor, terminal, and coding-agent configuration m
 ./install.sh
 ```
 
-`install.sh` runs `bootstrap.sh`, which installs missing tools on macOS (Homebrew) or Debian and Ubuntu (apt), then links every non-ignored file under `home/` to the same path under `$HOME`. It is safe to rerun. Run `bootstrap.sh` alone to install tools without linking.
+`install.sh` runs `bootstrap.sh`, which installs missing tools on macOS (Homebrew) or Debian and Ubuntu (apt). Then it links every non-ignored file under `home/` to the same path under `$HOME`, and installs the missing skills of public repositories with `npx skills` (see Coding agents). It is safe to rerun. Run `bootstrap.sh` alone to install tools without linking.
 
-On a server without npm access, `./install.sh --minimal` installs only basic system tools and links the files. It skips Node, skill dependencies, Neovim, Tree-sitter, Starship, uv, and Ruff.
+On a server without npm access, `./install.sh --minimal` installs only basic system tools and links the files. It skips Node, skill dependencies, Pele, the `npx skills` installs, Neovim, Tree-sitter, Starship, uv, and Ruff.
 
 The bootstrap does not install a browser. The web-search skill needs Chrome, Brave, Edge, or Chromium, or `WEB_SEARCH_BROWSER_BIN`.
 
@@ -38,11 +38,11 @@ export VAULT="$HOME/vault/Val"
 
 ## Coding agents
 
-`home/.pi/agent/` is the global [Pi](https://pi.dev/) configuration. The local extensions add `/clear`, `/goal`, `/vault`, `/vc` and `Ctrl+Shift+Y` to copy blocks of the transcript, `$NAME` path completion, `.agents/skills/` and `.pi/mcp.json` discovery up the directory tree (the deepest skill with a name wins, also over `~/.agents/skills/`), and `Ctrl+Shift+G` to edit the prompt in Neovim. Run `pi update --extensions` to update the packages listed in `settings.json`.
+`home/.pi/agent/` is the global [Pi](https://pi.dev/) configuration. The local extensions add `/clear`, `/goal`, `/vault`, `/vc` and `Ctrl+Shift+Y` to copy blocks of the transcript, `$NAME` path completion, `.agents/skills/` and `.pi/mcp.json` discovery up the directory tree (the deepest skill with a name wins, also over `~/.agents/skills/`), and `Ctrl+Shift+G` to edit the prompt in Neovim. Run `pi update --extensions` to update the packages listed in `settings.json`. `npm:@vzlentin/pi-workflows` brings workflows, harness and pi-agents. Their `workflows` and `harness` commands are in `~/.pi/agent/npm/node_modules/.bin`, which `.zshenv` puts last on `PATH`.
 
 Herdr shows the state of Pi through its own extension. `herdr integration install pi` writes it to `~/.pi/agent/extensions/`, outside this repository.
 
-`home/.agents/skills/` holds the private [Agent Skills](https://agentskills.io/) and copies of third-party skills. `home/.agents/.skill-lock.json` records the upstream sources of the copies. parley, show-me, artifacts and writing-pr are in the public repository [Vzlentin/skills](https://github.com/Vzlentin/skills): clone it to `~/Dev/perso/skills` and link each folder of its `skills/` into `~/.agents/skills/`. Use `/skill:<name>` to load one explicitly.
+`home/.agents/skills/` holds the private [Agent Skills](https://agentskills.io/) and the forks of public skills. `install.sh` installs the other skills with `npx skills`: parley, show-me, artifacts and writing-pr from [Vzlentin/skills](https://github.com/Vzlentin/skills), and handoff, defuddle, librarian and better-github-skill from their authors. npx records them in its own lock file on each machine (`$XDG_STATE_HOME/skills/.skill-lock.json`), and `npx skills update -g` updates them. A skill that is already in `~/.agents/skills` stays as it is, such as a link to a checkout of Vzlentin/skills. Use `/skill:<name>` to load one explicitly.
 
 Pi uses its `system` theme, which builds its colors from the Ghostty theme. After you change the Ghostty theme, run `herdr-pi-theme` to give Herdr the same colors. It runs Pi's theme generator on the colors from `ghostty +show-config`, writes them to the marked block in Herdr's `config.toml`, and reloads Herdr.
 

@@ -96,6 +96,29 @@ printf '%s\n' "$linkable_paths" | while IFS= read -r relative_path; do
     fi
 done
 
+# npx installs the skills of public repositories and records them in its own
+# lock file, outside this checkout. A skill that is already there stays as it is, such
+# as a link to a checkout of Vzlentin/skills. This runs after the links, so that
+# npx never writes through a stale link into this checkout.
+install_skills() {
+    repository=$1
+    shift
+    for skill in "$@"; do
+        if [ ! -e "$HOME/.agents/skills/$skill" ] && [ ! -L "$HOME/.agents/skills/$skill" ]; then
+            (cd "$HOME" && npx --yes skills add "$repository" --global --agent pi --skill "$skill" --yes)
+        fi
+    done
+}
+
+if [ "${1:-}" != --minimal ]; then
+    printf '\n==> Installing skills from public repositories\n'
+    install_skills Vzlentin/skills parley show-me artifacts writing-pr
+    install_skills mattpocock/skills handoff
+    install_skills kepano/obsidian-skills defuddle
+    install_skills mitsuhiko/agent-stuff librarian
+    install_skills AVGVSTVS96/better-github-skill better-github-skill
+fi
+
 printf '\n==> Installation complete\n'
 
 if [ ! -f "$HOME/.zprofile.local" ]; then
