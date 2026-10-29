@@ -132,7 +132,7 @@ install_neovim() {
 
 install_node() {
     if command -v npm >/dev/null 2>&1 && command -v node >/dev/null 2>&1 && \
-        node -e 'const [m, n] = process.versions.node.split(".").map(Number); process.exit(m > 22 || (m === 22 && n >= 19) ? 0 : 1)'; then
+        node -e 'const [m, n] = process.versions.node.split(".").map(Number); process.exit(m > 22 || (m === 22 && n >= 20) ? 0 : 1)'; then
         return
     fi
 
