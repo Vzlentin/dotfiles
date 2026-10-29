@@ -63,10 +63,11 @@ pane=$("$HERDR_BIN_PATH" pane split $HERDR_ACTIVE_PANE_ID --direction right --fo
 [[keys.command]]
 key = "prefix+w"
 type = "popup"
-description = "attach to a workflows run"
+description = "attach to an agent of a workflows run"
 command = '''
 id=$(workflows list --pick) || exit 0
-HERDR_PANE_ID=$HERDR_ACTIVE_PANE_ID workflows attach "$id" || { printf 'Press Enter to close'; read -r _; }
+c=$(workflows show "$id" --pick) || exit 0
+HERDR_PANE_ID=$HERDR_ACTIVE_PANE_ID workflows attach "$id" --conversation "$c" || { printf 'Press Enter to close'; read -r _; }
 '''
 
 [[keys.command]]
