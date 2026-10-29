@@ -14,7 +14,8 @@
     "https://github.com/Vzlentin/pi-rlm",
     "https://github.com/Vzlentin/pi-autoresearch",
     "https://github.com/Vzlentin/pi-cursor",
-    "npm:@vzlentin/pi-workflows"
+    "npm:@vzlentin/pi-workflows",
+    "npm:@vzlentin/pi-agents"
   ],
   "tuiMode": "fullscreen",
   "defaultTools": [
