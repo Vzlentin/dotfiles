@@ -2,6 +2,7 @@
 name: mtg-decks
 description: "Build, review or upgrade Magic: The Gathering decks in any format from exact card data. Use when the user shares a Moxfield or Archidekt link or a decklist, asks for exact card text, asks what to add or cut, asks what is new since a date, or asks about legality, bans, Commander brackets, Game Changers or combos."
 compatibility: "Requires the `mtg` command (https://github.com/Vzlentin/mtg). Moxfield links need the web-search skill and its browser."
+disable-model-invocation: true
 ---
 
 # MTG decks
