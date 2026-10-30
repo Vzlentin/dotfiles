@@ -38,7 +38,7 @@ export VAULT="$HOME/vault/Val"
 
 ## Coding agents
 
-`home/.pi/agent/` is the global [Pi](https://pi.dev/) configuration. The local extensions add `/clear`, `/goal`, `/vault`, `/vc` and `Ctrl+Shift+Y` to copy blocks of the transcript, `$NAME` path completion, `.agents/skills/` and `.pi/mcp.json` discovery up the directory tree (the deepest skill with a name wins, also over `~/.agents/skills/`), and `Ctrl+Shift+G` to edit the prompt in Neovim. Run `pi update --extensions` to update the packages listed in `settings.json`. `npm:@vzlentin/pi-workflows` brings workflows, harness and pi-agents. Their `workflows` and `harness` commands are in `~/.pi/agent/npm/node_modules/.bin`, which `.zshenv` puts last on `PATH`.
+`home/.pi/agent/` is the global [Pi](https://pi.dev/) configuration. The local extensions add `/clear`, `/vault`, `/vc` and `Ctrl+Shift+Y` to copy blocks of the transcript, `$NAME` path completion, `.agents/skills/` and `.pi/mcp.json` discovery up the directory tree (the deepest skill with a name wins, also over `~/.agents/skills/`), and `Ctrl+Shift+G` to edit the prompt in Neovim. Run `pi update --extensions` to update the packages listed in `settings.json`. `npm:@vzlentin/pi-workflows` brings workflows, harness and pi-agents. Their `workflows` and `harness` commands are in `~/.pi/agent/npm/node_modules/.bin`, which `.zshenv` puts last on `PATH`.
 
 Herdr shows the state of Pi through its own extension. `herdr integration install pi` writes it to `~/.pi/agent/extensions/`, outside this repository.
 
