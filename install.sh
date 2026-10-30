@@ -116,6 +116,12 @@ if [ "${1:-}" != --minimal ]; then
     install_skills mattpocock/skills handoff
     install_skills mitsuhiko/agent-stuff librarian
     install_skills AVGVSTVS96/better-github-skill better-github-skill
+    if [ "$(uname -s)" = Darwin ]; then
+        install_skills Vzlentin/skills dia
+        if [ -d /Applications/Dia.app ] && [ ! -e "$HOME/Applications/Dia (JS).app" ]; then
+            node "$HOME/.agents/skills/dia/dia.mjs" launcher
+        fi
+    fi
 fi
 
 printf '\n==> Installation complete\n'
