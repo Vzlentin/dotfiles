@@ -114,7 +114,6 @@ if [ "${1:-}" != --minimal ]; then
     printf '\n==> Installing skills from public repositories\n'
     install_skills Vzlentin/skills parley show-me artifacts writing-pr
     install_skills mattpocock/skills handoff
-    install_skills kepano/obsidian-skills defuddle
     install_skills mitsuhiko/agent-stuff librarian
     install_skills AVGVSTVS96/better-github-skill better-github-skill
 fi
