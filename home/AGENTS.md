@@ -59,6 +59,7 @@ When you spawn one, write: `You are a subagent. Don't run memo.`
 
 - In Python, use module-level imports and functions. Do not use nested imports or nested functions.
 - Leave no breadcrumbs. Code and docs describe the current state only: no "removed", "moved to", "previously", "now uses", or "changed from" comments, no commented-out old code, and no compatibility aliases or re-exports for renamed things unless requested. Change history belongs in the commit message.
+- Avoid these design smells, and report them when you review code: duplication, implicit coupling, representable illegal states, validation away from the boundary, layer-first folders, layering violations, god files, shotgun surgery, pass-through wrappers.
 
 ## Testing
 
