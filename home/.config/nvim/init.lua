@@ -136,6 +136,13 @@ require("lazy").setup({
             { "<leader>m", "<Cmd>RenderMarkdown toggle<CR>", ft = "markdown", desc = "Render markdown" },
         },
     },
+    {
+        "jghauser/follow-md-links.nvim",
+        ft = "markdown",
+        keys = {
+            { "gd", function() require("follow-md-links").follow_link() end, ft = "markdown", desc = "Follow link" },
+        },
+    },
 }, {
     install = { colorscheme = { "terminal" } },
     rocks = { enabled = false },
