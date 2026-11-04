@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "1.4.0",
+  "lastChangelogVersion": "1.5.0",
   "theme": "system",
   "externalEditor": "nvim",
   "defaultProvider": "anthropic",
@@ -32,5 +32,8 @@
         "reserveTokens": 64000
       }
     }
+  },
+  "extensionChangelogVersions": {
+    "{\"source\":\"https://github.com/Vzlentin/pi-cursor\",\"scope\":\"user\"}": "1.4.38"
   }
 }
