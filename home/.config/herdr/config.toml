@@ -55,9 +55,14 @@ command = "\"$HERDR_BIN_PATH\" pane move $HERDR_ACTIVE_PANE_ID --new-tab --focus
 key = "prefix+g"
 type = "shell"
 description = "lazygit split"
+# Herdr splits only right or down, and --ratio sizes the split pane.
+# Split at 17%, then swap: lazygit gets the narrow left column.
 command = '''
-pane=$("$HERDR_BIN_PATH" pane split $HERDR_ACTIVE_PANE_ID --direction right --focus | jq -r '.result.pane.pane_id')
-[ -n "$pane" ] && "$HERDR_BIN_PATH" pane run "$pane" "exec lazygit"
+h="$HERDR_BIN_PATH"; src="$HERDR_ACTIVE_PANE_ID"
+pane=$("$h" pane split "$src" --direction right --ratio 0.17 --no-focus | jq -r '.result.pane.pane_id')
+[ -n "$pane" ] || exit 0
+"$h" pane swap --source-pane "$pane" --target-pane "$src" >/dev/null
+"$h" pane run "$pane" "exec lazygit"
 '''
 
 [[keys.command]]
