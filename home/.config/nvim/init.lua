@@ -38,6 +38,22 @@ vim.cmd("colorscheme terminal")
 
 vim.keymap.set("n", "<Esc>", "<Cmd>nohlsearch<CR>", { silent = true })
 
+-- Option+Left/Right move by word, like b and e. Shift adds a selection.
+-- Ghostty sends Option as Alt, so Option+Left arrives as <M-Left>.
+local moves = {
+    ["<M-Left>"] = "b", ["<M-Right>"] = "e",
+    ["<S-Left>"] = "h", ["<S-Right>"] = "l", ["<S-Up>"] = "k", ["<S-Down>"] = "j",
+    ["<M-S-Left>"] = "b", ["<M-S-Right>"] = "e",
+}
+for key, motion in pairs(moves) do
+    local select = key:find("S%-") ~= nil
+    vim.keymap.set("n", key, (select and "v" or "") .. motion)
+    vim.keymap.set("x", key, motion)
+    vim.keymap.set("i", key, "<C-o>" .. (select and "v" or "") .. motion)
+end
+-- In Insert mode, the cursor goes after the word end, not on it.
+vim.keymap.set("i", "<M-Right>", "<C-o>e<Right>")
+
 local group = vim.api.nvim_create_augroup("dotfiles", {})
 
 vim.api.nvim_create_autocmd("FileType", {
