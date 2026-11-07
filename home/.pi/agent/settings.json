@@ -11,7 +11,6 @@
     "git:github.com/paoloanzn/pi-black",
     "https://github.com/Vzlentin/pi-ipython",
     "https://github.com/Vzlentin/pi-rlm",
-    "https://github.com/Vzlentin/pi-cursor",
     "npm:@vzlentin/pi-workflows",
     "npm:@vzlentin/pi-agents"
   ],
