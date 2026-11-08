@@ -15,12 +15,13 @@ then do exactly what it prints, to the end of its output.
 
 ### While working: register memories (mandatory)
 
-Call `~/.optmem/memo note "<1 line, max 280 bytes>"` whenever you learn
+Call `~/.optmem/memo note "<1 line, about 200 bytes>"` whenever you learn
 something new, or something worth keeping happens. That covers a task
 worth real effort, a fact or insight the user teaches you, anything you
 learn about their life (even indirectly), any event of lasting effect.
 
-Do not register redundant memories.
+Do not register redundant memories. The tool rejects a note above 280
+bytes, and each accented character costs 2.
 
 If `~/.optmem/memo note` asks a compression: do it before your next action.
 
