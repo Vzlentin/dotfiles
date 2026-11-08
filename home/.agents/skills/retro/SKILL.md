@@ -3,8 +3,6 @@ name: retro
 description: Conduct a retrospective on a coding session and suggest changes to the agent's environment.
 argument-hint: "[session file | session ID | ship run ID | topic | recent]"
 disable-model-invocation: true
-metadata:
-  source: https://github.com/mattpocock/skills/tree/main/skills/engineering/retro
 ---
 Run a retrospective on a coding session. Find changes to the coding agent's **environment** that improve future runs: checks, steering files, docs, skills and tools. The result is a list of candidates, and the user chooses which ones to apply.
 
