@@ -1,7 +1,7 @@
 ---
 name: retro
 description: Conduct a retrospective on a coding session and suggest changes to the agent's environment.
-argument-hint: "[session file | session ID | ship run ID | topic]"
+argument-hint: "[session file | session ID | ship run ID | topic | recent]"
 disable-model-invocation: true
 metadata:
   source: https://github.com/mattpocock/skills/tree/main/skills/engineering/retro
@@ -17,6 +17,7 @@ Run a retrospective on a coding session. Find changes to the coding agent's **en
    - **A session file or ID**: Pi keeps sessions in `~/.pi/agent/sessions/`, one folder per working directory, as `<timestamp>_<session-id>.jsonl`.
    - **A ship run ID**: the run directory `${XDG_STATE_HOME:-$HOME/.local/state}/workflows/runs/<run-id>/`. `round-<n>.patch` and `round-<n>-fix.patch` are the patches each review got. The sessions are in `durable.sqlite`: each row of `entries` holds one Pi message in `record.model`, and `conversation_id` groups the rows by session. Open it read-only.
    - **A topic**: find the session with `session_search`. Ask the user when more than one session matches.
+   - **recent**: run `python3 scan.py`. It counts known failures over the sessions of the last 14 days, and lists the sessions with the most. Review the patterns that come back, with those sessions as evidence.
 
    Parse the sources in the `ipython` tool. Most evidence is in the tool calls and their results (errors, large outputs, repeated reads), the `usage` of each assistant message, and the user's corrections. `session_query` leaves out tool results, so read the sources directly. This step is done when you can state the session's goal, its outcome, and each point where it lost time, tokens or correctness.
 
@@ -29,7 +30,7 @@ Run a retrospective on a coding session. Find changes to the coding agent's **en
    - **No-ops**: find instructions in steering files and skill descriptions that do not change what the agent does by default. _Use when_ the steering files are large.
    - **Information access**: look for ways to give the agent more information, such as dev server logs teed to a file or read-only access to a third-party service. _Use when_ the agent lacked a crucial piece of information.
 
-4. Present the candidates, most severe first. Severity is what the problem cost in this session and how often it will come back. For each candidate, give its evidence in the session, the change, and the file or command that the change touches.
+4. Present the candidates, most severe first. Severity is what the problem cost in this session and how often it will come back. Measure how often with `python3 scan.py --pattern '<name>=<regex>' --only '<name>'`, which counts the failure over recent sessions and lists each hit. For each candidate, give its evidence in the session, the change, and the file or command that the change touches.
 
 ## Reference
 
