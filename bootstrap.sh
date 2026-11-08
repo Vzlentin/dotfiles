@@ -166,6 +166,7 @@ install_node() {
 install_macos_tools() {
     set --
     command -v bat >/dev/null 2>&1 || set -- "$@" bat
+    command -v timeout >/dev/null 2>&1 || set -- "$@" coreutils
     command -v git >/dev/null 2>&1 || set -- "$@" git
     command -v jq >/dev/null 2>&1 || set -- "$@" jq
     command -v nvim >/dev/null 2>&1 || set -- "$@" neovim
