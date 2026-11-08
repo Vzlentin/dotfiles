@@ -9,7 +9,6 @@
     "npm:@ogulcancelik/pi-session-recall",
     "git:github.com/paoloanzn/pi-black",
     "https://github.com/Vzlentin/pi-ipython",
-    "https://github.com/Vzlentin/pi-rlm",
     "npm:@vzlentin/pi-workflows",
     "npm:@vzlentin/pi-agents"
   ],
