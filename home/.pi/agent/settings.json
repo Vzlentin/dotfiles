@@ -2,11 +2,10 @@
   "lastChangelogVersion": "1.5.0",
   "theme": "system",
   "externalEditor": "nvim",
-  "defaultProvider": "anthropic",
+  "defaultProvider": "claude-pool",
   "defaultModel": "claude-opus-5-5",
   "defaultThinkingLevel": "xhigh",
   "packages": [
-    "npm:@ogulcancelik/pi-minimal-footer",
     "npm:@ogulcancelik/pi-session-recall",
     "git:github.com/paoloanzn/pi-black",
     "https://github.com/Vzlentin/pi-ipython",
@@ -22,7 +21,8 @@
     "cursor/claude-opus-5-5": "medium",
     "anthropic/claude-opus-5-5": "medium",
     "radius/claude-opus-5-5": "medium",
-    "cursor/claude-opus-5-5-1m": "medium"
+    "cursor/claude-opus-5-5-1m": "medium",
+    "claude-pool/claude-opus-5-5": "medium"
   },
   "hideThinkingBlock": false,
   "compaction": {
