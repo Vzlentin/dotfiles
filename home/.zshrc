@@ -164,3 +164,6 @@ fi
 ### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
 export PATH="/Users/vzl/.rd/bin:$PATH"
 ### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
+
+# Pi
+export PATH="/home/vzl/.pi/agent/bin:$PATH"
