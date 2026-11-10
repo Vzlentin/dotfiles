@@ -20,8 +20,8 @@ something new, or something worth keeping happens. That covers a task
 worth real effort, a fact or insight the user teaches you, anything you
 learn about their life (even indirectly), any event of lasting effect.
 
-Do not register redundant memories. The tool rejects a note above 280
-bytes, and each accented character costs 2.
+Do not register redundant memories. Note a decision when it is settled,
+not each round of an open parley: the parley file holds the rounds.
 
 If `~/.optmem/memo note` asks a compression: do it before your next action.
 
@@ -45,7 +45,6 @@ When you spawn one, write: `You are a subagent. Don't run memo.`
 
 ## Communication
 
-- Reply in the language I write in.
 - In English, use ASD-STE100 Simplified Technical English. In other languages, apply the same principles: short sentences, active voice, one instruction per sentence, common words, consistent terms.
 - For text other people read, including code comments, commit messages, and PR or review text, load the `outbound-writing` skill.
 - Do not use em-dashes.
@@ -71,7 +70,7 @@ When you spawn one, write: `You are a subagent. Don't run memo.`
 
 - Do not commit, push, publish branches, create or update pull requests or merge requests, or post comments without explicit permission.
 - Treat external services and shared environments as real systems. Prefer read-only operations and obtain explicit approval before writes or shared workflow execution.
-- Never commit credentials, tokens, sensitive data, or temporary verification artifacts.
+- Never commit temporary verification artifacts.
 
 ## Verification
 

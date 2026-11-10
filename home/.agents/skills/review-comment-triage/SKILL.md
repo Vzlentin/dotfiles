@@ -1,6 +1,6 @@
 ---
 name: review-comment-triage
-description: Triage GitHub PR and GitLab MR review comments as legit, not legit, or needs opinion; verify each claim against the exact diff, repository standards, and originating spec; obtain an independent second judgment; and render a visual, paste-ready report with each original comment and a proposed response. Use when a user asks to go through review comments, assess reviewer feedback, draft replies, or explain why comments should or should not be acted on.
+description: Triage PR or MR review comments, verify each claim, and draft replies.
 ---
 
 # Review Comment Triage
