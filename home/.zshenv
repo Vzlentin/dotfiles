@@ -24,6 +24,7 @@ export NPM_CONFIG_PREFIX="$HOME/.local"
 export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
 export PYTHON_HISTORY="$XDG_STATE_HOME/python/history"
 export CHECKPOINT_DISABLE=1
+export PI_CACHE_RETENTION=long
 
 [[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
 
