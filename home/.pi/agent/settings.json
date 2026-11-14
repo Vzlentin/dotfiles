@@ -3,8 +3,10 @@
   "theme": "system",
   "externalEditor": "nvim",
   "defaultProvider": "claude-pool",
-  "defaultModel": "claude-opus-5-5",
+  "defaultModel": "claude-fable-5-2",
   "defaultThinkingLevel": "xhigh",
+  "subagentModel": "claude-pool/claude-opus-5-5",
+  "subagentThinkingLevel": "medium",
   "packages": [
     "npm:@ogulcancelik/pi-session-recall",
     "git:github.com/Vzlentin/pi-black",
@@ -21,7 +23,11 @@
     "anthropic/claude-opus-5-5": "medium",
     "radius/claude-opus-5-5": "medium",
     "cursor/claude-opus-5-5-1m": "medium",
-    "claude-pool/claude-opus-5-5": "medium"
+    "claude-pool/claude-opus-5-5": "medium",
+    "claude-pool/claude-fable-5-2": "medium",
+    "anthropic-2/claude-opus-5-5": "medium",
+    "anthropic/claude-fable-5-2": "medium",
+    "anthropic-2/claude-fable-5-2": "medium"
   },
   "hideThinkingBlock": false,
   "compaction": {
