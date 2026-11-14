@@ -11,7 +11,7 @@ Run a retrospective on a coding session. Find changes to the coding agent's **en
 1. Read the `agents-md` skill. Its placement rules decide where each candidate lives: a check, a doc behind a pointer, a skill, or a line in an `AGENTS.md`.
 
 2. Read the primary sources of the session that the arguments name:
-   - **No argument**: the current session, `$PI_SESSION_FILE`.
+   - **No argument**: the current session, `$PI_SESSION_FILE`. Read it with `echo $PI_SESSION_FILE` in bash and pass the path to Python: the `ipython` kernel can hold the value of an older session.
    - **A session file or ID**: Pi keeps sessions in `~/.pi/agent/sessions/`, one folder per working directory, as `<timestamp>_<session-id>.jsonl`.
    - **A ship run ID**: the run directory `${XDG_STATE_HOME:-$HOME/.local/state}/workflows/runs/<run-id>/`. `round-<n>.patch` and `round-<n>-fix.patch` are the patches each review got. The sessions are in `durable.sqlite`: each row of `entries` holds one Pi message in `record.model`, and `conversation_id` groups the rows by session. Open it read-only.
    - **A topic**: find the session with `session_search`. Ask the user when more than one session matches.

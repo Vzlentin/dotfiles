@@ -34,6 +34,9 @@
     "modelOverrides": {
       "anthropic/claude-opus-5-5": {
         "reserveTokens": 64000
+      },
+      "claude-pool/claude-fable-5-2": {
+        "reserveTokens": 700000
       }
     }
   },
