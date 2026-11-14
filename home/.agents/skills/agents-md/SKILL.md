@@ -1,7 +1,7 @@
 ---
 name: agents-md
-description: "Read before creating, auditing, or revising an AGENTS.md file."
-last-changed: "2026-08-21"
+description: "Read before you create or audit an AGENTS.md file, and before you add, remove or change any line of one, also for a small fix."
+last-changed: "2026-11-14"
 ---
 
 1. Inspect the target scope, applicable ancestor files, relevant nested files, and only enough code or configuration to verify proposed guidance.
