@@ -9,6 +9,8 @@
  * says the subscription quota is used up (`anthropic-ratelimit-unified-status: rejected`). A burst
  * 429 without that header stays on the same account, and Pi's retry backoff handles it.
  *
+ * A spent account is tried again after 15 minutes: a quota can come back before its reset time.
+ *
  * A switch loses the prompt cache once: caches belong to one account. Thinking blocks of the other
  * account go to the new one as plain text, the same as after a manual model switch.
  *
@@ -18,21 +20,28 @@
 import { anthropicMessagesApi, createProvider, type Api, type Model } from "@earendil-works/pi-ai/compat";
 import { builtinProviders, getBuiltinModels } from "@earendil-works/pi-ai/providers/all";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, ExtensionContext, ModelRouteRequest } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ModelRegistry, ModelRouteRequest } from "@earendil-works/pi-coding-agent";
 
 const ACCOUNT_COUNT = 2;
 const POOL = "claude-pool";
 const ACCOUNTS = ["anthropic", ...Array.from({ length: ACCOUNT_COUNT - 1 }, (_, i) => `anthropic-${i + 2}`)];
 // Used when a quota 429 has no reset header.
 const DEFAULT_BLOCK_MS = 60 * 60 * 1000;
+const RECHECK_MS = 15 * 60 * 1000;
 
 interface PoolState {
 	account: string;
 }
 
+interface Block {
+	until: number;
+	seenAt: number;
+}
+
 // Per Pi process. A new process learns a spent account again from its first 429.
-const blockedUntil = new Map<string, number>();
+const blocks = new Map<string, Block>();
 let lastRouted: string | undefined;
+let registry: ModelRegistry | undefined;
 
 // Pi reports no headers for a failed request (after_provider_response fires only on success), so
 // the quota headers of a 429 are read from fetch. The Anthropic SDK uses the global fetch.
@@ -42,19 +51,37 @@ function watchQuota429s(): void {
 	const current = globalThis.fetch as typeof fetch & { [ORIGINAL_FETCH]?: typeof fetch };
 	const original = current[ORIGINAL_FETCH] ?? current;
 	const watched = async (...args: Parameters<typeof fetch>) => {
-		const account = lastRouted;
 		const response = await original(...args);
 		// The unified status header can say "rejected" on a 200 too, so only a 429 counts.
-		if (account && response.status === 429 && response.headers.get("anthropic-ratelimit-unified-status") === "rejected") {
-			blockedUntil.set(account, quotaResetMs(response.headers));
+		if (response.status === 429 && response.headers.get("anthropic-ratelimit-unified-status") === "rejected") {
+			const account = await accountOf(...args);
+			if (account) blocks.set(account, { until: quotaResetMs(response.headers), seenAt: Date.now() });
 		}
 		return response;
 	};
 	globalThis.fetch = Object.assign(watched, { [ORIGINAL_FETCH]: original }) as typeof fetch;
 }
 
+/** The pool account whose token the request carries. Requests outside the pool pass through fetch too. */
+async function accountOf(...[input, init]: Parameters<typeof fetch>): Promise<string | undefined> {
+	const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+	const authorization = headers.get("authorization");
+	if (!authorization || !registry) return undefined;
+	for (const account of ACCOUNTS) {
+		const token = await registry.getApiKeyForProvider(account).catch(() => undefined);
+		if (token && authorization === `Bearer ${token}`) return account;
+	}
+	return undefined;
+}
+
+function resetOf(account: string): number {
+	return blocks.get(account)?.until ?? 0;
+}
+
 function isBlocked(account: string): boolean {
-	return (blockedUntil.get(account) ?? 0) > Date.now();
+	const block = blocks.get(account);
+	const now = Date.now();
+	return block !== undefined && block.until > now && block.seenAt + RECHECK_MS > now;
 }
 
 function physical(ctx: ExtensionContext, account: string, modelId: string): Model<Api> | undefined {
@@ -70,7 +97,7 @@ function pick(ctx: ExtensionContext, start: string, modelId: string): string {
 	if (usable.length === 0) throw new Error(`${POOL}: no account with credentials has ${modelId}. Run /login.`);
 	return (
 		usable.find((account) => !isBlocked(account)) ??
-		usable.reduce((a, b) => ((blockedUntil.get(a) ?? 0) <= (blockedUntil.get(b) ?? 0) ? a : b))
+		usable.reduce((a, b) => (resetOf(a) <= resetOf(b) ? a : b))
 	);
 }
 
@@ -123,6 +150,7 @@ export default function (pi: ExtensionAPI) {
 			maxTokens: model.maxTokens,
 			input: model.input,
 			route(request, ctx) {
+				registry = ctx.modelRegistry;
 				const sticky = (request.reason === "direct" ? lastRouted : stickyAccount(request)) ?? ACCOUNTS[0];
 				const account = pick(ctx, sticky, request.model.id);
 				if (account !== sticky && ctx.hasUI) {
@@ -136,6 +164,9 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	watchQuota429s();
+	pi.on("session_start", (_event, ctx) => {
+		registry = ctx.modelRegistry;
+	});
 
 	pi.registerCommand(POOL, {
 		description: "Show the Claude pool accounts and their quota state",
@@ -144,8 +175,11 @@ export default function (pi: ExtensionAPI) {
 				const loggedIn = ctx.modelRegistry
 					.getAll()
 					.some((model) => model.provider === account && ctx.modelRegistry.hasConfiguredAuth(model));
-				const until = blockedUntil.get(account) ?? 0;
-				const state = !loggedIn ? `not logged in (/login ${account})` : until > Date.now() ? `spent until ${formatTime(until)}` : "ok";
+				const state = !loggedIn
+					? `not logged in (/login ${account})`
+					: isBlocked(account)
+						? `spent until ${formatTime(resetOf(account))}`
+						: "ok";
 				const active = account === lastRouted ? " (active)" : "";
 				return `${label(account)} ${account}: ${state}${active}`;
 			});
