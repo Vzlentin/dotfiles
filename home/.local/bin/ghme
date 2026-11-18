@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# What GitHub holds for me that can need an action, for each account that gh knows:
+# pull requests to review, pull requests that I reviewed, my open pull requests,
+# my issues, and the branch workflows whose last run failed.
+# An empty section does not print. On a terminal, the reference of an item is its link.
+# Usage: ghme [days]   (days of history for the failed runs, default 7)
+set -uo pipefail
+days="${1:-7}"
+since="$(date -u -d "$days days ago" +%Y-%m-%d)"
+stale="$(date -u -d "60 days ago" +%Y-%m-%d)"
+if [[ -t 1 ]]; then link=1; else link=0; fi
+jqlib='def who: .author.login | sub("(-ext)?_afklm$"; "");
+def bot: .author.__typename == "Bot";
+def none: if . == null or . == "" then "none" else . end;'
+
+# Reads lines of `reference<TAB>url<TAB>text` and prints one item for each.
+items() {
+  local ref url text
+  while IFS=$'\t' read -r ref url text; do
+    if (( link )); then
+      printf -- '- \e]8;;%s\e\\%s\e]8;;\e\\ %s\n' "$url" "$ref" "$text"
+    else
+      printf -- '- %s %s %s\n' "$ref" "$text" "$url"
+    fi
+  done
+}
+
+# Prints the title and the lines of stdin when there is at least one line.
+section() {
+  local body
+  body="$(cat)"
+  [[ -n $body ]] && printf '\n## %s\n%s\n' "$1" "$body"
+}
+
+pr='repository { name nameWithOwner } number title url isDraft updatedAt author { __typename login }'
+query="query(\$requested: String!, \$reviewed: String!, \$mine: String!, \$issues: String!, \$recent: String!) {
+  requested: search(type: ISSUE, first: 100, query: \$requested) { nodes { ... on PullRequest { $pr } } }
+  reviewed: search(type: ISSUE, first: 100, query: \$reviewed) { nodes { ... on PullRequest { $pr reviewDecision
+    reviews(last: 100) { nodes { author { login } state submittedAt } }
+    commits(last: 100) { nodes { commit { committedDate } } } } } }
+  mine: search(type: ISSUE, first: 100, query: \$mine) { nodes { ... on PullRequest { $pr reviewDecision mergeable baseRefName headRefName
+    reviews(last: 100) { nodes { author { login } submittedAt } }
+    comments(last: 100) { nodes { author { login } createdAt } }
+    commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
+      ... on CheckRun { conclusion status } ... on StatusContext { state } } } } } } } } } }
+  issues: search(type: ISSUE, first: 100, query: \$issues) { nodes { ... on Issue { repository { name } number title url updatedAt } } }
+  recent: search(type: ISSUE, first: 100, query: \$recent) { nodes { ... on PullRequest { repository { nameWithOwner } } } }
+}"
+
+review_requested() {
+  jq -r --arg stale "$stale" "$jqlib"'
+    .requested.nodes[] | select(bot | not) | select(.updatedAt >= $stale)
+    | ["\(.repository.name)#\(.number)", .url, "\(who), updated \(.updatedAt[5:10])\(if .isDraft then ", draft" else "" end): \(.title)"] | @tsv' <<<"$1" | items
+  jq -r --arg stale "$stale" "$jqlib"'
+    ([.requested.nodes[] | select(bot)] | length) as $bots
+    | ([.requested.nodes[] | select(bot | not) | select(.updatedAt < $stale)] | length) as $old
+    | [(if $bots > 0 then "\($bots) from bots" else empty end), (if $old > 0 then "\($old) with no update for 60 days" else empty end)]
+    | if length > 0 then "- not listed: \(join(", "))" else empty end' <<<"$1"
+}
+
+reviewed() {
+  jq -r --arg me "$2" "$jqlib"'
+    [.reviewed.nodes[] | select(bot | not)
+      | ([.reviews.nodes[] | select(.author.login == $me)] | last) as $mine
+      | select($mine)
+      | ([.commits.nodes[] | select(.commit.committedDate > $mine.submittedAt)] | length) as $new
+      | {new: $new, row: ["\(.repository.name)#\(.number)", .url, "\(who): \(.title) | my \($mine.state) \($mine.submittedAt[5:10]), \(if $new > 0 then "\($new) NEW COMMITS" else "no new commit" end), decision \(.reviewDecision | none)"]}]
+    | sort_by(-.new) | .[] | .row | @tsv' <<<"$1" | items
+}
+
+mine() {
+  jq -r --arg me "$2" "$jqlib"'
+    .mine.nodes[]
+    | ([.commits.nodes[].commit.statusCheckRollup.contexts.nodes[]? | (.conclusion // .state // .status) | select(. != "SUCCESS" and . != "SKIPPED" and . != "NEUTRAL")] | group_by(.) | map("\(.[0]) \(length)") | join(", ")) as $checks
+    | ([.comments.nodes[], .reviews.nodes[] | select(.author.login != $me) | (.createdAt // .submittedAt)] | max) as $last
+    | ["\(.repository.name)#\(.number)", .url, "\(.title) | \(.headRefName) -> \(.baseRefName)\(if .isDraft then ", draft" else "" end), decision \(.reviewDecision | none)\(if .mergeable != "MERGEABLE" then ", \(.mergeable)" else "" end), checks \(if $checks == "" then "ok" else $checks end)\(if $last then ", others last wrote \($last[5:10])" else "" end)"] | @tsv' <<<"$1" | items
+}
+
+issues() {
+  jq -r '.issues.nodes[] | ["\(.repository.name)#\(.number)", .url, "updated \(.updatedAt[5:10]): \(.title)"] | @tsv' <<<"$1" | items
+}
+
+# The workflows of one repository whose last run since $since failed, for the branches that still exist.
+failed_runs_of() {
+  local repo="$1" branch line
+  gh run list --repo "$repo" --user "$2" --created ">=$since" --limit 100 --json workflowName,headBranch,conclusion,createdAt,url |
+    jq -r --arg repo "${repo#*/}" 'group_by([.headBranch, .workflowName]) | map(max_by(.createdAt)) | .[] | select(.conclusion == "failure")
+      | [.headBranch, "\($repo) \(.headBranch)", .url, "\(.workflowName), \(.createdAt[5:10])"] | @tsv' |
+    while IFS=$'\t' read -r branch line; do
+      gh api "repos/$repo/branches/$branch" --silent 2>/dev/null && printf '%s\n' "$line"
+    done
+}
+
+failed_runs() {
+  local dir repo
+  dir="$(mktemp -d)"
+  while read -r repo; do
+    failed_runs_of "$repo" "$2" >"$dir/${repo//\//_}" &
+  done < <(jq -r '[.recent.nodes[].repository.nameWithOwner] | unique | .[]' <<<"$1")
+  wait
+  cat "$dir"/* 2>/dev/null | items
+  rm -rf "$dir"
+}
+
+account() {
+  local data
+  export GH_TOKEN
+  GH_TOKEN="$(gh auth token --user "$1")"
+  data="$(gh api graphql -f query="$query" --jq .data \
+    -f requested="is:pr is:open review-requested:$1" \
+    -f reviewed="is:pr is:open reviewed-by:$1 -author:$1" \
+    -f mine="is:pr is:open author:$1" \
+    -f issues="is:issue is:open assignee:$1" \
+    -f recent="is:pr author:$1 updated:>=$since")" || return
+  review_requested "$data" | section "Review requested from me"
+  reviewed "$data" "$1" | section "Open pull requests that I reviewed"
+  mine "$data" "$1" | section "My open pull requests"
+  issues "$data" | section "Open issues assigned to me"
+  failed_runs "$data" "$1" | section "Workflows of my branches whose last run failed, since $since"
+}
+
+out="$(mktemp -d)"
+trap 'rm -rf "$out"' EXIT
+mapfile -t users < <(gh auth status --json hosts --jq '.hosts[][] | .login')
+for user in "${users[@]}"; do
+  account "$user" >"$out/$user" &
+done
+wait
+for user in "${users[@]}"; do
+  [[ -s $out/$user ]] && printf '# %s\n%s\n\n' "$user" "$(<"$out/$user")"
+done
