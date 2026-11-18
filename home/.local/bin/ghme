@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# What GitHub holds for me that can need an action, for each account that gh knows:
-# pull requests to review, pull requests that I reviewed, my open pull requests,
-# my issues, and the branch workflows whose last run failed.
+# What GitHub and GitLab hold for me that can need an action, for each account that gh knows
+# and for the account of glab: pull or merge requests to review, those that I reviewed,
+# my open pull or merge requests, my issues, and the workflows or pipelines of my branches
+# whose last run failed. A forge whose CLI is not installed is skipped.
 # An empty section does not print. On a terminal, the reference of an item is its link.
 # Usage: ghme [days]   (days of history for the failed runs, default 7)
 set -uo pipefail
 days="${1:-7}"
-since="$(date -u -d "$days days ago" +%Y-%m-%d)"
-stale="$(date -u -d "60 days ago" +%Y-%m-%d)"
+
+# Prints the UTC date of some days ago, with GNU date or BSD date.
+days_ago() {
+  date -u -d "$1 days ago" +%Y-%m-%d 2>/dev/null || date -u -v-"$1"d +%Y-%m-%d
+}
+
+since="$(days_ago "$days")"
+stale="$(days_ago 60)"
 if [[ -t 1 ]]; then link=1; else link=0; fi
-jqlib='def who: .author.login | sub("(-ext)?_afklm$"; "");
-def bot: .author.__typename == "Bot";
-def none: if . == null or . == "" then "none" else . end;'
 
 # Reads lines of `reference<TAB>url<TAB>text` and prints one item for each.
 items() {
@@ -32,13 +36,49 @@ section() {
   [[ -n $body ]] && printf '\n## %s\n%s\n' "$1" "$body"
 }
 
-pr='repository { name nameWithOwner } number title url isDraft updatedAt author { __typename login }'
-query="query(\$requested: String!, \$reviewed: String!, \$mine: String!, \$issues: String!, \$recent: String!) {
-  requested: search(type: ISSUE, first: 100, query: \$requested) { nodes { ... on PullRequest { $pr } } }
-  reviewed: search(type: ISSUE, first: 100, query: \$reviewed) { nodes { ... on PullRequest { $pr reviewDecision
+# Prints the title of an account and the sections of stdin when there is at least one section.
+heading() {
+  local body
+  body="$(cat)"
+  [[ -n $body ]] && printf '# %s\n%s\n\n' "$1" "$body"
+}
+
+# The requests that wait for my review, with the jq library of a forge, my name and the data of the forge.
+review_requested() {
+  jq -r --arg stale "$stale" --arg me "$2" "$1"'
+    waiting($me) | select(bot | not) | select(.updatedAt >= $stale)
+    | [ref, .url, "\(who), updated \(.updatedAt[5:10])\(if .isDraft then ", draft" else "" end): \(.title)"] | @tsv' <<<"$3" | items
+  jq -r --arg stale "$stale" --arg me "$2" "$1"'
+    ([waiting($me) | select(bot)] | length) as $bots
+    | ([waiting($me) | select(bot | not) | select(.updatedAt < $stale)] | length) as $old
+    | [(if $bots > 0 then "\($bots) from bots" else empty end), (if $old > 0 then "\($old) with no update for 60 days" else empty end)]
+    | if length > 0 then "- not listed: \(join(", "))" else empty end' <<<"$3"
+}
+
+# Runs `fn repository me` in parallel for each repository of stdin, and prints the items of their lines.
+each_repo() {
+  local dir repo
+  dir="$(mktemp -d)"
+  while read -r repo; do
+    "$1" "$repo" "$2" >"$dir/${repo//\//_}" &
+  done
+  wait
+  cat "$dir"/* 2>/dev/null | items
+  rm -rf "$dir"
+}
+
+gh_lib='def who: .author.login | sub("(-ext)?_afklm$"; "");
+def bot: .author.__typename == "Bot";
+def ref: "\(.repository.name)#\(.number)";
+def waiting($me): .requested.nodes[];
+def none: if . == null or . == "" then "none" else . end;'
+gh_pr='repository { name nameWithOwner } number title url isDraft updatedAt author { __typename login }'
+gh_query="query(\$requested: String!, \$reviewed: String!, \$mine: String!, \$issues: String!, \$recent: String!) {
+  requested: search(type: ISSUE, first: 100, query: \$requested) { nodes { ... on PullRequest { $gh_pr } } }
+  reviewed: search(type: ISSUE, first: 100, query: \$reviewed) { nodes { ... on PullRequest { $gh_pr reviewDecision
     reviews(last: 100) { nodes { author { login } state submittedAt } }
     commits(last: 100) { nodes { commit { committedDate } } } } } }
-  mine: search(type: ISSUE, first: 100, query: \$mine) { nodes { ... on PullRequest { $pr reviewDecision mergeable baseRefName headRefName
+  mine: search(type: ISSUE, first: 100, query: \$mine) { nodes { ... on PullRequest { $gh_pr reviewDecision mergeable baseRefName headRefName
     reviews(last: 100) { nodes { author { login } submittedAt } }
     comments(last: 100) { nodes { author { login } createdAt } }
     commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
@@ -47,41 +87,30 @@ query="query(\$requested: String!, \$reviewed: String!, \$mine: String!, \$issue
   recent: search(type: ISSUE, first: 100, query: \$recent) { nodes { ... on PullRequest { repository { nameWithOwner } } } }
 }"
 
-review_requested() {
-  jq -r --arg stale "$stale" "$jqlib"'
-    .requested.nodes[] | select(bot | not) | select(.updatedAt >= $stale)
-    | ["\(.repository.name)#\(.number)", .url, "\(who), updated \(.updatedAt[5:10])\(if .isDraft then ", draft" else "" end): \(.title)"] | @tsv' <<<"$1" | items
-  jq -r --arg stale "$stale" "$jqlib"'
-    ([.requested.nodes[] | select(bot)] | length) as $bots
-    | ([.requested.nodes[] | select(bot | not) | select(.updatedAt < $stale)] | length) as $old
-    | [(if $bots > 0 then "\($bots) from bots" else empty end), (if $old > 0 then "\($old) with no update for 60 days" else empty end)]
-    | if length > 0 then "- not listed: \(join(", "))" else empty end' <<<"$1"
-}
-
-reviewed() {
-  jq -r --arg me "$2" "$jqlib"'
+gh_reviewed() {
+  jq -r --arg me "$2" "$gh_lib"'
     [.reviewed.nodes[] | select(bot | not)
       | ([.reviews.nodes[] | select(.author.login == $me)] | last) as $mine
       | select($mine)
       | ([.commits.nodes[] | select(.commit.committedDate > $mine.submittedAt)] | length) as $new
-      | {new: $new, row: ["\(.repository.name)#\(.number)", .url, "\(who): \(.title) | my \($mine.state) \($mine.submittedAt[5:10]), \(if $new > 0 then "\($new) NEW COMMITS" else "no new commit" end), decision \(.reviewDecision | none)"]}]
+      | {new: $new, row: [ref, .url, "\(who): \(.title) | my \($mine.state) \($mine.submittedAt[5:10]), \(if $new > 0 then "\($new) NEW COMMITS" else "no new commit" end), decision \(.reviewDecision | none)"]}]
     | sort_by(-.new) | .[] | .row | @tsv' <<<"$1" | items
 }
 
-mine() {
-  jq -r --arg me "$2" "$jqlib"'
+gh_mine() {
+  jq -r --arg me "$2" "$gh_lib"'
     .mine.nodes[]
     | ([.commits.nodes[].commit.statusCheckRollup.contexts.nodes[]? | (.conclusion // .state // .status) | select(. != "SUCCESS" and . != "SKIPPED" and . != "NEUTRAL")] | group_by(.) | map("\(.[0]) \(length)") | join(", ")) as $checks
     | ([.comments.nodes[], .reviews.nodes[] | select(.author.login != $me) | (.createdAt // .submittedAt)] | max) as $last
-    | ["\(.repository.name)#\(.number)", .url, "\(.title) | \(.headRefName) -> \(.baseRefName)\(if .isDraft then ", draft" else "" end), decision \(.reviewDecision | none)\(if .mergeable != "MERGEABLE" then ", \(.mergeable)" else "" end), checks \(if $checks == "" then "ok" else $checks end)\(if $last then ", others last wrote \($last[5:10])" else "" end)"] | @tsv' <<<"$1" | items
+    | [ref, .url, "\(.title) | \(.headRefName) -> \(.baseRefName)\(if .isDraft then ", draft" else "" end), decision \(.reviewDecision | none)\(if .mergeable != "MERGEABLE" then ", \(.mergeable)" else "" end), checks \(if $checks == "" then "ok" else $checks end)\(if $last then ", others last wrote \($last[5:10])" else "" end)"] | @tsv' <<<"$1" | items
 }
 
-issues() {
-  jq -r '.issues.nodes[] | ["\(.repository.name)#\(.number)", .url, "updated \(.updatedAt[5:10]): \(.title)"] | @tsv' <<<"$1" | items
+gh_issues() {
+  jq -r "$gh_lib"'.issues.nodes[] | [ref, .url, "updated \(.updatedAt[5:10]): \(.title)"] | @tsv' <<<"$1" | items
 }
 
 # The workflows of one repository whose last run since $since failed, for the branches that still exist.
-failed_runs_of() {
+gh_failed_runs_of() {
   local repo="$1" branch line
   gh run list --repo "$repo" --user "$2" --created ">=$since" --limit 100 --json workflowName,headBranch,conclusion,createdAt,url |
     jq -r --arg repo "${repo#*/}" 'group_by([.headBranch, .workflowName]) | map(max_by(.createdAt)) | .[] | select(.conclusion == "failure")
@@ -91,41 +120,105 @@ failed_runs_of() {
     done
 }
 
-failed_runs() {
-  local dir repo
-  dir="$(mktemp -d)"
-  while read -r repo; do
-    failed_runs_of "$repo" "$2" >"$dir/${repo//\//_}" &
-  done < <(jq -r '[.recent.nodes[].repository.nameWithOwner] | unique | .[]' <<<"$1")
-  wait
-  cat "$dir"/* 2>/dev/null | items
-  rm -rf "$dir"
-}
-
-account() {
+github() {
   local data
   export GH_TOKEN
   GH_TOKEN="$(gh auth token --user "$1")"
-  data="$(gh api graphql -f query="$query" --jq .data \
+  data="$(gh api graphql -f query="$gh_query" --jq .data \
     -f requested="is:pr is:open review-requested:$1" \
     -f reviewed="is:pr is:open reviewed-by:$1 -author:$1" \
     -f mine="is:pr is:open author:$1" \
     -f issues="is:issue is:open assignee:$1" \
     -f recent="is:pr author:$1 updated:>=$since")" || return
-  review_requested "$data" | section "Review requested from me"
-  reviewed "$data" "$1" | section "Open pull requests that I reviewed"
-  mine "$data" "$1" | section "My open pull requests"
-  issues "$data" | section "Open issues assigned to me"
-  failed_runs "$data" "$1" | section "Workflows of my branches whose last run failed, since $since"
+  {
+    review_requested "$gh_lib" "$1" "$data" | section "Review requested from me"
+    gh_reviewed "$data" "$1" | section "Open pull requests that I reviewed"
+    gh_mine "$data" "$1" | section "My open pull requests"
+    gh_issues "$data" | section "Open issues assigned to me"
+    jq -r '[.recent.nodes[].repository.nameWithOwner] | unique | .[]' <<<"$data" | each_repo gh_failed_runs_of "$1" |
+      section "Workflows of my branches whose last run failed, since $since"
+  } | heading "$1"
 }
 
+gl_lib='def who: .author.username;
+def bot: .author.bot;
+def ref: "\(.project.path)\(.reference)";
+def my($me): .reviewers.nodes[] | select(.username == $me) | .mergeRequestInteraction.reviewState;
+def waits($me): my($me) | . == "UNREVIEWED" or . == "REVIEW_STARTED";
+def waiting($me): .requested.nodes[] | select(waits($me));'
+gl_mr='reference title url: webUrl isDraft: draft updatedAt sourceBranch targetBranch detailedMergeStatus
+  project { path } author { username bot } headPipeline { status }
+  reviewers { nodes { username mergeRequestInteraction { reviewState } } }
+  commits(last: 1) { nodes { committedDate } }'
+gl_query="query(\$since: Time!) { currentUser { username
+  requested: reviewRequestedMergeRequests(state: opened, first: 100) { nodes { $gl_mr } }
+  mine: authoredMergeRequests(state: opened, first: 100) { nodes { $gl_mr } }
+  recent: authoredMergeRequests(updatedAfter: \$since, first: 100) { nodes { project { fullPath } } }
+} }"
+
+gl_reviewed() {
+  jq -r --arg me "$2" "$gl_lib"'
+    .requested.nodes[] | select(bot | not) | select(waits($me) | not)
+    | [ref, .url, "\(who): \(.title) | my \(my($me)), last commit \(.commits.nodes[0].committedDate[5:10]), status \(.detailedMergeStatus)"] | @tsv' <<<"$1" | items
+}
+
+gl_mine() {
+  jq -r "$gl_lib"'
+    .mine.nodes[]
+    | ([.reviewers.nodes[] | "\(.username) \(.mergeRequestInteraction.reviewState)"] | join(", ")) as $reviews
+    | [ref, .url, "\(.title) | \(.sourceBranch) -> \(.targetBranch)\(if .isDraft then ", draft" else "" end), status \(.detailedMergeStatus), pipeline \(.headPipeline.status // "none")\(if $reviews != "" then ", reviewers: \($reviews)" else "" end)"] | @tsv' <<<"$1" | items
+}
+
+gl_issues() {
+  glab api 'issues?scope=assigned_to_me&state=opened&per_page=100' |
+    jq -r '.[] | [(.references.full | sub(".*/"; "")), .web_url, "updated \(.updated_at[5:10]): \(.title)"] | @tsv' | items
+}
+
+# The branches and merge requests of one project whose last pipeline created since $since failed, for the
+# branches that still exist and the merge requests that are still open. The pipelines group on what jq gives
+# to probe, so all the refs of a merge request are one item. The probe is empty when the item is gone.
+gl_failed_pipelines_of() {
+  local project="${1//\//%2F}" probe line
+  glab api "projects/$project/pipelines?username=$2&created_after=$since&per_page=100" |
+    jq -r --arg repo "${1##*/}" 'map((.ref | capture("^refs/merge-requests/(?<n>[0-9]+)/").n // null) as $mr
+      | {id, status, row: ((if $mr then ["merge_requests?iids[]=\($mr)&state=opened", "\($repo)!\($mr)"]
+        else ["repository/branches?search=\("^\(.ref)$" | @uri)", "\($repo) \(.ref)"] end)
+        + [.web_url, "\(.source), \(.created_at[5:10])"])})
+      | group_by(.row[0]) | map(max_by(.id)) | .[] | select(.status == "failed") | .row | @tsv' |
+    while IFS=$'\t' read -r probe line; do
+      glab api "projects/$project/$probe" | jq -e 'length > 0' >/dev/null && printf '%s\n' "$line"
+    done
+}
+
+gitlab() {
+  local data me
+  data="$(glab api graphql -f query="$gl_query" -f since="$since" | jq -e .data.currentUser)" || return
+  me="$(jq -r .username <<<"$data")"
+  {
+    review_requested "$gl_lib" "$me" "$data" | section "Review requested from me"
+    gl_reviewed "$data" "$me" | section "Open merge requests that I reviewed"
+    gl_mine "$data" | section "My open merge requests"
+    gl_issues | section "Open issues assigned to me"
+    jq -r '[.recent.nodes[].project.fullPath] | unique | .[]' <<<"$data" | each_repo gl_failed_pipelines_of "$me" |
+      section "Pipelines of my branches whose last run failed, since $since"
+  } | heading "$me, GitLab"
+}
+
+# Each account writes to a numbered file, and the files print in the order of the accounts.
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
-mapfile -t users < <(gh auth status --json hosts --jq '.hosts[][] | .login')
-for user in "${users[@]}"; do
-  account "$user" >"$out/$user" &
-done
+n=0
+if command -v gh >/dev/null; then
+  while read -r user; do
+    github "$user" >"$out/$n" &
+    n=$((n + 1))
+  done < <(gh auth status --json hosts --jq '.hosts[][] | .login')
+fi
+if command -v glab >/dev/null; then
+  gitlab >"$out/$n" &
+  n=$((n + 1))
+fi
 wait
-for user in "${users[@]}"; do
-  [[ -s $out/$user ]] && printf '# %s\n%s\n\n' "$user" "$(<"$out/$user")"
+for ((i = 0; i < n; i++)); do
+  cat "$out/$i"
 done
