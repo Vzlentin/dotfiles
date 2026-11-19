@@ -93,6 +93,7 @@ alias vim='nvim'
 (( $+commands[bat] )) && alias cat='bat'
 alias codex='codex --dangerously-bypass-approvals-and-sandbox'
 alias claude='claude --dangerously-skip-permissions'
+alias ghmepi='pi "$(ghme)" "/skill:parley" "/skill:artifact"'
 
 # Optional integrations
 if (( $+commands[just] )); then
