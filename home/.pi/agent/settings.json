@@ -1,9 +1,9 @@
 {
-  "lastChangelogVersion": "1.5.2",
+  "lastChangelogVersion": "1.6.0",
   "theme": "system",
   "externalEditor": "nvim",
   "defaultProvider": "claude-pool",
-  "defaultModel": "claude-fable-5-2",
+  "defaultModel": "claude-opus-5-5",
   "defaultThinkingLevel": "xhigh",
   "subagentModel": "claude-pool/claude-opus-5-5",
   "subagentThinkingLevel": "medium",
