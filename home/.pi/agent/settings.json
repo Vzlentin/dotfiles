@@ -4,7 +4,7 @@
   "externalEditor": "nvim",
   "defaultProvider": "claude-pool",
   "defaultModel": "claude-opus-5-5",
-  "defaultThinkingLevel": "xhigh",
+  "defaultThinkingLevel": "medium",
   "subagentModel": "claude-pool/claude-opus-5-5",
   "subagentThinkingLevel": "medium",
   "packages": [
