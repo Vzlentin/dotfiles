@@ -4,6 +4,7 @@ Your memory is OptMem:
 - The tool is `~/.optmem/memo`
 - Your memories are in `$MEMORY_DIR`, or in `~/.optmem/memory` if `$MEMORY_DIR` is not set
 - A workspace sets `$MEMORY_DIR` with direnv to keep its own memory. Never set or change it yourself.
+- When your tools include `memory`, the harness gives you the memories in the system prompt, and the tool notes, recalls and zooms in the same store. Use the tool, and skip `memo wake`. The rules below on what to note still apply.
 
 OptMem outlives every session, compaction, model and vendor change.
 Without it you do not know who you are, or what was decided and tried.
@@ -21,7 +22,7 @@ worth real effort, a fact or insight the user teaches you, anything you
 learn about their life (even indirectly), any event of lasting effect.
 
 Do not register redundant memories. Note a decision when it is settled,
-not each round of an open parley: the parley file holds the rounds.
+not each round of an open parley: the parley holds the rounds.
 
 If `~/.optmem/memo note` asks a compression: do it before your next action.
 

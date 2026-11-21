@@ -28,7 +28,7 @@ Run a retrospective on a coding session. Find changes to the coding agent's **en
    - **No-ops**: find instructions in steering files and skill descriptions that do not change what the agent does by default. _Use when_ the steering files are large.
    - **Information access**: look for ways to give the agent more information, such as dev server logs teed to a file or read-only access to a third-party service. _Use when_ the agent lacked a crucial piece of information.
 
-4. Present the candidates, most severe first. Severity is what the problem cost in this session and how often it will come back. Measure how often with `python3 scan.py --pattern '<name>=<regex>' --only '<name>'`, which counts the failure over recent sessions and lists each hit. For each candidate, give its evidence in the session, the change, and the file or command that the change touches.
+4. Present the candidates, most severe first. Severity is what the problem cost in this session and how often it will come back. Measure how often with `python3 scan.py --pattern '<name>=<regex>' --only '<name>'`, which counts the failure over recent sessions and lists each hit. For each candidate, give its evidence in the session, its root cause, the change, and the file or command that the change touches. Find the root cause in the primary source (the run log, the session, the error output), not in a summary or a handoff: a change built on the symptom fixes the wrong thing.
 
 ## Reference
 
