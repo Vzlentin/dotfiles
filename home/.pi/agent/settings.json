@@ -16,7 +16,10 @@
   ],
   "tuiMode": "fullscreen",
   "defaultTools": [
-    "+codemode"
+    "+codemode",
+    "+grep",
+    "+find",
+    "+ls"
   ],
   "modelThinkingLevels": {
     "cursor/claude-opus-5-5": "medium",
