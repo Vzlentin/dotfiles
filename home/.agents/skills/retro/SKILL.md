@@ -36,7 +36,7 @@ Run a retrospective on a coding session. Find changes to the coding agent's **en
 
 The implementing agent has the most **context pressure**: it explores, writes code and debugs failures. A reviewer gets a diff and needs little exploration, so coding standards belong in review.
 
-- `workflows ship` (the `ship` skill) runs plan, implement, review and judge sessions. Each session loads the `AGENTS.md` files and the skill list of its directory. The review session adds the fixed standards in `~/Dev/perso/workflows/prompts/review.md`. The judge reads the rule files that `~/Dev/perso/workflows/prompts/judge.md` names.
+- `workflows ship` (the `ship` skill) runs plan, implement, review and judge sessions. Each session loads the `AGENTS.md` files and the skill list of its directory. The review session adds the fixed standards in `~/Dev/stack/workflows/prompts/review.md`. The judge reads the rule files that `~/Dev/stack/workflows/prompts/judge.md` names.
 - A direct Pi session has no review stage. The same agent implements and checks its own diff.
 - No file is read only at review time. A judgement-call rule therefore goes into the repository's `AGENTS.md`, where every session pays for it. When a repository collects several such rules, propose a review-only rules file that the review and judge prompts read. That is a change to the workflows repository.
 
