@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # What GitHub and GitLab hold for me that can need an action, for each account that gh knows
 # and for the account of glab: pull or merge requests to review, those that I reviewed,
-# my open pull or merge requests, my issues, and the workflows or pipelines of my branches
+# my open pull or merge requests, the open pull requests of others on my GitHub repositories, my issues, and the workflows or pipelines of my branches
 # whose last run failed. A forge whose CLI is not installed is skipped.
 # An empty section does not print. On a terminal, the reference of an item is its link.
 # Usage: ghme [days]   (days of history for the failed runs, default 7)
@@ -73,7 +73,7 @@ def ref: "\(.repository.name)#\(.number)";
 def waiting($me): .requested.nodes[];
 def none: if . == null or . == "" then "none" else . end;'
 gh_pr='repository { name nameWithOwner } number title url isDraft updatedAt author { __typename login }'
-gh_query="query(\$requested: String!, \$reviewed: String!, \$mine: String!, \$issues: String!, \$recent: String!) {
+gh_query="query(\$requested: String!, \$reviewed: String!, \$mine: String!, \$others: String!, \$issues: String!, \$recent: String!) {
   requested: search(type: ISSUE, first: 100, query: \$requested) { nodes { ... on PullRequest { $gh_pr } } }
   reviewed: search(type: ISSUE, first: 100, query: \$reviewed) { nodes { ... on PullRequest { $gh_pr reviewDecision
     reviews(last: 100) { nodes { author { login } state submittedAt } }
@@ -83,6 +83,7 @@ gh_query="query(\$requested: String!, \$reviewed: String!, \$mine: String!, \$is
     comments(last: 100) { nodes { author { login } createdAt } }
     commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
       ... on CheckRun { conclusion status } ... on StatusContext { state } } } } } } } } } }
+  others: search(type: ISSUE, first: 100, query: \$others) { nodes { ... on PullRequest { $gh_pr } } }
   issues: search(type: ISSUE, first: 100, query: \$issues) { nodes { ... on Issue { repository { name } number title url updatedAt } } }
   recent: search(type: ISSUE, first: 100, query: \$recent) { nodes { ... on PullRequest { repository { nameWithOwner } } } }
 }"
@@ -103,6 +104,13 @@ gh_mine() {
     | ([.commits.nodes[].commit.statusCheckRollup.contexts.nodes[]? | (.conclusion // .state // .status) | select(. != "SUCCESS" and . != "SKIPPED" and . != "NEUTRAL")] | group_by(.) | map("\(.[0]) \(length)") | join(", ")) as $checks
     | ([.comments.nodes[], .reviews.nodes[] | select(.author.login != $me) | (.createdAt // .submittedAt)] | max) as $last
     | [ref, .url, "\(.title) | \(.headRefName) -> \(.baseRefName)\(if .isDraft then ", draft" else "" end), decision \(.reviewDecision | none)\(if .mergeable != "MERGEABLE" then ", \(.mergeable)" else "" end), checks \(if $checks == "" then "ok" else $checks end)\(if $last then ", others last wrote \($last[5:10])" else "" end)"] | @tsv' <<<"$1" | items
+}
+
+# The open pull requests of other people on my repositories, which no other section lists.
+gh_others() {
+  jq -r "$gh_lib"'
+    .others.nodes[] | select(bot | not)
+    | [ref, .url, "\(who), updated \(.updatedAt[5:10])\(if .isDraft then ", draft" else "" end): \(.title)"] | @tsv' <<<"$1" | items
 }
 
 gh_issues() {
@@ -128,12 +136,14 @@ github() {
     -f requested="is:pr is:open review-requested:$1" \
     -f reviewed="is:pr is:open reviewed-by:$1 -author:$1" \
     -f mine="is:pr is:open author:$1" \
+    -f others="is:pr is:open user:$1 -author:$1 -review-requested:$1 -reviewed-by:$1" \
     -f issues="is:issue is:open assignee:$1" \
     -f recent="is:pr author:$1 updated:>=$since")" || return
   {
     review_requested "$gh_lib" "$1" "$data" | section "Review requested from me"
     gh_reviewed "$data" "$1" | section "Open pull requests that I reviewed"
     gh_mine "$data" "$1" | section "My open pull requests"
+    gh_others "$data" | section "Open pull requests from others on my repositories"
     gh_issues "$data" | section "Open issues assigned to me"
     jq -r '[.recent.nodes[].repository.nameWithOwner] | unique | .[]' <<<"$data" | each_repo gh_failed_runs_of "$1" |
       section "Workflows of my branches whose last run failed, since $since"
