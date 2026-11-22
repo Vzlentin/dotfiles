@@ -11,15 +11,20 @@
  *
  * A spent account is tried again after 15 minutes: a quota can come back before its reset time.
  *
+ * When the chat settles on a 429 after Pi's retries, that account is spent too, with or without the
+ * header, until the reset of its last 429. When every logged-in account is spent, one revive runs at
+ * the first reset: it sends `continue` if the chat died on a 429 and is idle, and resumes the failed
+ * workflows runs whose error is a 429, a rate limit or a stopped turn.
+ *
  * A switch loses the prompt cache once: caches belong to one account. Thinking blocks of the other
  * account go to the new one as plain text, the same as after a manual model switch.
  *
- * `/claude-pool` shows each account and when its quota resets.
+ * `/claude-pool` shows each account, when its quota resets, and when the revive runs.
  */
 
 import { anthropicMessagesApi, createProvider, type Api, type Model } from "@earendil-works/pi-ai/compat";
 import { builtinProviders, getBuiltinModels } from "@earendil-works/pi-ai/providers/all";
-import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+import { getSupportedThinkingLevels, type AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext, ModelRegistry, ModelRouteRequest } from "@earendil-works/pi-coding-agent";
 
 const ACCOUNT_COUNT = 2;
@@ -28,6 +33,7 @@ const ACCOUNTS = ["anthropic", ...Array.from({ length: ACCOUNT_COUNT - 1 }, (_, 
 // Used when a quota 429 has no reset header.
 const DEFAULT_BLOCK_MS = 60 * 60 * 1000;
 const RECHECK_MS = 15 * 60 * 1000;
+const RUN_ERROR_TO_RESUME = /\b429\b|rate.?limit|turn stopped: error/i;
 
 interface PoolState {
 	account: string;
@@ -42,6 +48,11 @@ interface Block {
 const blocks = new Map<string, Block>();
 let lastRouted: string | undefined;
 let registry: ModelRegistry | undefined;
+// Reset time of the last 429 of each account, with or without the rejected header.
+const last429 = new Map<string, number>();
+// Last assistant message of the last agent run. agent_end fires once per retry attempt.
+let lastAssistant: AssistantMessage | undefined;
+let revive: { timer: ReturnType<typeof setTimeout>; at: number } | undefined;
 
 // Pi reports no headers for a failed request (after_provider_response fires only on success), so
 // the quota headers of a 429 are read from fetch. The Anthropic SDK uses the global fetch.
@@ -53,9 +64,15 @@ function watchQuota429s(): void {
 	const watched = async (...args: Parameters<typeof fetch>) => {
 		const response = await original(...args);
 		// The unified status header can say "rejected" on a 200 too, so only a 429 counts.
-		if (response.status === 429 && response.headers.get("anthropic-ratelimit-unified-status") === "rejected") {
+		if (response.status === 429) {
 			const account = await accountOf(...args);
-			if (account) blocks.set(account, { until: quotaResetMs(response.headers), seenAt: Date.now() });
+			if (account) {
+				const until = quotaResetMs(response.headers);
+				last429.set(account, until);
+				if (response.headers.get("anthropic-ratelimit-unified-status") === "rejected") {
+					blocks.set(account, { until, seenAt: Date.now() });
+				}
+			}
 		}
 		return response;
 	};
@@ -122,6 +139,69 @@ function formatTime(ms: number): string {
 	return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+/** The pool account of a chat run that ended on a 429 after Pi's retries. */
+function final429Account(message: AssistantMessage | undefined): string | undefined {
+	if (message?.stopReason !== "error" || !/^429\b/.test(message.errorMessage ?? "")) return undefined;
+	return ACCOUNTS.includes(message.provider) ? message.provider : undefined;
+}
+
+/** Accounts with credentials for at least one model. */
+function loggedInAccounts(ctx: ExtensionContext): string[] {
+	const models = ctx.modelRegistry.getAll();
+	return ACCOUNTS.filter((account) =>
+		models.some((model) => model.provider === account && ctx.modelRegistry.hasConfiguredAuth(model)),
+	);
+}
+
+/** Start one revive at the first reset when every logged-in account is spent. */
+function scheduleReviveIfSpent(pi: ExtensionAPI, ctx: ExtensionContext): void {
+	if (revive) return;
+	const accounts = loggedInAccounts(ctx);
+	if (accounts.length === 0 || !accounts.every(isBlocked)) return;
+	const at = Math.min(...accounts.map(resetOf));
+	const timer = setTimeout(() => void runRevive(pi, ctx), Math.max(0, at - Date.now()));
+	revive = { timer, at };
+	if (ctx.hasUI) ctx.ui.notify(`${POOL}: every account is spent, revive at ${formatTime(at)}`, "warning");
+}
+
+function cancelRevive(): void {
+	if (revive) clearTimeout(revive.timer);
+	revive = undefined;
+}
+
+/** Continue the chat that died on a 429, and resume the workflows runs that failed on one. */
+async function runRevive(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
+	revive = undefined;
+	const done: string[] = [];
+	if (final429Account(lastAssistant) !== undefined && ctx.isIdle()) {
+		pi.sendUserMessage("continue");
+		done.push("chat");
+	}
+	try {
+		done.push(...(await resumeFailedRuns(pi, ctx.cwd)));
+	} catch (error) {
+		if (ctx.hasUI) ctx.ui.notify(`${POOL}: workflows resume failed: ${String(error)}`, "error");
+	}
+	if (ctx.hasUI) ctx.ui.notify(`${POOL}: revived ${done.length ? done.join(", ") : "nothing"}`, "info");
+}
+
+/** Resume each failed workflows run whose error is a 429, a rate limit or a stopped turn. */
+async function resumeFailedRuns(pi: ExtensionAPI, cwd: string): Promise<string[]> {
+	const list = await pi.exec("workflows", ["list", "--json"], { cwd });
+	if (list.code !== 0) throw new Error(list.stderr.trim() || `workflows list exited ${list.code}`);
+	const rows = JSON.parse(list.stdout) as { runId: string; state: string; repository: string | null }[];
+	const resumed: string[] = [];
+	for (const row of rows.filter((row) => row.state === "failed")) {
+		const show = await pi.exec("workflows", ["show", row.runId, "--json"], { cwd });
+		if (show.code !== 0) continue;
+		const error = (JSON.parse(show.stdout) as { error?: string }).error ?? "";
+		if (!RUN_ERROR_TO_RESUME.test(error)) continue;
+		const resume = await pi.exec("workflows", ["resume", row.runId, "--background"], { cwd: row.repository ?? cwd });
+		if (resume.code === 0) resumed.push(row.runId);
+	}
+	return resumed;
+}
+
 export default function (pi: ExtensionAPI) {
 	const base = builtinProviders().find((provider) => provider.id === "anthropic");
 	if (!base?.auth.oauth) throw new Error(`${POOL}: the built-in anthropic provider has no OAuth login`);
@@ -167,15 +247,28 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
 		registry = ctx.modelRegistry;
 	});
+	pi.on("agent_end", (event) => {
+		lastAssistant = event.messages.findLast((message): message is AssistantMessage => message.role === "assistant");
+	});
+	pi.on("agent_settled", (event, ctx) => {
+		if (event.aborted) return;
+		const account = final429Account(lastAssistant);
+		if (account) {
+			const now = Date.now();
+			blocks.set(account, { until: last429.get(account) ?? now + DEFAULT_BLOCK_MS, seenAt: now });
+		}
+		scheduleReviveIfSpent(pi, ctx);
+	});
+	pi.on("session_shutdown", () => {
+		cancelRevive();
+	});
 
 	pi.registerCommand(POOL, {
 		description: "Show the Claude pool accounts and their quota state",
 		handler: async (_args, ctx) => {
+			const loggedIn = loggedInAccounts(ctx);
 			const lines = ACCOUNTS.map((account) => {
-				const loggedIn = ctx.modelRegistry
-					.getAll()
-					.some((model) => model.provider === account && ctx.modelRegistry.hasConfiguredAuth(model));
-				const state = !loggedIn
+				const state = !loggedIn.includes(account)
 					? `not logged in (/login ${account})`
 					: isBlocked(account)
 						? `spent until ${formatTime(resetOf(account))}`
@@ -183,6 +276,7 @@ export default function (pi: ExtensionAPI) {
 				const active = account === lastRouted ? " (active)" : "";
 				return `${label(account)} ${account}: ${state}${active}`;
 			});
+			if (revive) lines.push(`revive at ${formatTime(revive.at)}`);
 			ctx.ui.notify(lines.join("\n"), "info");
 		},
 	});
