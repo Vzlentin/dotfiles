@@ -53,6 +53,9 @@ const last429 = new Map<string, number>();
 // Last assistant message of the last agent run. agent_end fires once per retry attempt.
 let lastAssistant: AssistantMessage | undefined;
 let revive: { timer: ReturnType<typeof setTimeout>; at: number } | undefined;
+// The runs that had already failed when this Pi process started. A revive never resumes them: the generic
+// `turn stopped: error` cannot tell an old failure from a 429 of this session.
+let failedAtStart: Promise<Set<string>> = Promise.resolve(new Set());
 
 // Pi reports no headers for a failed request (after_provider_response fires only on success), so
 // the quota headers of a 429 are read from fetch. The Anthropic SDK uses the global fetch.
@@ -185,13 +188,22 @@ async function runRevive(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void>
 	if (ctx.hasUI) ctx.ui.notify(`${POOL}: revived ${done.length ? done.join(", ") : "nothing"}`, "info");
 }
 
+/** The IDs of the failed workflows runs, or none when `workflows list` fails. */
+async function failedRunIds(pi: ExtensionAPI, cwd: string): Promise<Set<string>> {
+	const list = await pi.exec("workflows", ["list", "--json"], { cwd });
+	if (list.code !== 0) return new Set();
+	const rows = JSON.parse(list.stdout) as { runId: string; state: string }[];
+	return new Set(rows.filter((row) => row.state === "failed").map((row) => row.runId));
+}
+
 /** Resume each failed workflows run whose error is a 429, a rate limit or a stopped turn. */
 async function resumeFailedRuns(pi: ExtensionAPI, cwd: string): Promise<string[]> {
 	const list = await pi.exec("workflows", ["list", "--json"], { cwd });
 	if (list.code !== 0) throw new Error(list.stderr.trim() || `workflows list exited ${list.code}`);
 	const rows = JSON.parse(list.stdout) as { runId: string; state: string; repository: string | null }[];
+	const old = await failedAtStart;
 	const resumed: string[] = [];
-	for (const row of rows.filter((row) => row.state === "failed")) {
+	for (const row of rows.filter((row) => row.state === "failed" && !old.has(row.runId))) {
 		const show = await pi.exec("workflows", ["show", row.runId, "--json"], { cwd });
 		if (show.code !== 0) continue;
 		const error = (JSON.parse(show.stdout) as { error?: string }).error ?? "";
@@ -246,6 +258,7 @@ export default function (pi: ExtensionAPI) {
 	watchQuota429s();
 	pi.on("session_start", (_event, ctx) => {
 		registry = ctx.modelRegistry;
+		failedAtStart = failedRunIds(pi, ctx.cwd).catch(() => new Set<string>());
 	});
 	pi.on("agent_end", (event) => {
 		lastAssistant = event.messages.findLast((message): message is AssistantMessage => message.role === "assistant");
