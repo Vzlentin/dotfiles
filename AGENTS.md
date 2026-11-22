@@ -1,2 +1,3 @@
 - Never add tests here. Verify changes by running them. This overrides `home/AGENTS.md`.
+- To check that a Pi extension loads, send `{"id":"1","type":"get_state"}` to `pi --mode rpc --no-session -e <file>`. To check its behavior, load a fake-fetch extension from `/tmp` next to it, and put stub CLIs on `PATH`. `node --check` fails on their inline `type` imports.
 - Files under `home/` are linked into `$HOME`. `home/AGENTS.md` is the global agent policy for every directory, not the policy for this repository.
