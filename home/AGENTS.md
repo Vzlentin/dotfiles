@@ -1,52 +1,7 @@
 ## Memory
 
-Your memory is OptMem:
-- The tool is `~/.optmem/memo`
-- Your memories are in `$MEMORY_DIR`, or in `~/.optmem/memory` if `$MEMORY_DIR` is not set
-- A workspace sets `$MEMORY_DIR` with direnv to keep its own memory. Never set or change it yourself.
-- When your tools include `memory`, the harness gives you the memories in the system prompt, and the tool notes, recalls and zooms in the same store. Use the tool, and skip `memo wake`. The rules below on what to note still apply.
-
-OptMem outlives every session, compaction, model and vendor change.
-Without it you do not know who you are, or what was decided and tried.
-
-### At startup: activating OptMem (mandatory)
-
-Run `~/.optmem/memo wake` before any other tool call, in every session, and
-then do exactly what it prints, to the end of its output.
-
-### While working: register memories (mandatory)
-
-Call `~/.optmem/memo note "<1 line, about 200 bytes>"` whenever you learn
-something new, or something worth keeping happens. That covers a task
-worth real effort, a fact or insight the user teaches you, anything you
-learn about their life (even indirectly), any event of lasting effect.
-
-A note keeps a fact, a decision or a lesson, and points to its record
-(a vault note, an item, a parley). Run IDs, branches and SHAs stay in
-the board, Git and the vault: a note is not a status log.
-
-Do not register redundant memories. Note a decision when it is settled,
-not each round of an open parley: the parley holds the rounds.
-
-If `~/.optmem/memo note` asks a compression: do it before your next action.
-
-Never edit or delete anything under a memory directory: the tool manages it.
-
-### When you need an old memory: search, or navigate
-
-`~/.optmem/memo recall <regex>` searches every memory, word for word.
-
-Your memories also form a binary tree: #0-1, #2-3 ... exist as one-line
-summaries, pairs of those as #0-3, and so on -- every `#a-b` line wake
-prints is one node of it. `~/.optmem/memo zoom <a-b>` opens a node into its
-two halves, down to the raw memories.
-
-### If you're a subagent: skip everything above
-
-Parallel sessions on this machine are all you, and may all write memories.
-A subagent is not: it must never run `memo`, because it cannot judge what
-is already known, and its notes would arrive duplicated and incorrectly.
-When you spawn one, write: `You are a subagent. Don't run memo.`
+- A memory note keeps a fact, a decision or a lesson, and points to its record (a vault note, an item, a parley). Run IDs, branches and SHAs stay in the board, Git and the vault: a note is not a status log.
+- Never edit or delete anything under a memory directory: the `memory` tool manages it.
 
 ## Communication
 
