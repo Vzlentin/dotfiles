@@ -44,11 +44,13 @@ export_main() {
 }
 
 # Packs the npm package of the folder $1 into the pack folder, and prints the path of the tarball.
+# The name of the tarball has the commit $2, because npm caches a file: tarball by its path.
 pack() {
   local file
-  file="$(cd "$1" && npm pack --silent --pack-destination "$packs" "${@:2}" 2>>"$logs/pack.log" | tail -n 1)"
+  file="$(cd "$1" && npm pack --silent --pack-destination "$packs" "${@:3}" 2>>"$logs/pack.log" | tail -n 1)"
   [[ -f $packs/$file ]] || fail "npm pack gave no tarball in $1, see $logs/pack.log"
-  echo "$packs/$file"
+  mv "$packs/$file" "$packs/${file%.tgz}-$2.tgz"
+  echo "$packs/${file%.tgz}-$2.tgz"
 }
 
 # Prints `<pid> <host>` for each harness host that runs from the npm folder of Pi.
@@ -73,7 +75,7 @@ for repo in harness workflows projects; do
   logged "$repo-ci" npm --prefix "$build" ci --no-audit --no-fund
   for dir in "$build" "$build/pi"; do
     # The root package builds in its prepack script. The Pi package has only source files.
-    if [[ $dir == "$build" ]]; then tarball="$(pack "$dir")"; else tarball="$(pack "$dir" --ignore-scripts)"; fi
+    if [[ $dir == "$build" ]]; then tarball="$(pack "$dir" "$sha")"; else tarball="$(pack "$dir" "$sha" --ignore-scripts)"; fi
     specs+=("$(tar -xOzf "$tarball" package/package.json | jq -r .name)=file:$tarball")
   done
   summary+=("$repo $sha")
@@ -97,20 +99,25 @@ jq '
     | if $p.name | startswith("@vzlentin/pi-") then .dependencies[$p.name] = $p.spec else . end)
 ' "$state/package.json.before" --args "${specs[@]}" >"$npm_dir/package.json"
 # A tarball keeps the version of the last release, so npm keeps an installed copy of that version.
+# npm also reads the integrity of the hidden lockfile, and then takes the old tarball from its cache.
 rm -rf "$npm_dir/node_modules/@vzlentin"
-if [[ -f $npm_dir/package-lock.json ]]; then
-  jq 'del(.packages[keys[] | select(contains("node_modules/@vzlentin/"))])' "$npm_dir/package-lock.json" >"$state/lock.json"
-  mv "$state/lock.json" "$npm_dir/package-lock.json"
-fi
+for lock in "$npm_dir/package-lock.json" "$npm_dir/node_modules/.package-lock.json"; do
+  [[ -f $lock ]] || continue
+  jq 'del(.packages[keys[] | select(contains("node_modules/@vzlentin/"))])' "$lock" >"$state/lock.json"
+  mv "$state/lock.json" "$lock"
+done
 logged install npm --prefix "$npm_dir" install --legacy-peer-deps --no-audit --no-fund
 
 for spec in "${specs[@]}"; do
   name="${spec%%=*}"
   tarball="${spec#*=file:}"
-  [[ $name == @vzlentin/pi-* ]] && continue
-  cmp -s <(tar -xOzf "$tarball" package/dist/cli.js) "$npm_dir/node_modules/$name/dist/cli.js" ||
+  rm -rf "$state/check"
+  mkdir -p "$state/check"
+  tar -xzf "$tarball" -C "$state/check"
+  diff -rq -x node_modules "$state/check/package" "$npm_dir/node_modules/$name" >/dev/null ||
     fail "$npm_dir/node_modules/$name is not the build of main"
 done
+rm -rf "$state/check"
 [[ $(find "$npm_dir/node_modules" -path '*/@vzlentin/harness/package.json' | wc -l) -eq 1 ]] ||
   fail "$npm_dir has more than one copy of @vzlentin/harness"
 
