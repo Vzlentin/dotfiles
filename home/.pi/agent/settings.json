@@ -7,6 +7,7 @@
   "defaultThinkingLevel": "medium",
   "subagentModel": "claude-pool/claude-opus-5-5",
   "subagentThinkingLevel": "medium",
+  "followUpMode": "all",
   "packages": [
     "npm:@ogulcancelik/pi-session-recall",
     "git:github.com/Vzlentin/pi-black",
