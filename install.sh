@@ -97,27 +97,70 @@ printf '%s\n' "$linkable_paths" | while IFS= read -r relative_path; do
 done
 
 # npx installs the skills of public repositories and records them in its own
-# lock file, outside this checkout. A skill that is already there stays as it is, such
-# as a link to a checkout of Vzlentin/skills. This runs after the links, so that
-# npx never writes through a stale link into this checkout.
-install_skills() {
-    repository=$1
-    shift
-    for skill in "$@"; do
-        if [ ! -e "$HOME/.agents/skills/$skill" ] && [ ! -L "$HOME/.agents/skills/$skill" ]; then
-            (cd "$HOME" && npx --yes skills add "$repository" --global --agent pi --skill "$skill" --yes)
+# lock file, outside this checkout. The lock is the list of the skills that npx
+# keeps: each run updates the listed skills, adds the missing ones, and removes
+# the others. A link in ~/.agents/skills stays as it is, such as a link to a
+# checkout of Vzlentin/skills. This runs after the links, so that npx never
+# writes through a stale link into this checkout.
+SKILL_LOCK="$STATE_HOME/skills/.skill-lock.json"
+
+# Each line: <repository> <skill>.
+wanted_skills() {
+    echo Vzlentin/skills show-me
+    echo Vzlentin/skills artifacts
+    echo Vzlentin/skills writing-pr
+    echo Vzlentin/skills chief-of-staff
+    echo mattpocock/skills handoff
+    echo mitsuhiko/agent-stuff librarian
+    echo AVGVSTVS96/better-github-skill better-github-skill
+    if [ "$(uname -s)" = Darwin ]; then
+        echo Vzlentin/skills dia
+    fi
+}
+
+locked_skills() {
+    if [ -f "$SKILL_LOCK" ]; then
+        node -e 'for (const name of Object.keys(require(process.argv[1]).skills ?? {})) console.log(name)' "$SKILL_LOCK"
+    fi
+}
+
+skills_cli() {
+    (cd "$HOME" && npx --yes skills "$@")
+}
+
+sync_skills() {
+    wanted=$(wanted_skills)
+    locked=$(locked_skills)
+
+    for skill in $locked; do
+        if ! printf '%s\n' "$wanted" | grep -q " $skill\$" && [ ! -L "$HOME/.agents/skills/$skill" ]; then
+            skills_cli remove --global --yes "$skill"
         fi
     done
+
+    printf '%s\n' "$wanted" | while read -r repository skill; do
+        if [ -L "$HOME/.agents/skills/$skill" ] || printf '%s\n' "$locked" | grep -Fqx "$skill"; then
+            continue
+        fi
+        skills_cli add "$repository" --global --agent pi --skill "$skill" --yes
+    done
+
+    updates=
+    for skill in $locked; do
+        if printf '%s\n' "$wanted" | grep -q " $skill\$" && [ ! -L "$HOME/.agents/skills/$skill" ]; then
+            updates="$updates $skill"
+        fi
+    done
+    if [ -n "$updates" ]; then
+        # shellcheck disable=SC2086
+        skills_cli update --global --yes $updates
+    fi
 }
 
 if [ "${1:-}" != --minimal ]; then
-    printf '\n==> Installing skills from public repositories\n'
-    install_skills Vzlentin/skills show-me artifacts writing-pr chief-of-staff
-    install_skills mattpocock/skills handoff
-    install_skills mitsuhiko/agent-stuff librarian
-    install_skills AVGVSTVS96/better-github-skill better-github-skill
+    printf '\n==> Syncing skills from public repositories\n'
+    sync_skills
     if [ "$(uname -s)" = Darwin ]; then
-        install_skills Vzlentin/skills dia
         if [ -d /Applications/Dia.app ] && [ ! -e "$HOME/Applications/Dia (JS).app" ]; then
             node "$HOME/.agents/skills/dia/dia.mjs" launcher
         fi
